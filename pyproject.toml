@@ -9,12 +9,7 @@ description = "Active learning and optimization toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
-license = {text = "MIT"}
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+license = "MIT"
 dependencies = [
     "numpy",
     "pandas",
@@ -33,6 +28,9 @@ dependencies = [
     "ctkmessagebox",
     "joblib",
 ]
+
+[tool.setuptools.packages.find]
+include = ["ui", "logic"]
 
 [project.urls]
 "Homepage" = "https://github.com/calebcoatney/ALchemist"
