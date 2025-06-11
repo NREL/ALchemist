@@ -47,7 +47,7 @@ Requires Python ≥ 3.9. All dependencies are specified in `pyproject.toml` and 
 To launch the graphical user interface:
 
 ```bash
-python main.py
+alchemist
 ```
 
 From the GUI, you can:
