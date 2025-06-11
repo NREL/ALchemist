@@ -32,6 +32,9 @@ dependencies = [
 [project.scripts]
 alchemist = "main:main"
 
+[tool.setuptools]
+py-modules = ["main"]
+
 [tool.setuptools.packages.find]
 include = ["ui", "logic"]
 
