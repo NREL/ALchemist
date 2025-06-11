@@ -7,6 +7,14 @@
 cache/
 logs/
 
+# Python-related
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+
 # User-specific files
 *.rsuser
 *.suo
