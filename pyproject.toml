@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Active learning and optimization toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [{name = "Unknown", email = ""}]
+authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
