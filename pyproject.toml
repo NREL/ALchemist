@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alchemist"
+version = "0.1.0"
+description = "Active learning and optimization toolkit"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "Unknown", email = ""}]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "mplcursors",
+    "scikit-learn",
+    "scikit-optimize",
+    "botorch",
+    "torch",
+    "gpytorch",
+    "ax-platform",
+    "customtkinter",
+    "tksheet",
+    "tabulate",
+    "ctkmessagebox",
+    "joblib",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/calebcoatney/ALchemist"
+"Source" = "https://github.com/calebcoatney/ALchemist"
+
