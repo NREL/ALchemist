@@ -52,7 +52,7 @@ class GaussianProcessPanel(ctk.CTkFrame):
         ctk.CTkLabel(self, text='Gaussian Process Model', font=('Arial', 16)).pack(pady=5)
 
         # Backend selection segmented button
-        self.backend_options = ["scikit-learn", "botorch", "ax"]
+        self.backend_options = ["scikit-learn", "botorch"]  # Removed "ax" from options
         self.backend_var = ctk.StringVar(value="scikit-learn")
         self.backend_segmented = ctk.CTkSegmentedButton(
             self,
@@ -79,11 +79,11 @@ class GaussianProcessPanel(ctk.CTkFrame):
         # Subframes for backend kernel options
         self.sklearn_frame = ctk.CTkFrame(self.advanced_frame)
         self.botorch_frame = ctk.CTkFrame(self.advanced_frame)
-        self.ax_frame = ctk.CTkFrame(self.advanced_frame)  # Add Ax frame
+        # Removed: self.ax_frame = ctk.CTkFrame(self.advanced_frame)
         self.sklearn_frame.pack(fill="x", expand=True)  # Initially pack scikit-learn frame
         self.create_sklearn_widgets()
         self.create_botorch_widgets()
-        self.create_ax_widgets()  # Create Ax widgets
+        # Removed: self.create_ax_widgets()  # Create Ax widgets
 
         # Buttons for training and visualizations
         self.train_button = ctk.CTkButton(self, text="Train Model", command=self.train_model_threaded)
@@ -96,8 +96,6 @@ class GaussianProcessPanel(ctk.CTkFrame):
         )
         self.visualize_button.pack(pady=10)
         
-        # No longer need acquisition function options here - they're in a separate panel now
-
         # Initialize advanced options state
         self.toggle_advanced_options()
 
@@ -187,19 +185,6 @@ class GaussianProcessPanel(ctk.CTkFrame):
         )
         self.bt_info_label.pack(pady=5)
 
-    def create_ax_widgets(self):
-        """Create simplified Ax information widget."""
-        # Add informational label about Ax
-        self.ax_info_label = ctk.CTkLabel(
-            self.ax_frame,
-            text="Ax uses Bayesian optimization with automated model selection and hyperparameter tuning.\n\n"
-                 "No additional configuration is needed - Ax handles everything internally.",
-            text_color='white',
-            wraplength=250,
-            justify="left"
-        )
-        self.ax_info_label.pack(pady=10, padx=10)
-
     # ==========================
     # BACKEND AND ACQUISITION OPTIONS
     # ==========================
@@ -207,7 +192,7 @@ class GaussianProcessPanel(ctk.CTkFrame):
         """Switch kernel options based on selected backend and update acquisition options."""
         self.sklearn_frame.pack_forget()
         self.botorch_frame.pack_forget()
-        self.ax_frame.pack_forget()
+        # self.ax_frame.pack_forget()
         
         backend = self.backend_var.get()
         if backend == "scikit-learn":
@@ -218,8 +203,8 @@ class GaussianProcessPanel(ctk.CTkFrame):
             self.botorch_frame.pack(fill="x", expand=True)
             # Apply current advanced options state
             self.toggle_advanced_options()
-        elif backend == "ax":
-            self.ax_frame.pack(fill="x", expand=True)
+        # elif backend == "ax":
+        #     self.ax_frame.pack(fill="x", expand=True)
         
         # Update acquisition panel if it exists
         if hasattr(self.main_app, 'acquisition_panel'):
@@ -447,7 +432,7 @@ class GaussianProcessPanel(ctk.CTkFrame):
                 bt_kernel_options = {"cont_kernel_type": bt_kernel}
                 if bt_kernel == "Matern":
                     bt_kernel_options["matern_nu"] = float(self.bt_nu_var.get())
-                
+            
                 # Get categorical dimension indices
                 categorical_variables = self.main_app.search_space_manager.get_categorical_variables()
                 cat_dims = [
@@ -462,12 +447,9 @@ class GaussianProcessPanel(ctk.CTkFrame):
                     training_iter=100,
                     random_state=random_state
                 )
-                
-            elif backend == "ax":
-                # Ax backend is not implemented yet
-                print("Ax backend is not implemented yet.")
-                return
             
+            # Removed the elif backend == "ax": block
+        
             else:
                 raise ValueError(f"Unknown backend: {backend}")
             

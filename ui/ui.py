@@ -73,9 +73,6 @@ class ALchemistApp(ctk.CTk):
         # Set initial UI state based on data load
         self._update_ui_state()
         
-        # Ensure panels don't collapse
-        self._ensure_panel_visibility()
-
         # Initialize the experiment logger
         self.experiment_logger = ExperimentLogger()
         self.experiment_logger.start_experiment("ALchemist_Experiment")
@@ -87,19 +84,6 @@ class ALchemistApp(ctk.CTk):
         self.geometry('1450x800')
         self.minsize(1300, 600)  # Increase minimum width to accommodate all panels
         self.protocol('WM_DELETE_WINDOW', self._quit)
-        
-        # Add resize handler to check frame visibility on window resize
-        self.bind("<Configure>", lambda e: self.after(100, self._check_panels_after_resize))
-
-    def _check_panels_after_resize(self):
-        """Ensures panels stay visible after window resize."""
-        if hasattr(self, 'model_frame') and hasattr(self, 'acq_frame'):
-            # If window is too narrow, enforce minimum widths for both panels
-            if self.winfo_width() < 1300:
-                self.model_frame.configure(width=280)
-                self.acq_frame.configure(width=280)
-                self.model_frame.update_idletasks()
-                self.acq_frame.update_idletasks()
 
     def _create_menu_bar(self):
         menu_bar = tk.Menu(self)
@@ -137,6 +121,11 @@ class ALchemistApp(ctk.CTk):
         tk.messagebox.showinfo("Settings", "This is the settings dialog.")
 
     def _quit(self):
+        # Cancel all pending "after" tasks
+        for task_id in self.tk.call('after', 'info'):
+            self.after_cancel(task_id)
+    
+        # Now safely destroy the window
         self.quit()
         self.destroy()
 
@@ -761,69 +750,77 @@ class ALchemistApp(ctk.CTk):
                 print("Custom Strategy is not yet implemented.")
                 return
             elif strategy == "EMOC (Exploration)":
-                # Import acquisition framework
-                from logic.acquisition.emoc_acquisition import EMOCAcquisition
+                # Comment out import and implementation
+                # from logic.acquisition.emoc_acquisition import EMOCAcquisition
                 
-                # Create acquisition function using trained model
-                acquisition = EMOCAcquisition(
-                    search_space=self.main_app.search_space,
-                    model=self.main_app.gpr_model,
-                    random_state=42
-                )
+                # Placeholder message
+                print("EMOC acquisition function not implemented in this version.")
+                return
                 
-                # Update with existing data
-                if hasattr(acquisition, 'update'):
-                    acquisition.update(
-                        self.main_app.exp_df.drop(columns='Output'),
-                        self.main_app.exp_df['Output']
-                    )
-                
-                # Generate a pool if needed
-                if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
-                    from logic.pool import generate_pool
-                    self.main_app.pool = generate_pool(
-                        self.main_app.search_space, 
-                        self.main_app.exp_df, 
-                        pool_size=5000
-                    )
-                
-                # Get next point
-                next_point = acquisition.select_next(self.main_app.pool)
-                
-                # acq_func_kwargs for result data
-                acq_func_kwargs = {}
+                # # Create acquisition function using trained model
+                # acquisition = EMOCAcquisition(
+                #     search_space=self.main_app.search_space,
+                #     model=self.main_app.gpr_model,
+                #     random_state=42
+                # )
+                # 
+                # # Update with existing data
+                # if hasattr(acquisition, 'update'):
+                #     acquisition.update(
+                #         self.main_app.exp_df.drop(columns='Output'),
+                #         self.main_app.exp_df['Output']
+                #     )
+                # 
+                # # Generate a pool if needed
+                # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
+                #     from logic.pool import generate_pool
+                #     self.main_app.pool = generate_pool(
+                #         self.main_app.search_space, 
+                #         self.main_app.exp_df, 
+                #         pool_size=5000
+                #     )
+                # 
+                # # Get next point
+                # next_point = acquisition.select_next(self.main_app.pool)
+                # 
+                # # acq_func_kwargs for result data
+                # acq_func_kwargs = {}
                 
             elif strategy == "GandALF (Clustering + EMOC)":
-                # Import acquisition framework
-                from logic.acquisition.gandalf_acquisition import GandALFAcquisition
+                # Comment out import and implementation
+                # from logic.acquisition.gandalf_acquisition import GandALFAcquisition
                 
-                # Create acquisition instance
-                acquisition = GandALFAcquisition(
-                    search_space=self.main_app.search_space,
-                    model=self.main_app.gpr_model,
-                    random_state=42
-                )
+                # Placeholder message
+                print("GandALF acquisition function not implemented in this version.")
+                return
                 
-                # Update with existing data
-                acquisition.update(
-                    self.main_app.exp_df.drop(columns='Output'),
-                    self.main_app.exp_df['Output']
-                )
-                
-                # Generate a pool if needed
-                if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
-                    from logic.pool import generate_pool
-                    self.main_app.pool = generate_pool(
-                        self.main_app.search_space, 
-                        self.main_app.exp_df,
-                        pool_size=5000
-                    )
-                
-                # Get next point
-                next_point = acquisition.select_next(self.main_app.pool)
-                
-                # acq_func_kwargs for result data
-                acq_func_kwargs = {'clustering': True}
+                # # Create acquisition instance
+                # acquisition = GandALFAcquisition(
+                #     search_space=self.main_app.search_space,
+                #     model=self.main_app.gpr_model,
+                #     random_state=42
+                # )
+                # 
+                # # Update with existing data
+                # acquisition.update(
+                #     self.main_app.exp_df.drop(columns='Output'),
+                #     self.main_app.exp_df['Output']
+                # )
+                # 
+                # # Generate a pool if needed
+                # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
+                #     from logic.pool import generate_pool
+                #     self.main_app.pool = generate_pool(
+                #         self.main_app.search_space, 
+                #         self.main_app.exp_df,
+                #         pool_size=5000
+                #     )
+                # 
+                # # Get next point
+                # next_point = acquisition.select_next(self.main_app.pool)
+                # 
+                # # acq_func_kwargs for result data
+                # acq_func_kwargs = {'clustering': True}
             else:
                 print("Unknown strategy selected.")
                 return
@@ -832,38 +829,6 @@ class ALchemistApp(ctk.CTk):
             print(f"Strategy '{strategy}' executed successfully.")
         except Exception as e:
             print(f"Error executing strategy '{strategy}': {e}")
-
-    def _ensure_model_frame_visibility(self):
-        """Ensures the model frame is visible with proper dimensions."""
-        def check_visibility():
-            if hasattr(self, 'model_frame'):
-                # Force the minimum width regardless of current width
-                self.model_frame.configure(width=300)
-                self.model_frame.update_idletasks()
-                # Ensure minimum width is enforced
-                self.model_frame.pack_propagate(False)
-                # Ensure it's visible on all platforms
-                self.model_frame.lift()
-                
-        # Schedule this check after the initial rendering
-        self.after(500, check_visibility)
-
-    def _ensure_panel_visibility(self):
-        """Ensures all panels remain visible with proper dimensions."""
-        def check_visibility():
-            if hasattr(self, 'model_frame'):
-                self.model_frame.configure(width=280)
-                self.model_frame.pack_propagate(False)
-                
-            if hasattr(self, 'acq_frame'):
-                self.acq_frame.configure(width=280)
-                self.acq_frame.pack_propagate(False)
-                
-        # Schedule this check after the initial rendering
-        self.after(500, check_visibility)
-        
-        # Also bind to window resize events
-        self.bind("<Configure>", lambda e: self.after(100, check_visibility))
 
     def toggle_tabbed_layout(self):
         """Toggle between side-by-side and tabbed layout"""

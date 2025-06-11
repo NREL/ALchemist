@@ -16,12 +16,10 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         # Create frames for different backends
         self.acq_sklearn_frame = ctk.CTkFrame(self)
         self.acq_botorch_frame = ctk.CTkFrame(self)
-        self.acq_ax_frame = ctk.CTkFrame(self)
         
         # Create the widgets for each backend
         self.create_sklearn_widgets()
         self.create_botorch_widgets()
-        self.create_ax_widgets()
         
         # Initial load - always starts with scikit-learn
         self.acq_sklearn_frame.pack(fill="x", expand=True, padx=10, pady=5)
@@ -378,16 +376,14 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         """Show acquisition options based on selected logic."""
         self.acq_sklearn_frame.pack_forget()
         self.acq_botorch_frame.pack_forget()
-        self.acq_ax_frame.pack_forget()
         
         backend = self.backend_var.get()
         if backend == "scikit-learn":
             self.acq_sklearn_frame.pack(fill="x", expand=True, padx=10, pady=5)
         elif backend == "botorch":
             self.acq_botorch_frame.pack(fill="x", expand=True, padx=10, pady=5)
-        elif backend == "ax":
-            self.acq_ax_frame.pack(fill="x", expand=True, padx=10, pady=5)
-            
+        # Removed the Ax backend option
+        
         # Sync the backend selection with the model panel
         if hasattr(self.main_app, 'model_frame') and self.main_app.model_frame is not None:
             self.main_app.model_frame.backend_var.set(backend)
@@ -445,14 +441,12 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         """Update acquisition options based on GPR backend selection."""
         self.acq_sklearn_frame.pack_forget()
         self.acq_botorch_frame.pack_forget()
-        self.acq_ax_frame.pack_forget()
         
         if backend == "scikit-learn":
             self.acq_sklearn_frame.pack(fill="x", expand=True, padx=10, pady=5)
         elif backend == "botorch":
             self.acq_botorch_frame.pack(fill="x", expand=True, padx=10, pady=5)
-        elif backend == "ax":
-            self.acq_ax_frame.pack(fill="x", expand=True, padx=10, pady=5)
+        # Removed the Ax backend option
 
     def run_selected_strategy(self):
         """Execute the selected acquisition strategy."""
