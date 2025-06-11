@@ -21,7 +21,7 @@ ALchemist helps researchers accelerate discovery and optimization by combining:
 
 | Category | Highlights |
 |----------|------------|
-| **Search space definition** | Supports continuous, integer, and categorical parameters with bounds and priors |
+| **Search space definition** | Supports continuous, integer, and categorical parameters with bounds or discrete values |
 | **Model back-end** | Gaussian process regression via **BoTorch** or **scikit-optimize** backend |
 | **Acquisition functions** | *qEI*, *qPI*, *qUCB*, and *qNegIntegratedPosteriorVariance* for exploratory learning |
 | **GUI workflow** | Configure variable space, set up initial experiments or load existing experimental data, train model, and execute acquisition functions |
@@ -54,7 +54,7 @@ From the GUI, you can:
 
 - Define the optimization variables and constraints
 - Initialize experiments using built-in sampling methods
-- Run active learning loops with model-based suggestions
+- Train GP models and evaluate acquisition functions for next suggested experiments
 - Export logs and visualizations of model predictions
 
 ---
