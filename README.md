@@ -1,7 +1,7 @@
 # ALchemist
 
 **ALchemist** is a modular Python toolkit that brings **active learning** and **Bayesian optimization** to experimental design in chemical and materials research.  
-It is built for scientists who want to efficiently explore or optimize **moderately high-dimensional variable spaces**—without needing to write any code—through a lightweight **CustomTkinter** graphical interface.
+It is built for scientists who want to efficiently explore or optimize **high-dimensional variable spaces**—without needing to write any code—through a lightweight **CustomTkinter** graphical interface.
 
 ---
 
@@ -21,11 +21,11 @@ ALchemist helps researchers accelerate discovery and optimization by combining:
 | Category | Highlights |
 |----------|------------|
 | **Search space definition** | Supports continuous, integer, and categorical parameters with bounds and priors |
-| **Model back-end** | Gaussian process regression via **BoTorch** with optional **scikit-optimize** backend |
+| **Model back-end** | Gaussian process regression via **BoTorch** or **scikit-optimize** backend |
 | **Acquisition functions** | *qEI*, *qPI*, *qUCB*, and *qNegIntegratedPosteriorVariance* for exploratory learning |
-| **GUI workflow** | Configure experiments, view progress, and iterate through optimization loops |
+| **GUI workflow** | Configure variable space, set up initial experiments or load existing experimental data, train model, and execute acquisition functions |
 | **Experiment logging** | CSV checkpoints, reproducible random seeds, and basic error tracking |
-| **Extensibility** | Abstract model and acquisition interfaces allow for future back-end additions (e.g. Ax, deep learning)
+| **Extensibility** | Abstract model and acquisition interfaces allow for future back-end additions (e.g. Ax, deep learning models)
 
 ---
 
