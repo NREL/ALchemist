@@ -1,4 +1,5 @@
 # ALchemist
+**ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
 **ALchemist** is a modular Python toolkit that brings **active learning** and **Bayesian optimization** to experimental design in chemical and materials research.  
 It is built for scientists who want to efficiently explore or optimize **high-dimensional variable spaces**—without needing to write any code—through a lightweight **CustomTkinter** graphical interface.
