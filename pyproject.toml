@@ -29,6 +29,9 @@ dependencies = [
     "joblib",
 ]
 
+[project.scripts]
+alchemist = "main:main"
+
 [tool.setuptools.packages.find]
 include = ["ui", "logic"]
 
