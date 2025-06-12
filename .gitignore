@@ -14,6 +14,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+site/
 
 # User-specific files
 *.rsuser
