@@ -1,0 +1,44 @@
+site_name: ALchemist Documentation
+site_url: https://yourproject.github.io  # You can change this later
+repo_url: https://github.com/calebcoatney/ALchemist
+repo_name: ALchemist
+
+theme:
+  name: material
+  palette:
+    scheme: default
+  features:
+    - navigation.top
+    - navigation.tabs
+    - navigation.expand
+    - toc.integrate
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Core Workflow:
+      - Setting Up Variable Space: workflow/variable_space.md
+      - Generating Initial Experiments: workflow/initial_sampling.md
+      - Loading Experimental Data: workflow/load_data.md
+      - Visualizing Data: workflow/data_visualization.md
+  - Surrogate Modeling:
+      - scikit-optimize Backend: modeling/skopt.md
+      - BoTorch Backend: modeling/botorch.md
+      - Model Performance: modeling/performance.md
+  - Visualizations:
+      - Error metrics: visualizations/error_metrics.md
+      - Parity plot: visualizations/parity_plot.md
+      - Contour plot: visualizations/contour_plot.md
+  - Acquisition & Optimization:
+      - scikit-optimize Acquisition: acquisition/skopt.md
+      - BoTorch Acquisition: acquisition/botorch.md
+      - Logging & Tracking: acquisition/logging.md
+  - Educational Resources: resources.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.emoji
+  - pymdownx.tasklist
