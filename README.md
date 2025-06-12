@@ -6,6 +6,13 @@ It is built for scientists who want to efficiently explore or optimize **high-di
 
 ---
 
+## Documentation
+
+The full user guide and documentation are available at:  
+[https://calebcoatney.github.io/ALchemist/](https://calebcoatney.github.io/ALchemist/)
+
+---
+
 ## Purpose
 
 ALchemist helps researchers accelerate discovery and optimization by combining:
