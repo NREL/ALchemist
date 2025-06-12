@@ -60,16 +60,23 @@
   
     
     
+      
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
+      
+        
+        <a href="#botorch-backend" class="md-skip">
+          Skip to content
+        </a>
       
     </div>
     <div data-md-component="announce">
@@ -109,7 +116,33 @@
     </div>
     
       
+        <form class="md-header__option" data-md-component="palette">
+  
     
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
     
     
     
@@ -593,6 +626,21 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    BoTorch Backend
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -605,6 +653,112 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-botorch" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is BoTorch?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#training-a-model-with-botorch-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training a Model with BoTorch Backend
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training a Model with BoTorch Backend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-kernel-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Kernel Selection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-categorical-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Categorical Variables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-noise-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Noise Handling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-model-training-and-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Model Training and Evaluation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-advanced-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Advanced Options
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How It Works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -697,29 +851,6 @@
   
   <span class="md-ellipsis">
     Error metrics
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../visualizations/parity_plot/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Parity plot
     
   </span>
   
@@ -920,9 +1051,64 @@
   
 
 
-  <h1>BoTorch Backend</h1>
-
-
+<h1 id="botorch-backend">BoTorch Backend<a class="headerlink" href="#botorch-backend" title="Permanent link">&para;</a></h1>
+<p>The <strong>BoTorch</strong> backend in ALchemist allows you to train a Gaussian Process (GP) surrogate model using the <a href="https://botorch.org/">BoTorch</a> library, which is built on PyTorch and designed for scalable Bayesian optimization. BoTorch provides advanced kernel options and efficient handling of both continuous and categorical variables.</p>
+<hr />
+<h2 id="what-is-botorch">What is BoTorch?<a class="headerlink" href="#what-is-botorch" title="Permanent link">&para;</a></h2>
+<p><a href="https://botorch.org/">BoTorch</a> is a flexible, research-oriented library for Bayesian optimization built on PyTorch. It was developed by Meta (Facebook) and serves as the underlying optimization engine for <a href="https://ax.dev/">Ax</a>, a high-level adaptive experimentation platform. BoTorch supports advanced features such as anisotropic kernels (automatic relevance determination, ARD) and mixed-variable spaces, and is tightly integrated with <a href="https://gpytorch.ai/">GPyTorch</a> for scalable Gaussian process inference.</p>
+<hr />
+<h2 id="training-a-model-with-botorch-backend">Training a Model with BoTorch Backend<a class="headerlink" href="#training-a-model-with-botorch-backend" title="Permanent link">&para;</a></h2>
+<p>When you select the <strong>botorch</strong> backend in the Model panel, you are training a GP model using BoTorch's <code>SingleTaskGP</code> (for continuous variables) or <code>MixedSingleTaskGP</code> (for mixed continuous/categorical variables). The workflow and options are as follows:</p>
+<h3 id="1-kernel-selection">1. Kernel Selection<a class="headerlink" href="#1-kernel-selection" title="Permanent link">&para;</a></h3>
+<p>You can choose the kernel type for the continuous variables:</p>
+<ul>
+<li><strong>Matern:</strong> Default, with a tunable smoothness parameter (<code>nu</code>).</li>
+<li><strong>RBF:</strong> Radial Basis Function kernel.</li>
+</ul>
+<p>For the Matern kernel, you can select the <code>nu</code> parameter (0.5, 1.5, or 2.5), which controls the smoothness of the function.</p>
+<blockquote>
+<p><strong>Note:</strong> BoTorch uses anisotropic (ARD) kernels by default, so each variable can have its own learned lengthscale. This helps preserve the physical meaning of each variable and enables automatic relevance detection. For more details, see the <a href="../resources/kernels.md">Kernel Deep Dive</a> in the Educational Resources section.</p>
+</blockquote>
+<h3 id="2-categorical-variables">2. Categorical Variables<a class="headerlink" href="#2-categorical-variables" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Categorical variables are automatically detected and encoded.</li>
+<li>BoTorch uses the <code>MixedSingleTaskGP</code> model to handle mixed spaces, encoding categorical variables as required.</li>
+</ul>
+<h3 id="3-noise-handling">3. Noise Handling<a class="headerlink" href="#3-noise-handling" title="Permanent link">&para;</a></h3>
+<ul>
+<li>If your experimental data includes a <code>Noise</code> column, these values are used for regularization.</li>
+<li>If not, the model uses its internal noise estimation.</li>
+</ul>
+<h3 id="4-model-training-and-evaluation">4. Model Training and Evaluation<a class="headerlink" href="#4-model-training-and-evaluation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The model is trained on your current experiment data.</li>
+<li>Cross-validation is performed to estimate model performance (RMSE, MAE, MAPE, R²).</li>
+<li>Learned kernel hyperparameters (lengthscales, outputscale, etc.) are displayed after training.</li>
+</ul>
+<h3 id="5-advanced-options">5. Advanced Options<a class="headerlink" href="#5-advanced-options" title="Permanent link">&para;</a></h3>
+<ul>
+<li>You can select the kernel type and Matern <code>nu</code> parameter in the Model panel.</li>
+<li>BoTorch uses sensible defaults for other training parameters.</li>
+</ul>
+<hr />
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The model uses your variable space and experiment data to fit a GP regression model using PyTorch.</li>
+<li>The trained model is used for Bayesian optimization, suggesting new experiments via acquisition functions.</li>
+<li>All preprocessing (encoding, noise handling) is handled automatically.</li>
+</ul>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://botorch.org/docs/introduction">BoTorch documentation</a></li>
+<li><a href="https://botorch.readthedocs.io/en/latest/models.html#botorch.models.gp_regression.SingleTaskGP">BoTorch SingleTaskGP</a></li>
+<li><a href="https://botorch.readthedocs.io/en/latest/models.html#botorch.models.gp_regression_mixed.MixedSingleTaskGP">BoTorch MixedSingleTaskGP</a></li>
+<li><a href="https://ax.dev/">Ax platform documentation</a></li>
+<li><a href="https://gpytorch.ai/">GPyTorch documentation</a></li>
+</ul>
+<hr />
+<p>For a deeper explanation of kernel selection, anisotropic kernels, and ARD, see <a href="../resources/kernels.md">Kernel Deep Dive</a> in the Educational Resources section.</p>
+<p>For details on using the scikit-optimize backend, see the previous section.</p>
 
 
 
@@ -981,6 +1167,10 @@
     
     
       <script src="../../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
     
   </body>
