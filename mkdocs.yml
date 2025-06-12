@@ -6,7 +6,16 @@ repo_name: ALchemist
 theme:
   name: material
   palette:
-    scheme: default
+    # Dark Mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+    # Light Mode
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
   features:
     - navigation.top
     - navigation.tabs
@@ -27,7 +36,6 @@ nav:
       - Model Performance: modeling/performance.md
   - Visualizations:
       - Error metrics: visualizations/error_metrics.md
-      - Parity plot: visualizations/parity_plot.md
       - Contour plot: visualizations/contour_plot.md
   - Acquisition & Optimization:
       - scikit-optimize Acquisition: acquisition/skopt.md
@@ -42,3 +50,9 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.emoji
   - pymdownx.tasklist
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
