@@ -25,11 +25,11 @@ theme:
 
 nav:
   - Home: index.md
-  - Core Workflow:
-      - Setting Up Variable Space: workflow/variable_space.md
-      - Generating Initial Experiments: workflow/initial_sampling.md
-      - Loading Experimental Data: workflow/load_data.md
-      - Visualizing Data: workflow/data_visualization.md
+  - Setup:
+      - Setting Up Variable Space: setup/variable_space.md
+      - Generating Initial Experiments: setup/initial_sampling.md
+      - Loading Experimental Data: setup/load_data.md
+      - Visualizing Data: setup/data_visualization.md
   - Surrogate Modeling:
       - scikit-optimize Backend: modeling/skopt.md
       - BoTorch Backend: modeling/botorch.md

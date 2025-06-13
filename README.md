@@ -1,43 +1,46 @@
 # ALchemist
+
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
-**ALchemist** is a modular Python toolkit that brings **active learning** and **Bayesian optimization** to experimental design in chemical and materials research.  
-It is built for scientists who want to efficiently explore or optimize **high-dimensional variable spaces**—without needing to write any code—through a lightweight **CustomTkinter** graphical interface.
+ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.
 
 ---
 
-## Documentation
+## 📖 Documentation
 
-The full user guide and documentation are available at:  
+Full user guide and documentation:  
 [https://calebcoatney.github.io/ALchemist/](https://calebcoatney.github.io/ALchemist/)
 
 ---
 
-## Purpose
+## 🚀 Overview
 
-ALchemist helps researchers accelerate discovery and optimization by combining:
+ALchemist accelerates discovery and optimization by combining:
 
-- Mixed-variable search spaces (real, integer, categorical)
-- Probabilistic surrogate models (Gaussian processes)
-- Advanced acquisition strategies for efficient sampling
-- Intuitive GUI workflows for experiment planning and model refinement
-
----
-
-## Key Features (v0.1.0 beta)
-
-| Category | Highlights |
-|----------|------------|
-| **Search space definition** | Supports continuous, integer, and categorical parameters with bounds or discrete values |
-| **Model back-end** | Gaussian process regression via **BoTorch** or **scikit-optimize** backend |
-| **Acquisition functions** | *qEI*, *qPI*, *qUCB*, and *qNegIntegratedPosteriorVariance* for exploratory learning |
-| **GUI workflow** | Configure variable space, set up initial experiments or load existing experimental data, train model, and execute acquisition functions |
-| **Experiment logging** | CSV checkpoints, reproducible random seeds, and basic error tracking |
-| **Extensibility** | Abstract model and acquisition interfaces allow for future back-end additions (e.g. Ax, deep learning models)
+- **Flexible variable space definition:** Real, integer, and categorical variables with bounds or discrete values.
+- **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-optimize backends.
+- **Advanced acquisition strategies:** Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.
+- **Intuitive GUI workflow:** No coding required—define variables, generate initial experiments, load data, train models, and suggest new experiments.
+- **Experiment tracking:** CSV logging, reproducible random seeds, and error tracking.
+- **Extensibility:** Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.
 
 ---
 
-## Installation
+## 🗂️ Project Structure
+
+- **Setup:** Define variable spaces, generate initial experiments, load and visualize experimental data.
+- **Surrogate Modeling:** Train and evaluate models using scikit-optimize or BoTorch.
+- **Visualizations:** Analyze model performance, error metrics, and create contour plots.
+- **Acquisition & Optimization:** Run acquisition functions and log/track experiment suggestions.
+- **Educational Resources:** Learn about active learning and Bayesian optimization concepts.
+
+See the [documentation](https://calebcoatney.github.io/ALchemist/) for detailed guides on each workflow step.
+
+---
+
+## 💻 Installation
+
+Requirements: Python 3.9 or higher
 
 ```bash
 git clone https://github.com/calebcoatney/ALchemist.git
@@ -45,11 +48,11 @@ cd ALchemist
 python -m pip install -e .
 ```
 
-Requires Python ≥ 3.9. All dependencies are specified in `pyproject.toml` and will be installed automatically.
+All dependencies are specified in `pyproject.toml` and will be installed automatically.
 
 ---
 
-## Quick Start
+## 🏁 Quick Start
 
 To launch the graphical user interface:
 
@@ -59,26 +62,33 @@ alchemist
 
 From the GUI, you can:
 
-- Define the optimization variables and constraints
-- Initialize experiments using built-in sampling methods
-- Train GP models and evaluate acquisition functions for next suggested experiments
-- Export logs and visualizations of model predictions
+- Define optimization variables and constraints
+- Generate initial experiments or load existing data
+- Train surrogate models and evaluate acquisition functions
+- Visualize model predictions and export logs
+
+For step-by-step instructions, see the [Getting Started](https://calebcoatney.github.io/ALchemist/) section of the documentation.
 
 ---
 
-## Development Status
+## 🛠️ Development Status
 
-ALchemist is in active development at NREL as part of research supported by the DataHub project within the ChemCatBio consortium. It is designed to be approachable for non-ML researchers and extensible for power users who want to incorporate custom models, acquisition strategies, or lab automation workflows. Future versions will include improved DoE initial sampling, additional model types, enhanced visualization tools, and a reimplementation of the GUI in PySide6 for better cross-platform compatibility.
+ALchemist is under active development at NREL as part of the DataHub project within the ChemCatBio consortium. It is designed to be approachable for non-ML researchers and extensible for advanced users. Planned features include:
+
+- Enhanced initial sampling and DoE methods
+- Additional model types and acquisition strategies
+- Improved visualization tools
+- GUI reimplementation in PySide6 for broader compatibility
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License. See the LICENSE file for full terms.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Repository
+## 🔗 Repository
 
-<https://github.com/calebcoatney/ALchemist>
+[https://github.com/calebcoatney/ALchemist](https://github.com/calebcoatney/ALchemist)
 
