@@ -25,7 +25,7 @@ theme:
 
 nav:
   - Home: index.md
-  - Setup:
+  - Getting Started:
       - Setting Up Variable Space: setup/variable_space.md
       - Generating Initial Experiments: setup/initial_sampling.md
       - Loading Experimental Data: setup/load_data.md
@@ -41,7 +41,9 @@ nav:
       - scikit-optimize Acquisition: acquisition/skopt.md
       - BoTorch Acquisition: acquisition/botorch.md
       - Logging & Tracking: acquisition/logging.md
-  - Educational Resources: resources.md
+  - Educational Resources:
+      - Bayesian Optimization: background/bayesian_optimization.md
+      - Kernels: background/kernels.md
 
 markdown_extensions:
   - admonition
