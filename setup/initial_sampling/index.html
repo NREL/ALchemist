@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://yourproject.github.io/workflow/load_data/">
+        <link rel="canonical" href="https://yourproject.github.io/setup/initial_sampling/">
       
       
-        <link rel="prev" href="../initial_sampling/">
+        <link rel="prev" href="../variable_space/">
       
       
-        <link rel="next" href="../data_visualization/">
+        <link rel="next" href="../load_data/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Loading Experimental Data - ALchemist Documentation</title>
+        <title>Generating Initial Experiments - ALchemist Documentation</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#loading-experimental-data" class="md-skip">
+        <a href="#generating-initial-experiments" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Loading Experimental Data
+              Generating Initial Experiments
             
           </span>
         </div>
@@ -246,7 +246,7 @@
           
   
   
-  Core Workflow
+  Getting Started
 
         </a>
       </li>
@@ -319,17 +319,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../../resources/" class="md-tabs__link">
-        
-  
-  
     
+    
+      <li class="md-tabs__item">
+        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+          
+  
   
   Educational Resources
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -433,7 +434,7 @@
   
   
   <span class="md-ellipsis">
-    Core Workflow
+    Getting Started
     
   </span>
   
@@ -444,7 +445,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Core Workflow
+            Getting Started
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -461,29 +462,6 @@
   
   <span class="md-ellipsis">
     Setting Up Variable Space
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../initial_sampling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Generating Initial Experiments
     
   </span>
   
@@ -515,7 +493,7 @@
   
   
   <span class="md-ellipsis">
-    Loading Experimental Data
+    Generating Initial Experiments
     
   </span>
   
@@ -528,7 +506,7 @@
   
   
   <span class="md-ellipsis">
-    Loading Experimental Data
+    Generating Initial Experiments
     
   </span>
   
@@ -551,45 +529,36 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#loading-data-from-file" class="md-nav__link">
+  <a href="#why-generate-initial-points" class="md-nav__link">
     <span class="md-ellipsis">
-      Loading Data from File
+      Why Generate Initial Points?
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#adding-a-new-experiment-point" class="md-nav__link">
+  <a href="#how-to-generate-initial-points" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding a New Experiment Point
+      How to Generate Initial Points
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#saving-your-data" class="md-nav__link">
+  <a href="#tips" class="md-nav__link">
     <span class="md-ellipsis">
-      Saving Your Data
+      Tips
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#retraining-the-model" class="md-nav__link">
+  <a href="#example-workflow" class="md-nav__link">
     <span class="md-ellipsis">
-      Retraining the Model
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#known-issues-tips" class="md-nav__link">
-    <span class="md-ellipsis">
-      Known Issues &amp; Tips
+      Example Workflow
     </span>
   </a>
   
@@ -599,6 +568,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../load_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Loading Experimental Data
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -974,9 +966,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../resources/" class="md-nav__link">
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -985,7 +993,65 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Educational Resources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bayesian Optimization
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kernels
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1009,60 +1075,62 @@
   
 
 
-<h1 id="loading-experimental-data">Loading Experimental Data<a class="headerlink" href="#loading-experimental-data" title="Permanent link">&para;</a></h1>
-<p>The <strong>Experiment Data</strong> panel in ALchemist lets you load, view, and manage your experimental results. This is a key step before training surrogate models or running active learning.</p>
+<h1 id="generating-initial-experiments">Generating Initial Experiments<a class="headerlink" href="#generating-initial-experiments" title="Permanent link">&para;</a></h1>
+<p>When starting an active learning workflow, it's important to generate an initial set of experiments that cover your variable space efficiently. This is especially useful if you have no prior experimental data, or if your existing data was not collected with surrogate modeling in mind. Well-chosen initial points help ensure that your model converges efficiently and avoids bias from poor coverage.</p>
 <hr />
-<h2 id="loading-data-from-file">Loading Data from File<a class="headerlink" href="#loading-data-from-file" title="Permanent link">&para;</a></h2>
+<h2 id="why-generate-initial-points">Why Generate Initial Points?<a class="headerlink" href="#why-generate-initial-points" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>No Prior Data:</strong> If you are starting from scratch, you need a set of initial experiments to train your first surrogate model.</li>
+<li><strong>Supplement Existing Data:</strong> If you have some data, but it is sparse or not well-distributed, you can generate additional points to improve coverage.</li>
+<li><strong>Efficient Model Convergence:</strong> Good initial coverage of the variable space helps the model learn faster and reduces the risk of missing important regions.</li>
+</ul>
+<hr />
+<h2 id="how-to-generate-initial-points">How to Generate Initial Points<a class="headerlink" href="#how-to-generate-initial-points" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Click "Load Experiments":</strong><br />
-   In the Experiment Data panel, click the <strong>Load Experiments</strong> button.</li>
-<li><strong>Select Your File:</strong><br />
-   Choose a <code>.csv</code> file containing your experimental data. The file should have columns for each variable (matching your variable space) and an <code>Output</code> column for the measured result. Optionally, you can include a <code>Noise</code> column to specify measurement uncertainty for each point.</li>
-<li><strong>Data Appears in the Table:</strong><br />
-   The loaded data will be displayed in the table. If a <code>Noise</code> column is present, it will be used for model regularization.</li>
+<li>
+<p><strong>Load or Define Your Variable Space:</strong><br />
+   Make sure you have set up your variable space using the Variable Space Setup dialog.</p>
+</li>
+<li>
+<p><strong>Open the Initial Sampling Dialog:</strong><br />
+   In the main application window, click <strong>Generate Initial Points</strong> in the Experiment Data panel.</p>
+</li>
+<li>
+<p><strong>Choose a Sampling Strategy:</strong><br />
+   Select from several strategies:</p>
+</li>
+<li><strong>Random:</strong> Uniformly samples points at random.</li>
+<li><strong>LHS (Latin Hypercube Sampling):</strong> Ensures each variable is sampled evenly across its range.</li>
+<li>
+<p><strong>Sobol, Halton, Hammersly:</strong> Quasi-random low-discrepancy sequences for more uniform coverage in high dimensions.</p>
+</li>
+<li>
+<p><strong>Set the Number of Points:</strong><br />
+   Enter how many initial experiments you want to generate.</p>
+</li>
+<li>
+<p><strong>Generate and Review:</strong><br />
+   Click <strong>Generate</strong>. The new points will appear in your experiment table, ready for export or further editing.</p>
+</li>
 </ol>
-<p><strong>Tip:</strong><br />
-If your data columns do not match the variable names or required format, you may see an error. Make sure your CSV headers match your variable space exactly.</p>
 <hr />
-<h2 id="adding-a-new-experiment-point">Adding a New Experiment Point<a class="headerlink" href="#adding-a-new-experiment-point" title="Permanent link">&para;</a></h2>
-<p>You can add a new experiment directly from the UI:</p>
+<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Coverage Matters:</strong> More points give better coverage, but also require more experiments. Balance your resources and modeling needs.</li>
+<li><strong>Quasi-Random vs. Random:</strong> Quasi-random methods (LHS, Sobol, etc.) are generally preferred for initial sampling, especially in higher dimensions.</li>
+<li><strong>Supplementing Data:</strong> You can generate initial points even if you already have some data, to fill gaps or improve distribution.</li>
+</ul>
+<hr />
+<h2 id="example-workflow">Example Workflow<a class="headerlink" href="#example-workflow" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Click "Add Point":</strong><br />
-   Opens a dialog where you can enter values for each variable, the output, and (optionally) the noise.</li>
-<li><strong>Fill in the Fields:</strong><br />
-   Enter values for all variables and the output. If you know the measurement uncertainty, enter it in the Noise field.</li>
-<li><strong>Save &amp; Close:</strong><br />
-   Click <strong>Save &amp; Close</strong> to add the point to your experiment table. You can also choose to save the updated data to file and retrain the model immediately by checking the corresponding boxes.</li>
+<li>Define your variable space (e.g., 3 variables: temperature, pressure, catalyst).</li>
+<li>Click <strong>Generate Initial Points</strong>.</li>
+<li>Choose <strong>LHS</strong> and set <strong>Number of Points</strong> to 10.</li>
+<li>Click <strong>Generate</strong>.</li>
+<li>Review the generated points in the experiment table and save to file if desired.</li>
 </ol>
-<p><strong>Note:</strong><br />
-- There may be issues with type compatibility (e.g., numbers being saved as strings). If you encounter problems, check your CSV file and ensure numeric columns are formatted correctly.
-- Sometimes, changes made directly in the table (tksheet widget) may not update the internal experiment data until you save or reload. Use the provided dialogs for best results.</p>
 <hr />
-<h2 id="saving-your-data">Saving Your Data<a class="headerlink" href="#saving-your-data" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Click "Save Experiments":</strong><br />
-  Saves the current experiment table to a <code>.csv</code> file.  </li>
-<li><strong>Tip:</strong><br />
-  Always save your data before closing the application to avoid losing changes.</li>
-</ul>
-<hr />
-<h2 id="retraining-the-model">Retraining the Model<a class="headerlink" href="#retraining-the-model" title="Permanent link">&para;</a></h2>
-<ul>
-<li>When adding a new point, you can check <strong>Retrain model</strong> to automatically update the surrogate model with the new data.</li>
-<li>If retraining does not seem to trigger, you may need to retrain manually from the model panel.</li>
-</ul>
-<hr />
-<h2 id="known-issues-tips">Known Issues &amp; Tips<a class="headerlink" href="#known-issues-tips" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Type Compatibility:</strong><br />
-  Data entered via the table or add-point dialog may sometimes be interpreted as strings. If you see errors or unexpected behavior, check your data types in the CSV file.</li>
-<li><strong>Table Edits:</strong><br />
-  Editing data directly in the table does not always update the internal experiment manager. For reliable results, use the add-point dialog or reload your data after editing.</li>
-<li><strong>Noise Column:</strong><br />
-  The noise column is optional. If present, it should be numeric. You can toggle its visibility in the Preferences menu.</li>
-</ul>
-<hr />
-<p>For more details on managing experiments and troubleshooting, see the rest of the workflow documentation.</p>
+<p>For more details on experiment management and data loading, see the next section of the workflow documentation.</p>
 
 
 

@@ -2,58 +2,66 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://yourproject.github.io/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/resources/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/acquisition/botorch/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/acquisition/logging/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/acquisition/skopt/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/background/bayesian_optimization/</loc>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/background/kernels/</loc>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/modeling/botorch/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/modeling/performance/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/modeling/skopt/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/setup/data_visualization/</loc>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/setup/initial_sampling/</loc>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/setup/load_data/</loc>
+         <lastmod>2025-06-13</lastmod>
+    </url>
+    <url>
+         <loc>https://yourproject.github.io/setup/variable_space/</loc>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/visualizations/contour_plot/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
     <url>
          <loc>https://yourproject.github.io/visualizations/error_metrics/</loc>
-         <lastmod>2025-06-12</lastmod>
-    </url>
-    <url>
-         <loc>https://yourproject.github.io/workflow/data_visualization/</loc>
-         <lastmod>2025-06-12</lastmod>
-    </url>
-    <url>
-         <loc>https://yourproject.github.io/workflow/initial_sampling/</loc>
-         <lastmod>2025-06-12</lastmod>
-    </url>
-    <url>
-         <loc>https://yourproject.github.io/workflow/load_data/</loc>
-         <lastmod>2025-06-12</lastmod>
-    </url>
-    <url>
-         <loc>https://yourproject.github.io/workflow/variable_space/</loc>
-         <lastmod>2025-06-12</lastmod>
+         <lastmod>2025-06-13</lastmod>
     </url>
 </urlset>

@@ -73,6 +73,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#scikit-optimize-acquisition-functions" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -235,11 +240,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../workflow/variable_space/" class="md-tabs__link">
+        <a href="../../setup/variable_space/" class="md-tabs__link">
           
   
   
-  Core Workflow
+  Getting Started
 
         </a>
       </li>
@@ -314,17 +319,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../../resources/" class="md-tabs__link">
-        
-  
-  
     
+    
+      <li class="md-tabs__item">
+        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+          
+  
   
   Educational Resources
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -425,7 +431,7 @@
   
   
   <span class="md-ellipsis">
-    Core Workflow
+    Getting Started
     
   </span>
   
@@ -436,7 +442,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Core Workflow
+            Getting Started
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -447,7 +453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/variable_space/" class="md-nav__link">
+      <a href="../../setup/variable_space/" class="md-nav__link">
         
   
   
@@ -470,7 +476,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/initial_sampling/" class="md-nav__link">
+      <a href="../../setup/initial_sampling/" class="md-nav__link">
         
   
   
@@ -493,7 +499,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/load_data/" class="md-nav__link">
+      <a href="../../setup/load_data/" class="md-nav__link">
         
   
   
@@ -516,7 +522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/data_visualization/" class="md-nav__link">
+      <a href="../../setup/data_visualization/" class="md-nav__link">
         
   
   
@@ -813,6 +819,21 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    scikit-optimize Acquisition
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -825,6 +846,79 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#important-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      Important Note
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acquisition-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acquisition Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-optimum-finder" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model Optimum Finder
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tips &amp; Notes
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -890,9 +984,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../resources/" class="md-nav__link">
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -901,7 +1011,65 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Educational Resources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bayesian Optimization
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kernels
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -925,9 +1093,89 @@
   
 
 
-  <h1>scikit-optimize Acquisition</h1>
-
-
+<h1 id="scikit-optimize-acquisition-functions">scikit-optimize Acquisition Functions<a class="headerlink" href="#scikit-optimize-acquisition-functions" title="Permanent link">&para;</a></h1>
+<p>The <strong>scikit-optimize</strong> (skopt) backend in ALchemist provides a range of acquisition functions for Bayesian optimization using the <a href="https://scikit-optimize.github.io/">scikit-optimize</a> library. This guide explains the available options, how to use them, and what each setting means.</p>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The Acquisition panel in ALchemist allows you to:</p>
+<ul>
+<li>Choose from several acquisition functions, each balancing exploration and exploitation in different ways.</li>
+<li>Customize parameters such as exploration/exploitation trade-offs.</li>
+<li>Run the selected strategy to suggest the next experiment based on your trained model.</li>
+</ul>
+<hr />
+<h2 id="important-note">Important Note<a class="headerlink" href="#important-note" title="Permanent link">&para;</a></h2>
+<p>You must first train your model using the scikit-optimize backend before running any skopt acquisition functions.<br />
+See <a href="../../modeling/skopt/">scikit-optimize Backend</a> for details on model training.</p>
+<hr />
+<h2 id="acquisition-functions">Acquisition Functions<a class="headerlink" href="#acquisition-functions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><strong>Expected Improvement (EI):</strong><br />
+  Balances exploration and exploitation by selecting points with the highest expected improvement over the current best value.<br />
+<strong>Parameter:</strong> ξ (xi) — higher values favor exploration.</p>
+</li>
+<li>
+<p><strong>Upper Confidence Bound (UCB):</strong><br />
+  Selects points with the highest upper confidence bound, balancing exploration and exploitation.<br />
+<strong>Parameter:</strong> κ (kappa) — higher values increase exploration.</p>
+</li>
+<li>
+<p><strong>Probability of Improvement (PI):</strong><br />
+  Selects points with the highest probability of improving over the current best value.<br />
+<strong>Parameter:</strong> ξ (xi) — higher values favor exploration.</p>
+</li>
+<li>
+<p><strong>GP Hedge (Auto-balance):</strong><br />
+  Automatically balances between EI, UCB, and PI by adaptively selecting the best-performing strategy during optimization.<br />
+<strong>Parameters:</strong> ξ (xi) and κ (kappa).</p>
+</li>
+</ul>
+<p><strong>Customization:</strong><br />
+- Choose to <strong>maximize</strong> or <strong>minimize</strong> your objective.
+- Adjust ξ (xi) and κ (kappa) parameters using sliders as appropriate for the selected acquisition function.</p>
+<hr />
+<h2 id="how-to-use">How to Use<a class="headerlink" href="#how-to-use" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>Train Model:</strong><br />
+   Train your model using the scikit-optimize backend. See <a href="../../modeling/skopt/">scikit-optimize Backend</a> for instructions.</p>
+</li>
+<li>
+<p><strong>Open Acquisition Panel:</strong><br />
+   Go to the Acquisition panel. The scikit-optimize options will appear automatically.</p>
+</li>
+<li>
+<p><strong>Select Acquisition Function:</strong><br />
+   Use the dropdown menu to select the acquisition function (EI, UCB, PI, or GP Hedge).</p>
+</li>
+<li>
+<p><strong>Configure Options:</strong>  </p>
+</li>
+<li>Adjust ξ (xi) and κ (kappa) parameters as needed.</li>
+<li>
+<p>Choose whether to maximize or minimize.</p>
+</li>
+<li>
+<p><strong>Run Acquisition:</strong><br />
+   Click <strong>Run Acquisition Strategy</strong> to suggest the next experiment. Results, including predicted value and uncertainty, will be shown in a notification window and highlighted in the data table and plots.</p>
+</li>
+</ol>
+<hr />
+<h2 id="model-optimum-finder">Model Optimum Finder<a class="headerlink" href="#model-optimum-finder" title="Permanent link">&para;</a></h2>
+<p>In addition to acquisition functions, you can use the <strong>Model Prediction Optimum</strong> tool to find the point where the model predicts the best value (maximum or minimum).<br />
+<strong>Note:</strong> This does not balance exploration and exploitation—it simply finds the model's optimum prediction.</p>
+<hr />
+<h2 id="tips-notes">Tips &amp; Notes<a class="headerlink" href="#tips-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Parameter Tuning:</strong>  </li>
+<li>Increase ξ (xi) or κ (kappa) for more exploration; decrease for more exploitation.</li>
+<li>GP Hedge is useful if you are unsure which acquisition function to use.</li>
+<li><strong>Publication Quality:</strong><br />
+  All results and suggested points are integrated with ALchemist's visualization tools for easy analysis and export.</li>
+</ul>
+<hr />
+<p>For more details on the underlying algorithms,</p>
 
 
 

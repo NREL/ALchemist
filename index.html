@@ -12,7 +12,7 @@
       
       
       
-        <link rel="next" href="workflow/variable_space/">
+        <link rel="next" href="setup/variable_space/">
       
       
       <link rel="icon" href="assets/images/favicon.png">
@@ -240,11 +240,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="workflow/variable_space/" class="md-tabs__link">
+        <a href="setup/variable_space/" class="md-tabs__link">
           
   
   
-  Core Workflow
+  Getting Started
 
         </a>
       </li>
@@ -317,17 +317,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="resources/" class="md-tabs__link">
-        
-  
-  
     
+    
+      <li class="md-tabs__item">
+        <a href="background/bayesian_optimization/" class="md-tabs__link">
+          
+  
   
   Educational Resources
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -394,6 +395,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="." class="md-nav__link md-nav__link--active">
         
   
@@ -405,6 +419,43 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -438,7 +489,7 @@
   
   
   <span class="md-ellipsis">
-    Core Workflow
+    Getting Started
     
   </span>
   
@@ -449,7 +500,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Core Workflow
+            Getting Started
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -460,7 +511,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workflow/variable_space/" class="md-nav__link">
+      <a href="setup/variable_space/" class="md-nav__link">
         
   
   
@@ -483,7 +534,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workflow/initial_sampling/" class="md-nav__link">
+      <a href="setup/initial_sampling/" class="md-nav__link">
         
   
   
@@ -506,7 +557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workflow/load_data/" class="md-nav__link">
+      <a href="setup/load_data/" class="md-nav__link">
         
   
   
@@ -529,7 +580,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workflow/data_visualization/" class="md-nav__link">
+      <a href="setup/data_visualization/" class="md-nav__link">
         
   
   
@@ -892,9 +943,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="resources/" class="md-nav__link">
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -903,7 +970,65 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Educational Resources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bayesian Optimization
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kernels
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -928,8 +1053,38 @@
 
 
 <h1 id="welcome-to-alchemist">Welcome to ALchemist<a class="headerlink" href="#welcome-to-alchemist" title="Permanent link">&para;</a></h1>
-<p>ALchemist is a GUI-based active learning and Bayesian optimization toolkit for chemical and materials researchers.</p>
-<p>Use the sidebar to navigate through the documentation.</p>
+<p><strong>ALchemist: Active Learning Toolkit for Chemical and Materials Research</strong></p>
+<p>ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.</p>
+<hr />
+<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Flexible variable space definition:</strong> Real, integer, and categorical variables with bounds or discrete values.</li>
+<li><strong>Probabilistic surrogate modeling:</strong> Gaussian process regression via BoTorch or scikit-optimize backends.</li>
+<li><strong>Advanced acquisition strategies:</strong> Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.</li>
+<li><strong>Intuitive GUI workflow:</strong> No coding required—define variables, generate initial experiments, load data, train models, and suggest new experiments.</li>
+<li><strong>Experiment tracking:</strong> CSV logging, reproducible random seeds, and error tracking.</li>
+<li><strong>Extensibility:</strong> Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.</li>
+</ul>
+<hr />
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<p>We recommend using <a href="https://www.anaconda.com/products/distribution">Anaconda</a> to manage your Python environments for ALchemist.</p>
+<p><strong>1. Create a new environment:</strong>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>alchemist-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+conda<span class="w"> </span>activate<span class="w"> </span>alchemist-env
+</code></pre></div></p>
+<p><strong>2. Clone the ALchemist repository:</strong>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/calebcoatney/ALchemist.git
+<span class="nb">cd</span><span class="w"> </span>ALchemist
+</code></pre></div></p>
+<p><strong>3. Install ALchemist:</strong>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</code></pre></div></p>
+<p>All dependencies are specified in <code>pyproject.toml</code> and will be installed automatically.</p>
+<p>After installation, launch the graphical user interface by running:</p>
+<div class="highlight"><pre><span></span><code>alchemist
+</code></pre></div>
+<hr />
+<p>Use the sidebar to navigate through the documentation. See <a href="setup/variable_space/">Getting Started</a> to define your variable space and generate initial experiments.</p>
 
 
 

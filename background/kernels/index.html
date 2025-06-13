@@ -8,13 +8,11 @@
       
       
       
-        <link rel="canonical" href="https://yourproject.github.io/visualizations/error_metrics/">
+        <link rel="canonical" href="https://yourproject.github.io/background/kernels/">
       
       
-        <link rel="prev" href="../../modeling/performance/">
+        <link rel="prev" href="../bayesian_optimization/">
       
-      
-        <link rel="next" href="../contour_plot/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +20,7 @@
     
     
       
-        <title>Error metrics - ALchemist Documentation</title>
+        <title>Kernels - ALchemist Documentation</title>
       
     
     
@@ -74,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#error-metrics-visualization" class="md-skip">
+        <a href="#kernel-deep-dive-understanding-kernels-in-gaussian-processes" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Error metrics
+              Kernels
             
           </span>
         </div>
@@ -276,13 +274,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../visualizations/error_metrics/" class="md-tabs__link">
           
   
   
@@ -318,11 +314,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../bayesian_optimization/" class="md-tabs__link">
           
   
   
@@ -668,29 +666,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -703,7 +698,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             Visualizations
@@ -714,32 +709,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Error metrics
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../visualizations/error_metrics/" class="md-nav__link">
         
   
   
@@ -750,53 +723,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#available-error-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      Available Error Metrics
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-the-visualizations-dialog" class="md-nav__link">
-    <span class="md-ellipsis">
-      Using the Visualizations Dialog
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#general-considerations" class="md-nav__link">
-    <span class="md-ellipsis">
-      General Considerations
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -809,7 +735,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../contour_plot/" class="md-nav__link">
+      <a href="../../visualizations/contour_plot/" class="md-nav__link">
         
   
   
@@ -955,26 +881,29 @@
       
   
   
+    
   
   
+  
     
     
     
     
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
       
         
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -987,7 +916,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Educational Resources
@@ -1001,7 +930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+      <a href="../bayesian_optimization/" class="md-nav__link">
         
   
   
@@ -1021,10 +950,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../background/kernels/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Kernels
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1035,6 +986,128 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      What Is a Kernel?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-kernels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Kernels
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Kernels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-radial-basis-function-rbf-squared-exponential-gaussian-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Radial Basis Function (RBF) / Squared Exponential / Gaussian Kernel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-matern-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Matern Kernel
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-rational-quadratic-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Rational Quadratic Kernel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anisotropic-kernels-and-automatic-relevance-determination-ard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Anisotropic Kernels and Automatic Relevance Determination (ARD)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Anisotropic Kernels and Automatic Relevance Determination (ARD)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#isotropic-vs-anisotropic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Isotropic vs. Anisotropic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-relevance-determination-ard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Automatic Relevance Determination (ARD)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-a-kernel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choosing a Kernel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further Reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1066,73 +1139,114 @@
   
 
 
-<h1 id="error-metrics-visualization">Error Metrics Visualization<a class="headerlink" href="#error-metrics-visualization" title="Permanent link">&para;</a></h1>
-<p>The <strong>Visualizations</strong> dialog in ALchemist provides several tools to help you evaluate your surrogate model's performance using different error metrics. After training a model, you can access these visualizations to better understand how your model is performing as you add more experimental data.</p>
+<h1 id="kernel-deep-dive-understanding-kernels-in-gaussian-processes">Kernel Deep Dive: Understanding Kernels in Gaussian Processes<a class="headerlink" href="#kernel-deep-dive-understanding-kernels-in-gaussian-processes" title="Permanent link">&para;</a></h1>
+<p>Kernels (also called covariance functions) are a fundamental component of Gaussian Processes (GPs). They encode our assumptions about the underlying function we are modeling and play a central role in determining the GP's predictions and uncertainty.</p>
 <hr />
-<h2 id="available-error-metrics">Available Error Metrics<a class="headerlink" href="#available-error-metrics" title="Permanent link">&para;</a></h2>
-<p>You can select and plot the following metrics in the Visualizations dialog:</p>
-<ul>
-<li><strong>RMSE (Root Mean Squared Error):</strong><br />
-  Measures the average magnitude of prediction errors. Lower RMSE indicates better fit. Sensitive to large errors.</li>
-</ul>
+<h2 id="what-is-a-kernel">What Is a Kernel?<a class="headerlink" href="#what-is-a-kernel" title="Permanent link">&para;</a></h2>
+<p>Mathematically, a kernel is a function <span class="arithmatex">\(k(x, x')\)</span> that defines the similarity or correlation between two points <span class="arithmatex">\(x\)</span> and <span class="arithmatex">\(x'\)</span> in the input space. In a GP, the kernel determines the covariance matrix <span class="arithmatex">\(\mathbf{K}\)</span> for all pairs of input points, which in turn defines the joint distribution over function values.</p>
+<p>Given a set of input points <span class="arithmatex">\(\mathbf{X} = [x_1, x_2, ..., x_n]\)</span>, the GP prior is:</p>
 <div class="arithmatex">\[
-\mathrm{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }
+f(\mathbf{X}) \sim \mathcal{N}(\mu(\mathbf{X}), \mathbf{K})
+\]</div>
+<p>where <span class="arithmatex">\(\mathbf{K}_{ij} = k(x_i, x_j)\)</span>.</p>
+<p><strong>Functionally, the kernel controls:</strong>
+- The smoothness and complexity of the functions the GP can model.
+- How information from observed data points influences predictions at new points.
+- The ability to capture periodicity, trends, or other structural properties.</p>
+<hr />
+<h2 id="common-kernels">Common Kernels<a class="headerlink" href="#common-kernels" title="Permanent link">&para;</a></h2>
+<h3 id="1-radial-basis-function-rbf-squared-exponential-gaussian-kernel">1. Radial Basis Function (RBF) / Squared Exponential / Gaussian Kernel<a class="headerlink" href="#1-radial-basis-function-rbf-squared-exponential-gaussian-kernel" title="Permanent link">&para;</a></h3>
+<p>The RBF kernel is the most widely used kernel and assumes the function is infinitely smooth.</p>
+<div class="arithmatex">\[
+k_{\text{RBF}}(x, x') = \sigma^2 \exp\left( -\frac{||x - x'||^2}{2\ell^2} \right)
 \]</div>
 <ul>
-<li><strong>MAE (Mean Absolute Error):</strong><br />
-  The average of absolute differences between predicted and actual values. Less sensitive to outliers than RMSE.</li>
+<li><span class="arithmatex">\(\sigma^2\)</span> is the signal variance (controls overall scale).</li>
+<li><span class="arithmatex">\(\ell\)</span> is the lengthscale (controls how quickly correlation decays with distance).</li>
 </ul>
+<p><strong>Properties:</strong>
+- Produces very smooth functions.
+- Good default for many problems.
+- Implemented in both scikit-optimize and BoTorch.</p>
+<p><strong>References:</strong><br />
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RBF.html">sklearn RBF kernel</a><br />
+<a href="https://botorch.org/api/_modules/botorch/kernels/rbf_kernel.html">BoTorch RBF kernel</a></p>
+<hr />
+<h3 id="2-matern-kernel">2. Matern Kernel<a class="headerlink" href="#2-matern-kernel" title="Permanent link">&para;</a></h3>
+<p>The Matern kernel is a generalization of the RBF kernel with an additional parameter <span class="arithmatex">\(\nu\)</span> that controls smoothness.</p>
 <div class="arithmatex">\[
-\mathrm{MAE} = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|
+k_{\text{Matern}}(x, x') = \sigma^2 \frac{2^{1-\nu}}{\Gamma(\nu)} \left( \frac{\sqrt{2\nu} ||x - x'||}{\ell} \right)^\nu K_\nu \left( \frac{\sqrt{2\nu} ||x - x'||}{\ell} \right)
 \]</div>
 <ul>
-<li><strong>MAPE (Mean Absolute Percentage Error):</strong><br />
-  Expresses prediction error as a percentage of the actual values. Useful for comparing errors across different scales, but can be unstable if actual values are near zero.</li>
+<li><span class="arithmatex">\(\nu\)</span> (nu): Smoothness parameter. Common values are 0.5, 1.5, 2.5, and <span class="arithmatex">\(\infty\)</span>.<ul>
+<li><span class="arithmatex">\(\nu = 0.5\)</span>: Exponential kernel (less smooth, rougher functions)</li>
+<li><span class="arithmatex">\(\nu = 1.5\)</span>: Once differentiable</li>
+<li><span class="arithmatex">\(\nu = 2.5\)</span>: Twice differentiable</li>
+<li><span class="arithmatex">\(\nu \to \infty\)</span>: Recovers the RBF kernel</li>
 </ul>
+</li>
+<li><span class="arithmatex">\(K_\nu\)</span> is a modified Bessel function.</li>
+</ul>
+<p><strong>Properties:</strong>
+- Allows control over function roughness.
+- Lower <span class="arithmatex">\(\nu\)</span> allows modeling rougher, less smooth functions.
+- Implemented in both scikit-optimize and BoTorch.</p>
+<p><strong>References:</strong><br />
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.Matern.html">sklearn Matern kernel</a><br />
+<a href="https://botorch.org/api/_modules/botorch/kernels/matern_kernel.html">BoTorch Matern kernel</a></p>
+<hr />
+<h3 id="3-rational-quadratic-kernel">3. Rational Quadratic Kernel<a class="headerlink" href="#3-rational-quadratic-kernel" title="Permanent link">&para;</a></h3>
+<p>The Rational Quadratic kernel can be seen as a scale mixture of RBF kernels with different lengthscales.</p>
 <div class="arithmatex">\[
-\mathrm{MAPE} = \frac{100\%}{n} \sum_{i=1}^{n} \left| \frac{y_i - \hat{y}_i}{y_i} \right|
+k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \right)^{-\alpha}
 \]</div>
 <ul>
-<li><strong><span class="arithmatex">\(R^2\)</span> (Coefficient of Determination):</strong><br />
-  Indicates how well the model explains the variance in the data. Values closer to 1 mean better fit; values near 0 or negative indicate poor fit.</li>
+<li><span class="arithmatex">\(\alpha\)</span> controls the relative weighting of large-scale and small-scale variations.</li>
+<li>As <span class="arithmatex">\(\alpha \to \infty\)</span>, the kernel approaches the RBF kernel.</li>
 </ul>
-<div class="arithmatex">\[
-R^2 = 1 - \frac{ \sum_{i=1}^{n} (y_i - \hat{y}_i)^2 }{ \sum_{i=1}^{n} (y_i - \bar{y})^2 }
-\]</div>
-<p>Where:<br />
-- <span class="arithmatex">\(y_i\)</span> = true value<br />
-- <span class="arithmatex">\(\hat{y}_i\)</span> = predicted value<br />
-- <span class="arithmatex">\(\bar{y}\)</span> = mean of true values<br />
-- <span class="arithmatex">\(n\)</span> = number of data points</p>
+<p><strong>Properties:</strong>
+- Can model functions with varying smoothness.
+- Useful when the function exhibits both short- and long-range correlations.
+- Currently implemented in the scikit-optimize backend.</p>
+<p><strong>References:</strong><br />
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html">sklearn RationalQuadratic kernel</a></p>
 <hr />
-<h2 id="using-the-visualizations-dialog">Using the Visualizations Dialog<a class="headerlink" href="#using-the-visualizations-dialog" title="Permanent link">&para;</a></h2>
+<h2 id="anisotropic-kernels-and-automatic-relevance-determination-ard">Anisotropic Kernels and Automatic Relevance Determination (ARD)<a class="headerlink" href="#anisotropic-kernels-and-automatic-relevance-determination-ard" title="Permanent link">&para;</a></h2>
+<h3 id="isotropic-vs-anisotropic">Isotropic vs. Anisotropic<a class="headerlink" href="#isotropic-vs-anisotropic" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
-<p><strong>Plotting Metrics:</strong><br />
-  Use the dropdown menu at the top of the Visualizations dialog to select which error metric to plot. Click "Plot Metrics" to see how the chosen metric changes as more data points are added.</p>
+<p><strong>Isotropic kernel:</strong> Uses a single lengthscale <span class="arithmatex">\(\ell\)</span> for all input dimensions.  </p>
+<p><span class="arithmatex">\(k(x, x') = k(||x - x'||)\)</span></p>
 </li>
 <li>
-<p><strong>Interpreting Trends:</strong><br />
-  Ideally, error metrics (RMSE, MAE, MAPE) should decrease as you add more observations, and <span class="arithmatex">\(R^2\)</span> should increase. Flat or increasing error trends may indicate issues with model fit, data quality, or kernel choice.</p>
-</li>
-<li>
-<p><strong>Cross-Validation:</strong><br />
-  All metrics are computed using cross-validation, providing a robust estimate of model performance on unseen data.</p>
-</li>
-<li>
-<p><strong>Parity Plots:</strong><br />
-  In addition to error metrics, you can generate parity plots to visually compare predicted vs. actual values. Points close to the diagonal indicate good agreement.</p>
+<p><strong>Anisotropic kernel:</strong> Uses a separate lengthscale <span class="arithmatex">\(\ell_d\)</span> for each input dimension <span class="arithmatex">\(d\)</span>.  </p>
+<p><span class="arithmatex">\(k(x, x') = \exp\left( -\sum_{d=1}^D \frac{(x_d - x'_d)^2}{2\ell_d^2} \right)\)</span></p>
 </li>
 </ul>
+<h3 id="automatic-relevance-determination-ard">Automatic Relevance Determination (ARD)<a class="headerlink" href="#automatic-relevance-determination-ard" title="Permanent link">&para;</a></h3>
+<p>ARD refers to the process where the model learns a separate lengthscale for each input variable. If a variable is not relevant to the output, its lengthscale will become very large, effectively reducing its influence on the model.</p>
+<p><strong>Benefits:</strong>
+- Helps identify which variables are important for predicting the output.
+- Improves interpretability and can lead to more efficient optimization.</p>
+<p><strong>Both scikit-optimize and BoTorch support anisotropic kernels and ARD by default.</strong></p>
 <hr />
-<h2 id="general-considerations">General Considerations<a class="headerlink" href="#general-considerations" title="Permanent link">&para;</a></h2>
+<h2 id="choosing-a-kernel">Choosing a Kernel<a class="headerlink" href="#choosing-a-kernel" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use error metric trends to monitor model improvement as you collect more data.</li>
-<li>Compare different metrics for a more complete picture of model performance.</li>
-<li>If you see unexpected trends, refer to the <a href="../../modeling/performance/">Model Performance</a> page for troubleshooting tips and deeper guidance.</li>
+<li><strong>RBF:</strong> Good default for smooth, well-behaved functions.</li>
+<li><strong>Matern:</strong> Use when you expect the function to be less smooth or want to control smoothness. Lower <span class="arithmatex">\(\nu\)</span> for rougher functions, higher <span class="arithmatex">\(\nu\)</span> for smoother.</li>
+<li><strong>Rational Quadratic:</strong> Use when you suspect the function has varying smoothness or both short- and long-range correlations.</li>
 </ul>
+<p><strong>Tips:</strong>
+- If unsure, start with Matern (<span class="arithmatex">\(\nu=2.5\)</span> or <span class="arithmatex">\(1.5\)</span>) or RBF.
+- Try different kernels and compare cross-validation metrics (RMSE, MAE, etc.).
+- Use ARD to let the model determine variable relevance.</p>
 <hr />
-<p>For more on interpreting these metrics and improving model performance, see the <a href="../../modeling/performance/">Model Performance</a> section.</p>
+<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://scikit-learn.org/stable/modules/gaussian_process.html#kernels-for-gaussian-processes">scikit-learn Gaussian Process kernels documentation</a></li>
+<li><a href="https://scikit-optimize.github.io/stable/modules/kernels.html">scikit-optimize kernels</a></li>
+<li><a href="https://botorch.org/api/kernels.html">BoTorch kernels</a></li>
+</ul>
 
 
 

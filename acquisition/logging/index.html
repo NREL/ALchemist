@@ -14,7 +14,7 @@
         <link rel="prev" href="../botorch/">
       
       
-        <link rel="next" href="../../resources/">
+        <link rel="next" href="../../background/bayesian_optimization/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -72,6 +72,11 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
+      
+        
+        <a href="#logging-tracking" class="md-skip">
+          Skip to content
+        </a>
       
     </div>
     <div data-md-component="announce">
@@ -235,11 +240,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../workflow/variable_space/" class="md-tabs__link">
+        <a href="../../setup/variable_space/" class="md-tabs__link">
           
   
   
-  Core Workflow
+  Getting Started
 
         </a>
       </li>
@@ -314,17 +319,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../../resources/" class="md-tabs__link">
-        
-  
-  
     
+    
+      <li class="md-tabs__item">
+        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+          
+  
   
   Educational Resources
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -425,7 +431,7 @@
   
   
   <span class="md-ellipsis">
-    Core Workflow
+    Getting Started
     
   </span>
   
@@ -436,7 +442,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Core Workflow
+            Getting Started
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -447,7 +453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/variable_space/" class="md-nav__link">
+      <a href="../../setup/variable_space/" class="md-nav__link">
         
   
   
@@ -470,7 +476,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/initial_sampling/" class="md-nav__link">
+      <a href="../../setup/initial_sampling/" class="md-nav__link">
         
   
   
@@ -493,7 +499,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/load_data/" class="md-nav__link">
+      <a href="../../setup/load_data/" class="md-nav__link">
         
   
   
@@ -516,7 +522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflow/data_visualization/" class="md-nav__link">
+      <a href="../../setup/data_visualization/" class="md-nav__link">
         
   
   
@@ -859,6 +865,21 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Logging & Tracking
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -871,6 +892,61 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notifications-immediate-feedback-for-each-acquisition" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notifications: Immediate Feedback for Each Acquisition
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-keeping-a-complete-experiment-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging: Keeping a Complete Experiment Record
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Summary
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -890,9 +966,25 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../resources/" class="md-nav__link">
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -901,7 +993,65 @@
   </span>
   
 
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Educational Resources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bayesian Optimization
+    
+  </span>
+  
+
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kernels
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -925,9 +1075,70 @@
   
 
 
-  <h1>Logging & Tracking</h1>
-
-
+<h1 id="logging-tracking">Logging &amp; Tracking<a class="headerlink" href="#logging-tracking" title="Permanent link">&para;</a></h1>
+<p>ALchemist provides robust logging and notification features to help you keep track of your optimization workflow, model settings, and acquisition strategies. This is essential for reproducibility, transparency, and effective reporting in scientific research.</p>
+<hr />
+<h2 id="notifications-immediate-feedback-for-each-acquisition">Notifications: Immediate Feedback for Each Acquisition<a class="headerlink" href="#notifications-immediate-feedback-for-each-acquisition" title="Permanent link">&para;</a></h2>
+<p>Whenever you execute an acquisition strategy (e.g., suggest the next experiment), a <strong>notification window</strong> will automatically pop up. This window provides a detailed summary of the result, including:</p>
+<ul>
+<li>
+<p><strong>Point Details:</strong><br />
+  The coordinates of the suggested next experiment (or batch of experiments), along with predicted values, uncertainties, and 95% confidence intervals.</p>
+</li>
+<li>
+<p><strong>Model Info:</strong><br />
+  Information about the trained model, including backend (BoTorch or scikit-optimize), kernel type, learned hyperparameters, and recent performance metrics (e.g., RMSE, R²).</p>
+</li>
+<li>
+<p><strong>Strategy Info:</strong><br />
+  Details about the acquisition strategy used, including the type (e.g., Expected Improvement, qEI), optimization goal (maximize/minimize), and any relevant parameters.</p>
+</li>
+<li>
+<p><strong>Export Options:</strong><br />
+  You can export all of this information to a CSV file for record-keeping, publication, or further analysis.</p>
+</li>
+</ul>
+<p>This notification system ensures you always have a clear record of what was suggested and why.</p>
+<hr />
+<h2 id="logging-keeping-a-complete-experiment-record">Logging: Keeping a Complete Experiment Record<a class="headerlink" href="#logging-keeping-a-complete-experiment-record" title="Permanent link">&para;</a></h2>
+<p>ALchemist includes an <strong>experiment logger</strong> that tracks every key step in your workflow:</p>
+<ul>
+<li>
+<p><strong>Model Training:</strong><br />
+  Logs backend, kernel, hyperparameters, and performance metrics each time you train or update your model.</p>
+</li>
+<li>
+<p><strong>Acquisition Strategies:</strong><br />
+  Logs the details of every acquisition function execution, including the strategy, parameters, suggested points, predicted values, and uncertainties.</p>
+</li>
+<li>
+<p><strong>Experiment Data:</strong><br />
+  Logs the current state of your experimental dataset, including variable names and summary statistics.</p>
+</li>
+<li>
+<p><strong>Exported Logs:</strong><br />
+  All logs are saved in timestamped files in the <code>logs/</code> directory, making it easy to revisit or share your workflow history.</p>
+</li>
+</ul>
+<hr />
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><strong>Log Every Iteration:</strong><br />
+  After each acquisition and model update, use the export and logging features to save your results. This ensures you can always trace back which model, kernel, and acquisition strategy led to each experimental suggestion.</p>
+</li>
+<li>
+<p><strong>Reproducibility:</strong><br />
+  Keeping detailed logs allows you (and others) to reproduce your optimization process, which is essential for scientific rigor and publication.</p>
+</li>
+<li>
+<p><strong>Transparency:</strong><br />
+  By exporting notifications and logs, you can clearly communicate your workflow, decisions, and results to collaborators, reviewers, or future users.</p>
+</li>
+</ul>
+<hr />
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p>ALchemist’s notification and logging system is designed to make your active learning workflow transparent, reproducible, and easy to document. Make it a habit to export and log your results at each step—this will pay dividends when you need to report, troubleshoot, or publish your work.</p>
 
 
 
