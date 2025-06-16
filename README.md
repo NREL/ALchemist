@@ -26,36 +26,32 @@ ALchemist accelerates discovery and optimization by combining:
 
 ---
 
-## 🗂️ Project Structure
-
-- **Setup:** Define variable spaces, generate initial experiments, load and visualize experimental data.
-- **Surrogate Modeling:** Train and evaluate models using scikit-optimize or BoTorch.
-- **Visualizations:** Analyze model performance, error metrics, and create contour plots.
-- **Acquisition & Optimization:** Run acquisition functions and log/track experiment suggestions.
-- **Educational Resources:** Learn about active learning and Bayesian optimization concepts.
-
-See the [documentation](https://calebcoatney.github.io/ALchemist/) for detailed guides on each workflow step.
-
----
-
-## 💻 Installation
+## Getting Started
 
 Requirements: Python 3.9 or higher
 
+We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage your Python environments.
+
+**1. Create a new environment:**
+```bash
+conda create -n alchemist-env python=3.12
+conda activate alchemist-env
+```
+
+**2. Clone the ALchemist repository:**
 ```bash
 git clone https://github.com/calebcoatney/ALchemist.git
 cd ALchemist
+```
+
+**3. Install ALchemist:**
+```bash
 python -m pip install -e .
 ```
 
 All dependencies are specified in `pyproject.toml` and will be installed automatically.
 
----
-
-## 🏁 Quick Start
-
-To launch the graphical user interface:
-
+**4. Launch the graphical user interface:**
 ```bash
 alchemist
 ```
