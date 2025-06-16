@@ -41,8 +41,8 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
       
     
     
@@ -53,7 +53,16 @@
     
     
     
-  </head>
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
   
   
     
@@ -143,46 +152,6 @@
       <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
     
     
-    
-      
-      
-        <label class="md-header__button md-icon" for="__search">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-      
     
     
       <div class="md-header__source">
@@ -1149,10 +1118,12 @@
 f(\mathbf{X}) \sim \mathcal{N}(\mu(\mathbf{X}), \mathbf{K})
 \]</div>
 <p>where <span class="arithmatex">\(\mathbf{K}_{ij} = k(x_i, x_j)\)</span>.</p>
-<p><strong>Functionally, the kernel controls:</strong>
-- The smoothness and complexity of the functions the GP can model.
-- How information from observed data points influences predictions at new points.
-- The ability to capture periodicity, trends, or other structural properties.</p>
+<p><strong>Functionally, the kernel controls:</strong></p>
+<ul>
+<li>The smoothness and complexity of the functions the GP can model.</li>
+<li>How information from observed data points influences predictions at new points.</li>
+<li>The ability to capture periodicity, trends, or other structural properties.</li>
+</ul>
 <hr />
 <h2 id="common-kernels">Common Kernels<a class="headerlink" href="#common-kernels" title="Permanent link">&para;</a></h2>
 <h3 id="1-radial-basis-function-rbf-squared-exponential-gaussian-kernel">1. Radial Basis Function (RBF) / Squared Exponential / Gaussian Kernel<a class="headerlink" href="#1-radial-basis-function-rbf-squared-exponential-gaussian-kernel" title="Permanent link">&para;</a></h3>
@@ -1164,10 +1135,12 @@ k_{\text{RBF}}(x, x') = \sigma^2 \exp\left( -\frac{||x - x'||^2}{2\ell^2} \right
 <li><span class="arithmatex">\(\sigma^2\)</span> is the signal variance (controls overall scale).</li>
 <li><span class="arithmatex">\(\ell\)</span> is the lengthscale (controls how quickly correlation decays with distance).</li>
 </ul>
-<p><strong>Properties:</strong>
-- Produces very smooth functions.
-- Good default for many problems.
-- Implemented in both scikit-optimize and BoTorch.</p>
+<p><strong>Properties:</strong></p>
+<ul>
+<li>Produces very smooth functions.</li>
+<li>Good default for many problems.</li>
+<li>Implemented in both scikit-optimize and BoTorch.</li>
+</ul>
 <p><strong>References:</strong><br />
 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RBF.html">sklearn RBF kernel</a><br />
 <a href="https://botorch.org/api/_modules/botorch/kernels/rbf_kernel.html">BoTorch RBF kernel</a></p>
@@ -1187,10 +1160,12 @@ k_{\text{Matern}}(x, x') = \sigma^2 \frac{2^{1-\nu}}{\Gamma(\nu)} \left( \frac{\
 </li>
 <li><span class="arithmatex">\(K_\nu\)</span> is a modified Bessel function.</li>
 </ul>
-<p><strong>Properties:</strong>
-- Allows control over function roughness.
-- Lower <span class="arithmatex">\(\nu\)</span> allows modeling rougher, less smooth functions.
-- Implemented in both scikit-optimize and BoTorch.</p>
+<p><strong>Properties:</strong></p>
+<ul>
+<li>Allows control over function roughness.</li>
+<li>Lower <span class="arithmatex">\(\nu\)</span> allows modeling rougher, less smooth functions.</li>
+<li>Implemented in both scikit-optimize and BoTorch.</li>
+</ul>
 <p><strong>References:</strong><br />
 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.Matern.html">sklearn Matern kernel</a><br />
 <a href="https://botorch.org/api/_modules/botorch/kernels/matern_kernel.html">BoTorch Matern kernel</a></p>
@@ -1204,10 +1179,12 @@ k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \
 <li><span class="arithmatex">\(\alpha\)</span> controls the relative weighting of large-scale and small-scale variations.</li>
 <li>As <span class="arithmatex">\(\alpha \to \infty\)</span>, the kernel approaches the RBF kernel.</li>
 </ul>
-<p><strong>Properties:</strong>
-- Can model functions with varying smoothness.
-- Useful when the function exhibits both short- and long-range correlations.
-- Currently implemented in the scikit-optimize backend.</p>
+<p><strong>Properties:</strong></p>
+<ul>
+<li>Can model functions with varying smoothness.</li>
+<li>Useful when the function exhibits both short- and long-range correlations.</li>
+<li>Currently implemented in the scikit-optimize backend.</li>
+</ul>
 <p><strong>References:</strong><br />
 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html">sklearn RationalQuadratic kernel</a></p>
 <hr />
@@ -1225,9 +1202,11 @@ k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \
 </ul>
 <h3 id="automatic-relevance-determination-ard">Automatic Relevance Determination (ARD)<a class="headerlink" href="#automatic-relevance-determination-ard" title="Permanent link">&para;</a></h3>
 <p>ARD refers to the process where the model learns a separate lengthscale for each input variable. If a variable is not relevant to the output, its lengthscale will become very large, effectively reducing its influence on the model.</p>
-<p><strong>Benefits:</strong>
-- Helps identify which variables are important for predicting the output.
-- Improves interpretability and can lead to more efficient optimization.</p>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>Helps identify which variables are important for predicting the output.</li>
+<li>Improves interpretability and can lead to more efficient optimization.</li>
+</ul>
 <p><strong>Both scikit-optimize and BoTorch support anisotropic kernels and ARD by default.</strong></p>
 <hr />
 <h2 id="choosing-a-kernel">Choosing a Kernel<a class="headerlink" href="#choosing-a-kernel" title="Permanent link">&para;</a></h2>
@@ -1236,10 +1215,12 @@ k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \
 <li><strong>Matern:</strong> Use when you expect the function to be less smooth or want to control smoothness. Lower <span class="arithmatex">\(\nu\)</span> for rougher functions, higher <span class="arithmatex">\(\nu\)</span> for smoother.</li>
 <li><strong>Rational Quadratic:</strong> Use when you suspect the function has varying smoothness or both short- and long-range correlations.</li>
 </ul>
-<p><strong>Tips:</strong>
-- If unsure, start with Matern (<span class="arithmatex">\(\nu=2.5\)</span> or <span class="arithmatex">\(1.5\)</span>) or RBF.
-- Try different kernels and compare cross-validation metrics (RMSE, MAE, etc.).
-- Use ARD to let the model determine variable relevance.</p>
+<p><strong>Tips:</strong></p>
+<ul>
+<li>If unsure, start with Matern (<span class="arithmatex">\(\nu=2.5\)</span> or <span class="arithmatex">\(1.5\)</span>) or RBF.</li>
+<li>Try different kernels and compare cross-validation metrics (RMSE, MAE, etc.).</li>
+<li>Use ARD to let the model determine variable relevance.</li>
+</ul>
 <hr />
 <h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1311,5 +1292,7 @@ k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
     
-  </body>
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
 </html>
