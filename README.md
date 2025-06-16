@@ -1,4 +1,4 @@
-# ALchemist
+![ALchemist](docs/images/logo.png)
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
