@@ -8,26 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://yourproject.github.io/">
+        <link rel="canonical" href="https://yourproject.github.io/ISSUES_LOG/">
       
       
+        <link rel="prev" href="../acquisition/logging/">
       
-        <link rel="next" href="setup/variable_space/">
+      
+        <link rel="next" href="../background/bayesian_optimization/">
       
       
-      <link rel="icon" href="assets/icon.ico">
+      <link rel="icon" href="../assets/icon.ico">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
     
     
       
-        <title>ALchemist Documentation</title>
+        <title>Issues & Troubleshooting - ALchemist Documentation</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.342714a4.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.342714a4.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -46,14 +48,14 @@
       
     
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
     
     
     
-   <link href="assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+   <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
     html.glightbox-open { overflow: initial; height: 100%; }
     .gslide-title { margin-top: 0px; user-select: text; }
     .gslide-desc { color: #666; user-select: text; }
@@ -62,7 +64,7 @@
     .gdesc-inner { font-size: 0.75rem; }
     body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
     body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
-    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="assets/javascripts/glightbox.min.js"></script></head>
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../assets/javascripts/glightbox.min.js"></script></head>
   
   
     
@@ -81,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#_1" class="md-skip">
+        <a href="#issues-troubleshooting-log" class="md-skip">
           Skip to content
         </a>
       
@@ -95,7 +97,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="ALchemist Documentation" class="md-header__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+    <a href=".." title="ALchemist Documentation" class="md-header__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -115,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Issues & Troubleshooting
             
           </span>
         </div>
@@ -184,11 +186,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -209,7 +209,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="setup/variable_space/" class="md-tabs__link">
+        <a href="../setup/variable_space/" class="md-tabs__link">
           
   
   
@@ -229,7 +229,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="modeling/skopt/" class="md-tabs__link">
+        <a href="../modeling/skopt/" class="md-tabs__link">
           
   
   
@@ -249,7 +249,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="visualizations/error_metrics/" class="md-tabs__link">
+        <a href="../visualizations/error_metrics/" class="md-tabs__link">
           
   
   
@@ -269,7 +269,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="acquisition/skopt/" class="md-tabs__link">
+        <a href="../acquisition/skopt/" class="md-tabs__link">
           
   
   
@@ -285,9 +285,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="ISSUES_LOG/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -308,7 +310,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="background/bayesian_optimization/" class="md-tabs__link">
+        <a href="../background/bayesian_optimization/" class="md-tabs__link">
           
   
   
@@ -344,7 +346,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="ALchemist Documentation" class="md-nav__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+    <a href=".." title="ALchemist Documentation" class="md-nav__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -371,32 +373,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Home
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -407,44 +387,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#key-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      Key Features
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Installation
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -499,7 +441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="setup/variable_space/" class="md-nav__link">
+      <a href="../setup/variable_space/" class="md-nav__link">
         
   
   
@@ -522,7 +464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="setup/initial_sampling/" class="md-nav__link">
+      <a href="../setup/initial_sampling/" class="md-nav__link">
         
   
   
@@ -545,7 +487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="setup/load_data/" class="md-nav__link">
+      <a href="../setup/load_data/" class="md-nav__link">
         
   
   
@@ -568,7 +510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="setup/data_visualization/" class="md-nav__link">
+      <a href="../setup/data_visualization/" class="md-nav__link">
         
   
   
@@ -641,7 +583,7 @@
   
   
     <li class="md-nav__item">
-      <a href="modeling/skopt/" class="md-nav__link">
+      <a href="../modeling/skopt/" class="md-nav__link">
         
   
   
@@ -664,7 +606,7 @@
   
   
     <li class="md-nav__item">
-      <a href="modeling/botorch/" class="md-nav__link">
+      <a href="../modeling/botorch/" class="md-nav__link">
         
   
   
@@ -687,7 +629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="modeling/performance/" class="md-nav__link">
+      <a href="../modeling/performance/" class="md-nav__link">
         
   
   
@@ -760,7 +702,7 @@
   
   
     <li class="md-nav__item">
-      <a href="visualizations/error_metrics/" class="md-nav__link">
+      <a href="../visualizations/error_metrics/" class="md-nav__link">
         
   
   
@@ -783,7 +725,7 @@
   
   
     <li class="md-nav__item">
-      <a href="visualizations/contour_plot/" class="md-nav__link">
+      <a href="../visualizations/contour_plot/" class="md-nav__link">
         
   
   
@@ -856,7 +798,7 @@
   
   
     <li class="md-nav__item">
-      <a href="acquisition/skopt/" class="md-nav__link">
+      <a href="../acquisition/skopt/" class="md-nav__link">
         
   
   
@@ -879,7 +821,7 @@
   
   
     <li class="md-nav__item">
-      <a href="acquisition/botorch/" class="md-nav__link">
+      <a href="../acquisition/botorch/" class="md-nav__link">
         
   
   
@@ -902,7 +844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="acquisition/logging/" class="md-nav__link">
+      <a href="../acquisition/logging/" class="md-nav__link">
         
   
   
@@ -929,10 +871,32 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="ISSUES_LOG/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Issues & Troubleshooting
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -943,6 +907,44 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-report-an-issue" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Report an Issue
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known Issues
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -997,7 +999,7 @@
   
   
     <li class="md-nav__item">
-      <a href="background/bayesian_optimization/" class="md-nav__link">
+      <a href="../background/bayesian_optimization/" class="md-nav__link">
         
   
   
@@ -1020,7 +1022,7 @@
   
   
     <li class="md-nav__item">
-      <a href="background/kernels/" class="md-nav__link">
+      <a href="../background/kernels/" class="md-nav__link">
         
   
   
@@ -1062,39 +1064,46 @@
   
 
 
-<h1 id="_1"><a class="glightbox" href="assets/logo.png" data-type="image" data-width="auto" data-height="auto" data-desc-position="bottom"><img alt="ALchemist" src="assets/logo.png" width="400" /></a><a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p><strong>ALchemist: Active Learning Toolkit for Chemical and Materials Research</strong></p>
-<p>ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.</p>
+<h1 id="issues-troubleshooting-log">Issues &amp; Troubleshooting Log<a class="headerlink" href="#issues-troubleshooting-log" title="Permanent link">&para;</a></h1>
+<p>This log tracks known issues, user-reported bugs, and observations from internal testing for ALchemist. It is maintained by the development team.</p>
 <hr />
-<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<h2 id="how-to-report-an-issue">How to Report an Issue<a class="headerlink" href="#how-to-report-an-issue" title="Permanent link">&para;</a></h2>
+<p>If you encounter a problem or have feedback, please <a href="https://github.com/calebcoatney/ALchemist/issues">open an issue on GitHub</a> or email <a href="mailto:ccoatney@nrel.gov">ccoatney@nrel.gov</a> with the following information:</p>
 <ul>
-<li><strong>Flexible variable space definition:</strong> Real, integer, and categorical variables with bounds or discrete values.</li>
-<li><strong>Probabilistic surrogate modeling:</strong> Gaussian process regression via BoTorch or scikit-optimize backends.</li>
-<li><strong>Advanced acquisition strategies:</strong> Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.</li>
-<li><strong>Intuitive GUI workflow:</strong> No coding required—define variables, generate initial experiments, load data, train models, and suggest new experiments.</li>
-<li><strong>Experiment tracking:</strong> CSV logging, reproducible random seeds, and error tracking.</li>
-<li><strong>Extensibility:</strong> Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.</li>
+<li><strong>Brief description of the issue</strong></li>
+<li><strong>Steps to reproduce (if applicable)</strong></li>
+<li><strong>Your operating system and environment</strong></li>
+<li><strong>Any error messages or screenshots</strong></li>
+<li><strong>Date observed</strong></li>
 </ul>
 <hr />
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<p>We recommend using <a href="https://www.anaconda.com/products/distribution">Anaconda</a> to manage your Python environments for ALchemist.</p>
-<p><strong>1. Create a new environment:</strong>
-<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>alchemist-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
-conda<span class="w"> </span>activate<span class="w"> </span>alchemist-env
-</code></pre></div></p>
-<p><strong>2. Clone the ALchemist repository:</strong>
-<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/calebcoatney/ALchemist.git
-<span class="nb">cd</span><span class="w"> </span>ALchemist
-</code></pre></div></p>
-<p><strong>3. Install ALchemist:</strong>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</code></pre></div></p>
-<p>All dependencies are specified in <code>pyproject.toml</code> and will be installed automatically.</p>
-<p>After installation, launch the graphical user interface by running:</p>
-<div class="highlight"><pre><span></span><code>alchemist
-</code></pre></div>
+<h2 id="known-issues">Known Issues<a class="headerlink" href="#known-issues" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Date Reported</th>
+<th>Status</th>
+<th>Notes / Workarounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GUI not displaying fully on macOS; windows may be cut off</td>
+<td>2024-06-16</td>
+<td>Open</td>
+<td>Extending to a larger external display may resolve. Investigating cross-platform GUI adjustments.</td>
+</tr>
+<tr>
+<td>BoTorch kernel hyperparameters not shown in "Next Point" dialog</td>
+<td>2024-06-16</td>
+<td>Open</td>
+<td>Hyperparameters are available in the console output. UI fix planned.</td>
+</tr>
+</tbody>
+</table>
 <hr />
-<p>Use the sidebar to navigate through the documentation. See <a href="setup/variable_space/">Getting Started</a> to define your variable space and generate initial experiments.</p>
+<p>This log is updated as issues are reported and resolved.</p>
 
 
 
@@ -1149,12 +1158,12 @@ conda<span class="w"> </span>activate<span class="w"> </span>alchemist-env
     
     
       
-      <script id="__config" type="application/json">{"base": ".", "features": ["navigation.top", "navigation.tabs", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.top", "navigation.tabs", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.13a4f30d.min.js"></script>
+      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
       
-        <script src="javascripts/mathjax.js"></script>
+        <script src="../javascripts/mathjax.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
