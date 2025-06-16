@@ -116,4 +116,4 @@ For a visual and engaging overview of Bayesian Optimization, watch this excellen
 
 ## Summary
 
-Bayesian Optimization is a powerful framework for optimizing complex systems with minimal experimentation. By leveraging probabilistic models like Gaussian Processes, it intelligently balances exploration and exploitation, making it ideal for applications where experiments are costly or time-consuming. Whether you're optimizing a chemical reaction, designing a new material, or tuning a process, Bayesian Optimization can help you achieve your goals more
+Bayesian Optimization is a powerful framework for optimizing complex systems with minimal experimentation. By leveraging probabilistic models like Gaussian Processes, it intelligently balances exploration and exploitation, making it ideal for applications where experiments are costly or time-consuming. Whether you're optimizing a chemical reaction, designing a new material, or tuning a process, Bayesian Optimization can help you achieve your goals more efficiently and with fewer resources.

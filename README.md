@@ -75,6 +75,19 @@ ALchemist is under active development at NREL as part of the DataHub project wit
 - Additional model types and acquisition strategies
 - Improved visualization tools
 - GUI reimplementation in PySide6 for broader compatibility
+- Support for multi-output models and multi-objective optimization
+
+---
+
+## 🐞 Issues & Troubleshooting
+
+If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/calebcoatney/ALchemist/issues) or contact ccoatney@nrel.gov.
+
+**Known Issues:**
+- **macOS Display:** Mac users may experience issues with the GUI not displaying fully or windows being cut off. Extending the application to a larger external display may resolve this issue.
+- **BoTorch Kernel Hyperparameters:** Kernel hyperparameters for BoTorch models are not currently displayed in the "Next Point" dialog, but they are available in the console output.
+
+We appreciate your feedback and bug reports to help improve ALchemist!
 
 ---
 
