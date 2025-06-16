@@ -26,7 +26,7 @@ ALchemist accelerates discovery and optimization by combining:
 
 ---
 
-## Getting Started
+## 🧭 Getting Started
 
 Requirements: Python 3.9 or higher
 
