@@ -1,4 +1,4 @@
-![ALchemist](docs/assets/logo.png)
+![ALchemist](docs/assets/logo.png) { width="400" }
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
