@@ -1,4 +1,4 @@
-![ALchemist](docs/assets/logo.png) { width="400" }
+<img src="docs/assets/logo.png" alt="ALchemist" width="50%" />
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
