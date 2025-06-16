@@ -17,6 +17,7 @@ $$
 where $\mathbf{K}_{ij} = k(x_i, x_j)$.
 
 **Functionally, the kernel controls:**
+
 - The smoothness and complexity of the functions the GP can model.
 - How information from observed data points influences predictions at new points.
 - The ability to capture periodicity, trends, or other structural properties.
@@ -37,6 +38,7 @@ $$
 - $\ell$ is the lengthscale (controls how quickly correlation decays with distance).
 
 **Properties:**
+
 - Produces very smooth functions.
 - Good default for many problems.
 - Implemented in both scikit-optimize and BoTorch.
@@ -63,6 +65,7 @@ $$
 - $K_\nu$ is a modified Bessel function.
 
 **Properties:**
+
 - Allows control over function roughness.
 - Lower $\nu$ allows modeling rougher, less smooth functions.
 - Implemented in both scikit-optimize and BoTorch.
@@ -85,6 +88,7 @@ $$
 - As $\alpha \to \infty$, the kernel approaches the RBF kernel.
 
 **Properties:**
+
 - Can model functions with varying smoothness.
 - Useful when the function exhibits both short- and long-range correlations.
 - Currently implemented in the scikit-optimize backend.
@@ -111,6 +115,7 @@ $$
 ARD refers to the process where the model learns a separate lengthscale for each input variable. If a variable is not relevant to the output, its lengthscale will become very large, effectively reducing its influence on the model.
 
 **Benefits:**
+
 - Helps identify which variables are important for predicting the output.
 - Improves interpretability and can lead to more efficient optimization.
 
@@ -125,6 +130,7 @@ ARD refers to the process where the model learns a separate lengthscale for each
 - **Rational Quadratic:** Use when you suspect the function has varying smoothness or both short- and long-range correlations.
 
 **Tips:**
+
 - If unsure, start with Matern ($\nu=2.5$ or $1.5$) or RBF.
 - Try different kernels and compare cross-validation metrics (RMSE, MAE, etc.).
 - Use ARD to let the model determine variable relevance.

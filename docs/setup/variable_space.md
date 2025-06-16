@@ -6,7 +6,7 @@ The **Variable Space Setup** window allows you to define the variables that make
 
 ## Opening the Variable Space Setup
 
-- Click the **Define Search Space** button in the main application window to open the setup dialog.
+- Click the **Create Variables File** button in the main application window to open the setup dialog.
 
 ---
 
@@ -16,7 +16,6 @@ The window is divided into two main sections:
 
 - **Left Panel:** Displays a list of variables you have defined.
 - **Right Panel:** Contains control buttons for managing variables.
-
 ---
 
 ## Adding and Editing Variables

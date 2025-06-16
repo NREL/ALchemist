@@ -6,6 +6,7 @@
 # Project-specific files
 cache/
 logs/
+images/
 
 # Python-related
 __pycache__/

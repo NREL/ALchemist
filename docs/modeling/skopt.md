@@ -24,7 +24,7 @@ You can choose from several kernel types for the GP:
 
 For the Matern kernel, you can select the `nu` parameter (0.5, 1.5, 2.5, or ∞), which controls the smoothness of the function.
 
-> **Note:** ALchemist uses anisotropic (dimension-wise) kernels by default, so each variable can have its own learned lengthscale. This helps preserve the physical meaning of each variable and enables automatic relevance detection (ARD). For more details, see the [Kernel Deep Dive](../resources/kernels.md) in the Educational Resources section.
+> **Note:** ALchemist uses anisotropic (dimension-wise) kernels by default, so each variable can have its own learned lengthscale. This helps preserve the physical meaning of each variable and enables automatic relevance detection (ARD). For more details, see the [Kernel Deep Dive](../background/kernels.md) in the Educational Resources section.
 
 ### 2. Optimizer
 
@@ -72,6 +72,6 @@ Categorical variables are automatically one-hot encoded for compatibility with s
 
 ---
 
-For a deeper explanation of kernel selection, anisotropic kernels, and ARD, see [Kernel Deep Dive](../resources/kernels.md) in the Educational Resources section.
+For a deeper explanation of kernel selection, anisotropic kernels, and ARD, see [Kernel Deep Dive](../background/kernels.md) in the Educational Resources section.
 
 For details on using the BoTorch backend, see the next section.

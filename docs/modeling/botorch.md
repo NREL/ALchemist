@@ -23,7 +23,7 @@ You can choose the kernel type for the continuous variables:
 
 For the Matern kernel, you can select the `nu` parameter (0.5, 1.5, or 2.5), which controls the smoothness of the function.
 
-> **Note:** BoTorch uses anisotropic (ARD) kernels by default, so each variable can have its own learned lengthscale. This helps preserve the physical meaning of each variable and enables automatic relevance detection. For more details, see the [Kernel Deep Dive](../resources/kernels.md) in the Educational Resources section.
+> **Note:** BoTorch uses anisotropic (ARD) kernels by default, so each variable can have its own learned lengthscale. This helps preserve the physical meaning of each variable and enables automatic relevance detection. For more details, see the [Kernel Deep Dive](../background/kernels.md) in the Educational Resources section.
 
 ### 2. Categorical Variables
 
@@ -66,6 +66,6 @@ For the Matern kernel, you can select the `nu` parameter (0.5, 1.5, or 2.5), whi
 
 ---
 
-For a deeper explanation of kernel selection, anisotropic kernels, and ARD, see [Kernel Deep Dive](../resources/kernels.md) in the Educational Resources section.
+For a deeper explanation of kernel selection, anisotropic kernels, and ARD, see [Kernel Deep Dive](../background/kernels.md) in the Educational Resources section.
 
 For details on using the scikit-optimize backend, see the previous section.
