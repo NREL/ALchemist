@@ -45,6 +45,7 @@ nav:
       - scikit-optimize Acquisition: acquisition/skopt.md
       - BoTorch Acquisition: acquisition/botorch.md
       - Logging & Tracking: acquisition/logging.md
+  - Issues & Troubleshooting: ISSUES_LOG.md
   - Educational Resources:
       - Bayesian Optimization: background/bayesian_optimization.md
       - Kernels: background/kernels.md
