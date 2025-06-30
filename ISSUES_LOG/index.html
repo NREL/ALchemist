@@ -941,6 +941,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#resolved-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolved Issues
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1089,16 +1098,54 @@
 </thead>
 <tbody>
 <tr>
-<td>GUI not displaying fully on macOS; windows may be cut off</td>
-<td>2024-06-16</td>
-<td>Open</td>
-<td>Extending to a larger external display may resolve. Investigating cross-platform GUI adjustments.</td>
-</tr>
-<tr>
 <td>BoTorch kernel hyperparameters not shown in "Next Point" dialog</td>
 <td>2024-06-16</td>
 <td>Open</td>
 <td>Hyperparameters are available in the console output. UI fix planned.</td>
+</tr>
+<tr>
+<td>Loading variables from CSV does not work; only JSON loads correctly</td>
+<td>2025-06-29</td>
+<td>Open</td>
+<td>Workaround: Use the application to save variables as .json and load the .json file.</td>
+</tr>
+<tr>
+<td>Saving variables as CSV and reloading does not restore variables</td>
+<td>2025-06-29</td>
+<td>Open</td>
+<td>Same as above; use .json format for now.</td>
+</tr>
+<tr>
+<td>Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable</td>
+<td>2025-06-29</td>
+<td>Open</td>
+<td>Needs investigation</td>
+</tr>
+<tr>
+<td>Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values</td>
+<td>2025-06-29</td>
+<td>Open</td>
+<td>Needs investigation</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="resolved-issues">Resolved Issues<a class="headerlink" href="#resolved-issues" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Date Reported</th>
+<th>Date Resolved</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GUI not displaying fully on macOS; windows may be cut off</td>
+<td>2024-06-16</td>
+<td>2025-06-29</td>
+<td>Resolved as of latest testing; GUI now displays correctly on Mac without external monitor.</td>
 </tr>
 </tbody>
 </table>
