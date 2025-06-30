@@ -18,10 +18,21 @@ If you encounter a problem or have feedback, please [open an issue on GitHub](ht
 
 ## Known Issues
 
-| Issue                                                                 | Date Reported | Status      | Notes / Workarounds                                                                                 |
-|-----------------------------------------------------------------------|---------------|-------------|-----------------------------------------------------------------------------------------------------|
-| GUI not displaying fully on macOS; windows may be cut off             | 2024-06-16    | Open        | Extending to a larger external display may resolve. Investigating cross-platform GUI adjustments.   |
-| BoTorch kernel hyperparameters not shown in "Next Point" dialog       | 2024-06-16    | Open        | Hyperparameters are available in the console output. UI fix planned.                                |
+| Issue                                                                                         | Date Reported | Status      | Notes / Workarounds                                                                                 |
+|-----------------------------------------------------------------------------------------------|---------------|-------------|-----------------------------------------------------------------------------------------------------|
+| BoTorch kernel hyperparameters not shown in "Next Point" dialog                               | 2024-06-16    | Open        | Hyperparameters are available in the console output. UI fix planned.                                |
+| Loading variables from CSV does not work; only JSON loads correctly                           | 2025-06-29    | Open        | Workaround: Use the application to save variables as .json and load the .json file.                 |
+| Saving variables as CSV and reloading does not restore variables                              | 2025-06-29    | Open        | Same as above; use .json format for now.                                                            |
+| Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable| 2025-06-29    | Open        | Needs investigation                                                   |
+| Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values   | 2025-06-29    | Open        | Needs investigation                          |
+
+---
+
+## Resolved Issues
+
+| Issue                                                                 | Date Reported | Date Resolved | Notes                                                                                               |
+|-----------------------------------------------------------------------|---------------|---------------|-----------------------------------------------------------------------------------------------------|
+| GUI not displaying fully on macOS; windows may be cut off             | 2024-06-16    | 2025-06-29    | Resolved as of latest testing; GUI now displays correctly on Mac without external monitor.           |
 
 ---
 
