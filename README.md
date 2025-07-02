@@ -4,6 +4,8 @@
 
 ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.
 
+**NREL Software Record:** SWR-25-102
+
 ---
 
 ## 📖 Documentation
