@@ -85,9 +85,7 @@ ALchemist is under active development at NREL as part of the DataHub project wit
 
 If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or contact ccoatney@nrel.gov.
 
-**Known Issues:**
-- **macOS Display:** Mac users may experience issues with the GUI not displaying fully or windows being cut off. Extending the application to a larger external display may resolve this issue.
-- **BoTorch Kernel Hyperparameters:** Kernel hyperparameters for BoTorch models are not currently displayed in the "Next Point" dialog, but they are available in the console output.
+For the latest known issues and troubleshooting tips, see the [Issues & Troubleshooting Log](docs/ISSUES_LOG.md).
 
 We appreciate your feedback and bug reports to help improve ALchemist!
 
