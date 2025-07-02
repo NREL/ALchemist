@@ -9,7 +9,7 @@ description = "Active learning and optimization toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
-license = "MIT"
+license = "BSD 3-Clause License"
 dependencies = [
     "numpy",
     "pandas",
@@ -39,6 +39,6 @@ py-modules = ["main"]
 include = ["ui", "logic"]
 
 [project.urls]
-"Homepage" = "https://github.com/calebcoatney/ALchemist"
-"Source" = "https://github.com/calebcoatney/ALchemist"
+"Homepage" = "https://github.com/NREL/ALchemist"
+"Source" = "https://github.com/NREL/ALchemist"
 

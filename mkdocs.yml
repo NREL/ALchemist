@@ -1,6 +1,6 @@
 site_name: ALchemist Documentation
-site_url: https://yourproject.github.io  # You can change this later
-repo_url: https://github.com/calebcoatney/ALchemist
+repo_url: https://github.com/NREL/ALchemist
+site_url: https://nrel.github.io/ALchemist/
 repo_name: ALchemist
 
 theme:

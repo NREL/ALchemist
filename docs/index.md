@@ -29,7 +29,7 @@ conda activate alchemist-env
 
 **2. Clone the ALchemist repository:**
 ```bash
-git clone https://github.com/calebcoatney/ALchemist.git
+git clone https://github.com/NREL/ALchemist.git
 cd ALchemist
 ```
 

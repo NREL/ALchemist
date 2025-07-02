@@ -9,7 +9,7 @@ ALchemist is a modular Python toolkit that brings active learning and Bayesian o
 ## 📖 Documentation
 
 Full user guide and documentation:  
-[https://calebcoatney.github.io/ALchemist/](https://calebcoatney.github.io/ALchemist/)
+[https://nrel.github.io/ALchemist/](https://nrel.github.io/ALchemist/)
 
 ---
 
@@ -40,7 +40,7 @@ conda activate alchemist-env
 
 **2. Clone the ALchemist repository:**
 ```bash
-git clone https://github.com/calebcoatney/ALchemist.git
+git clone https://github.com/NREL/ALchemist.git
 cd ALchemist
 ```
 
@@ -63,7 +63,7 @@ From the GUI, you can:
 - Train surrogate models and evaluate acquisition functions
 - Visualize model predictions and export logs
 
-For step-by-step instructions, see the [Getting Started](https://calebcoatney.github.io/ALchemist/) section of the documentation.
+For step-by-step instructions, see the [Getting Started](https://nrel.github.io/ALchemist/) section of the documentation.
 
 ---
 
@@ -81,7 +81,7 @@ ALchemist is under active development at NREL as part of the DataHub project wit
 
 ## 🐞 Issues & Troubleshooting
 
-If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/calebcoatney/ALchemist/issues) or contact ccoatney@nrel.gov.
+If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or contact ccoatney@nrel.gov.
 
 **Known Issues:**
 - **macOS Display:** Mac users may experience issues with the GUI not displaying fully or windows being cut off. Extending the application to a larger external display may resolve this issue.
@@ -93,11 +93,11 @@ We appreciate your feedback and bug reports to help improve ALchemist!
 
 ## 📄 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the BSD 3-Clause License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🔗 Repository
 
-[https://github.com/calebcoatney/ALchemist](https://github.com/calebcoatney/ALchemist)
+[https://github.com/NREL/ALchemist](https://github.com/NREL/ALchemist)
 
