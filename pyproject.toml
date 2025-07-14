@@ -9,7 +9,7 @@ description = "Active learning and optimization toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
-license = "BSD 3-Clause License"
+license = "BSD-3-Clause"
 dependencies = [
     "numpy",
     "pandas",
