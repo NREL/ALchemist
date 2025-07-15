@@ -1082,12 +1082,14 @@
 <div class="highlight"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>alchemist-env<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
 conda<span class="w"> </span>activate<span class="w"> </span>alchemist-env
 </code></pre></div></p>
-<p><strong>2. Clone the ALchemist repository:</strong>
+<p><strong>2. Install ALchemist:</strong></p>
+<p><em>Option A: Install directly from GitHub:</em>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/NREL/ALchemist.git
+</code></pre></div></p>
+<p><em>Option B: Clone and install (recommended for development):</em>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/NREL/ALchemist.git
 <span class="nb">cd</span><span class="w"> </span>ALchemist
-</code></pre></div></p>
-<p><strong>3. Install ALchemist:</strong>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </code></pre></div></p>
 <p>All dependencies are specified in <code>pyproject.toml</code> and will be installed automatically.</p>
 <p>After installation, launch the graphical user interface by running:</p>

@@ -1103,30 +1103,6 @@
 <td>Open</td>
 <td>Hyperparameters are available in the console output. UI fix planned.</td>
 </tr>
-<tr>
-<td>Loading variables from CSV does not work; only JSON loads correctly</td>
-<td>2025-06-29</td>
-<td>Open</td>
-<td>Workaround: Use the application to save variables as .json and load the .json file.</td>
-</tr>
-<tr>
-<td>Saving variables as CSV and reloading does not restore variables</td>
-<td>2025-06-29</td>
-<td>Open</td>
-<td>Same as above; use .json format for now.</td>
-</tr>
-<tr>
-<td>Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable</td>
-<td>2025-06-29</td>
-<td>Open</td>
-<td>Needs investigation</td>
-</tr>
-<tr>
-<td>Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values</td>
-<td>2025-06-29</td>
-<td>Open</td>
-<td>Needs investigation</td>
-</tr>
 </tbody>
 </table>
 <hr />
@@ -1146,6 +1122,42 @@
 <td>2024-06-16</td>
 <td>2025-06-29</td>
 <td>Resolved as of latest testing; GUI now displays correctly on Mac without external monitor.</td>
+</tr>
+<tr>
+<td>Loading variables from CSV does not work; only JSON loads correctly</td>
+<td>2025-06-29</td>
+<td>2025-07-15</td>
+<td>Fixed CSV parsing for integer min/max values and categorical value parsing.</td>
+</tr>
+<tr>
+<td>Saving variables as CSV and reloading does not restore variables</td>
+<td>2025-06-29</td>
+<td>2025-07-15</td>
+<td>Fixed Integer variable population and main UI update after variable definition.</td>
+</tr>
+<tr>
+<td>Main UI "Load Variables" button fails with JSON error when loading CSV files</td>
+<td>2025-07-15</td>
+<td>2025-07-15</td>
+<td>Fixed load_variables() function to properly detect and parse both JSON and CSV file formats.</td>
+</tr>
+<tr>
+<td>Categorical variables losing values when editing in variables setup</td>
+<td>2025-07-15</td>
+<td>2025-07-15</td>
+<td>Enhanced categorical editor data filtering and improved Sheet widget data handling.</td>
+</tr>
+<tr>
+<td>Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable (BoTorch backend)</td>
+<td>2025-06-29</td>
+<td>2025-07-15</td>
+<td>Fixed by implementing integer rounding in optimization results. Note: BoTorch likely has native integer constraints - investigate optimize_acqf with integer_indices parameter for future improvement.</td>
+</tr>
+<tr>
+<td>Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values (BoTorch backend)</td>
+<td>2025-06-29</td>
+<td>2025-07-15</td>
+<td>Fixed by correcting acquisition panel to use find_optimum() method instead of select_next() method.</td>
 </tr>
 </tbody>
 </table>
