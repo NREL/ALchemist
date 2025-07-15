@@ -10,6 +10,7 @@ from sklearn.model_selection import KFold, cross_val_predict, cross_validate, tr
 from sklearn.gaussian_process import GaussianProcessRegressor
 import pandas as pd
 import threading
+from ui.custom_widgets import CTkSpinbox
 
 plt.rcParams['savefig.dpi'] = 600
 
@@ -241,7 +242,7 @@ class Visualizations:
                 self.fixed_controls[dim.name] = slider
 
             elif isinstance(dim, Integer):
-                spinbox = ctk.CTkSpinbox(
+                spinbox = CTkSpinbox(
                     self.fixed_controls_container,
                     step_size=1
                 )
