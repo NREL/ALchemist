@@ -40,20 +40,23 @@ conda create -n alchemist-env python=3.12
 conda activate alchemist-env
 ```
 
-**2. Clone the ALchemist repository:**
+**2. Install ALchemist:**
+
+*Option A: Install directly from GitHub:*
+```bash
+python -m pip install git+https://github.com/NREL/ALchemist.git
+```
+
+*Option B: Clone and install (recommended for development):*
 ```bash
 git clone https://github.com/NREL/ALchemist.git
 cd ALchemist
-```
-
-**3. Install ALchemist:**
-```bash
 python -m pip install -e .
 ```
 
 All dependencies are specified in `pyproject.toml` and will be installed automatically.
 
-**4. Launch the graphical user interface:**
+**3. Launch the graphical user interface:**
 ```bash
 alchemist
 ```
