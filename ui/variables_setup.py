@@ -40,8 +40,16 @@ class CategoricalEditorWindow(ctk.CTkToplevel):
     def on_save(self):
         # Get all data from the sheet; expect a list of lists (one column each)
         raw_data = self.sheet.get_sheet_data()
-        # Flatten and filter out empty strings.
-        values = [row[0].strip() for row in raw_data if row and row[0].strip()]
+        
+        # More robust filtering to handle different data formats
+        values = []
+        if raw_data:
+            for row in raw_data:
+                if row and len(row) > 0:
+                    val = str(row[0]).strip() if row[0] is not None else ""
+                    if val:
+                        values.append(val)
+        
         if self.callback:
             self.callback(values)
         self.destroy()
@@ -135,7 +143,7 @@ class SpaceVariableRow(ctk.CTkFrame):
         self.var_name_entry.insert(0, data.get("name", ""))
         self.type_var.set(data.get("type", "Real"))
         self.on_type_change(data.get("type", "Real"))
-        if data.get("type") == "Real":
+        if data.get("type") in ["Real", "Integer"]:
             self.min_entry.delete(0, ctk.END)
             self.min_entry.insert(0, str(data.get("min", "")))
             self.max_entry.delete(0, ctk.END)
@@ -337,28 +345,56 @@ class SpaceSetupWindow(ctk.CTkToplevel):
                     reader = csv.DictReader(f)
                     for row in reader:
                         typ = row.get("Type", "").strip()
+                        variable_name = row.get("Variable", "").strip()
+                        
+                        # Skip rows with empty variable names
+                        if not variable_name:
+                            continue
+                            
                         if typ == "Real":
+                            try:
+                                min_val = float(row.get("Min", "0").strip() or "0")
+                                max_val = float(row.get("Max", "1").strip() or "1")
+                            except (ValueError, TypeError):
+                                print(f"Warning: Invalid min/max values for Real variable '{variable_name}'. Using defaults 0, 1.")
+                                min_val, max_val = 0.0, 1.0
                             d = {
-                                "name": row.get("Variable", "").strip(),
+                                "name": variable_name,
                                 "type": "Real",
-                                "min": float(row.get("Min", 0)),
-                                "max": float(row.get("Max", 0))
+                                "min": min_val,
+                                "max": max_val
                             }
                         elif typ == "Integer":
+                            try:
+                                min_val = int(float(row.get("Min", "0").strip() or "0"))
+                                max_val = int(float(row.get("Max", "1").strip() or "1"))
+                            except (ValueError, TypeError):
+                                print(f"Warning: Invalid min/max values for Integer variable '{variable_name}'. Using defaults 0, 1.")
+                                min_val, max_val = 0, 1
                             d = {
-                                "name": row.get("Variable", "").strip(),
+                                "name": variable_name,
                                 "type": "Integer",
-                                "min": 0,
-                                "max": 1
+                                "min": min_val,
+                                "max": max_val
                             }
                         elif typ == "Categorical":
-                            values = [v.strip() for v in row.get("Values", "").split(",") if v.strip()]
+                            values_str = row.get("Values", "").strip()
+                            if values_str:
+                                values = [v.strip() for v in values_str.split(",") if v.strip()]
+                            else:
+                                values = []
+                            
+                            if not values:
+                                print(f"Warning: No values found for Categorical variable '{variable_name}'. Skipping.")
+                                continue
+                                
                             d = {
-                                "name": row.get("Variable", "").strip(),
+                                "name": variable_name,
                                 "type": "Categorical",
                                 "values": values
                             }
                         else:
+                            print(f"Warning: Unknown variable type '{typ}' for variable '{variable_name}'. Skipping.")
                             continue
                         data.append(d)
             self.load_data(data)
@@ -388,7 +424,56 @@ class SpaceSetupWindow(ctk.CTkToplevel):
         for obj in self.search_space:
             print(obj)
         print("Categorical variables:", self.categorical_variables)
+        
+        # Update the main UI if it has the necessary methods
+        if hasattr(self.master, 'search_space'):
+            self.master.search_space = self.search_space
+        if hasattr(self.master, 'update_variables_display'):
+            self.master.update_variables_display()
+        elif hasattr(self.master, 'var_sheet'):
+            # Directly update the variable sheet in the main UI
+            self._update_main_ui_variables()
+            
         self.destroy()
+    
+    def _update_main_ui_variables(self):
+        """Update the main UI variable sheet with current data."""
+        try:
+            # Prepare data for the main UI sheet
+            sheet_data = []
+            for d in self.master.variable_space_data:
+                if d["type"] in ["Real", "Integer"]:
+                    row = [
+                        d.get("name", ""),
+                        d.get("type", ""),
+                        str(d.get("min", "")),
+                        str(d.get("max", "")),
+                        ""  # Values column empty for Real/Integer
+                    ]
+                elif d["type"] == "Categorical":
+                    row = [
+                        d.get("name", ""),
+                        d.get("type", ""),
+                        "",  # Min column empty for Categorical
+                        "",  # Max column empty for Categorical
+                        ", ".join(d.get("values", []))  # Values column
+                    ]
+                sheet_data.append(row)
+            
+            # Update the main UI sheet
+            self.master.var_sheet.set_sheet_data(sheet_data)
+            self.master.var_sheet.set_all_column_widths()
+            
+            # Enable buttons that depend on variables being loaded
+            if hasattr(self.master, 'load_exp_button'):
+                self.master.load_exp_button.configure(state='normal')
+            if hasattr(self.master, 'gen_template_button'):
+                self.master.gen_template_button.configure(state='normal')
+            if hasattr(self.master, 'cluster_switch'):
+                self.master.cluster_switch.configure(state='normal')
+                
+        except Exception as e:
+            print(f"Error updating main UI variables: {e}")
 
 # -----------------------------------------------------------------------------
 # Main application window.

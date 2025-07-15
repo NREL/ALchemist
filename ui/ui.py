@@ -275,8 +275,16 @@ class ALchemistApp(ctk.CTk):
         )
         if file_path:
             try:
-                # Load the search space using our new class
-                self.search_space_manager.load_from_json(file_path)
+                # Determine file type and load accordingly
+                if file_path.lower().endswith('.json'):
+                    # Load JSON file
+                    self.search_space_manager.load_from_json(file_path)
+                elif file_path.lower().endswith('.csv'):
+                    # Load CSV file using the same logic as variables_setup.py
+                    data = self._load_variables_from_csv(file_path)
+                    self.search_space_manager.from_dict(data)
+                else:
+                    raise ValueError("Unsupported file format. Please use .json or .csv files.")
                 
                 # CRITICAL: Update the legacy variable with skopt format
                 self.search_space = self.search_space_manager.to_skopt()
@@ -334,6 +342,68 @@ class ALchemistApp(ctk.CTk):
                 self.update_pool_plot()
             except Exception as e:
                 print('Error loading search space:', e)
+    
+    def _load_variables_from_csv(self, file_path):
+        """Load variables from CSV file using the same logic as variables_setup.py"""
+        import csv
+        data = []
+        with open(file_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                typ = row.get("Type", "").strip()
+                variable_name = row.get("Variable", "").strip()
+                
+                # Skip rows with empty variable names
+                if not variable_name:
+                    continue
+                    
+                if typ == "Real":
+                    try:
+                        min_val = float(row.get("Min", "0").strip() or "0")
+                        max_val = float(row.get("Max", "1").strip() or "1")
+                    except (ValueError, TypeError):
+                        print(f"Warning: Invalid min/max values for Real variable '{variable_name}'. Using defaults 0, 1.")
+                        min_val, max_val = 0.0, 1.0
+                    d = {
+                        "name": variable_name,
+                        "type": "real",  # lowercase for SearchSpace compatibility
+                        "min": min_val,
+                        "max": max_val
+                    }
+                elif typ == "Integer":
+                    try:
+                        min_val = int(float(row.get("Min", "0").strip() or "0"))
+                        max_val = int(float(row.get("Max", "1").strip() or "1"))
+                    except (ValueError, TypeError):
+                        print(f"Warning: Invalid min/max values for Integer variable '{variable_name}'. Using defaults 0, 1.")
+                        min_val, max_val = 0, 1
+                    d = {
+                        "name": variable_name,
+                        "type": "integer",  # lowercase for SearchSpace compatibility
+                        "min": min_val,
+                        "max": max_val
+                    }
+                elif typ == "Categorical":
+                    values_str = row.get("Values", "").strip()
+                    if values_str:
+                        values = [v.strip() for v in values_str.split(",") if v.strip()]
+                    else:
+                        values = []
+                    
+                    if not values:
+                        print(f"Warning: No values found for Categorical variable '{variable_name}'. Skipping.")
+                        continue
+                        
+                    d = {
+                        "name": variable_name,
+                        "type": "categorical",  # lowercase for SearchSpace compatibility
+                        "values": values
+                    }
+                else:
+                    print(f"Warning: Unknown variable type '{typ}' for variable '{variable_name}'. Skipping.")
+                    continue
+                data.append(d)
+        return data
 
     def load_experiments(self, file_path=None):
         '''Loads experimental data from a CSV file using a file dialog.'''
