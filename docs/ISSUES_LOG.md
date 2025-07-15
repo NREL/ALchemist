@@ -21,8 +21,6 @@ If you encounter a problem or have feedback, please [open an issue on GitHub](ht
 | Issue                                                                                         | Date Reported | Status      | Notes / Workarounds                                                                                 |
 |-----------------------------------------------------------------------------------------------|---------------|-------------|-----------------------------------------------------------------------------------------------------|
 | BoTorch kernel hyperparameters not shown in "Next Point" dialog                               | 2024-06-16    | Open        | Hyperparameters are available in the console output. UI fix planned.                                |
-| Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable| 2025-06-29    | Open        | Needs investigation                                                   |
-| Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values   | 2025-06-29    | Open        | Needs investigation                          |
 
 ---
 
@@ -35,6 +33,8 @@ If you encounter a problem or have feedback, please [open an issue on GitHub](ht
 | Saving variables as CSV and reloading does not restore variables      | 2025-06-29    | 2025-07-15    | Fixed Integer variable population and main UI update after variable definition.                     |
 | Main UI "Load Variables" button fails with JSON error when loading CSV files | 2025-07-15    | 2025-07-15    | Fixed load_variables() function to properly detect and parse both JSON and CSV file formats.        |
 | Categorical variables losing values when editing in variables setup   | 2025-07-15    | 2025-07-15    | Enhanced categorical editor data filtering and improved Sheet widget data handling.                 |
+| Model Prediction Optimum tool: suggested experiment gives fractional value for integer variable (BoTorch backend) | 2025-06-29    | 2025-07-15    | Fixed by implementing integer rounding in optimization results. Note: BoTorch likely has native integer constraints - investigate optimize_acqf with integer_indices parameter for future improvement. |
+| Model Prediction Optimum tool: optimizing to maximum or minimum gives same suggested values (BoTorch backend) | 2025-06-29    | 2025-07-15    | Fixed by correcting acquisition panel to use find_optimum() method instead of select_next() method. |
 
 ---
 

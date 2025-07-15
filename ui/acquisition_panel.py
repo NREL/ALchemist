@@ -907,8 +907,13 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
                     random_state=42
                 )
                 
-                # Find the optimum using BoTorch
-                result = self._find_botorch_optimum(acquisition, maximize)
+                # Find the optimum using BoTorch's find_optimum method (not the broken _find_botorch_optimum)
+                print(f"Searching for model's predicted {'maximum' if maximize else 'minimum'}...")
+                result = acquisition.find_optimum(
+                    model=self.main_app.gpr_model,
+                    maximize=maximize,
+                    random_state=42
+                )
                 
             else:
                 print(f"Finding model optimum not implemented for {backend} backend")

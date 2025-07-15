@@ -210,10 +210,13 @@ class BoTorchAcquisition(BaseAcquisition):
         # Get bounds from the search space
         bounds_tensor = self._get_bounds_from_search_space()
         
-        # Identify categorical variables and their possible values
+        # Identify categorical and integer variables
         categorical_variables = []
+        integer_variables = []
         if hasattr(self.search_space_obj, 'get_categorical_variables'):
             categorical_variables = self.search_space_obj.get_categorical_variables()
+        if hasattr(self.search_space_obj, 'get_integer_variables'):
+            integer_variables = self.search_space_obj.get_integer_variables()
         
         # Set torch seed for reproducibility
         torch.manual_seed(self.random_state)
@@ -280,7 +283,17 @@ class BoTorchAcquisition(BaseAcquisition):
                     )
                     
                     # Get the best candidate(s)
-                    best_candidates = batch_candidates.detach().cpu().numpy()
+                    best_candidates = batch_candidates.detach().cpu()
+                    
+                    # Apply integer constraints if needed
+                    if integer_variables:
+                        var_to_idx = {name: i for i, name in enumerate(self.model.feature_names)}
+                        for var_name in integer_variables:
+                            if var_name in var_to_idx:
+                                idx = var_to_idx[var_name]
+                                best_candidates[:, idx] = torch.round(best_candidates[:, idx])
+                    
+                    best_candidates = best_candidates.numpy()
                 except Exception as e:
                     print(f"Error in optimize_acqf_mixed: {e}")
                     # Fallback to standard optimization
@@ -292,7 +305,17 @@ class BoTorchAcquisition(BaseAcquisition):
                         raw_samples=raw_samples // 2,    # Reduce for fallback
                         options=options,
                     )
-                    best_candidates = batch_candidates.detach().cpu().numpy()
+                    best_candidates = batch_candidates.detach().cpu()
+                    
+                    # Apply integer constraints if needed
+                    if integer_variables:
+                        var_to_idx = {name: i for i, name in enumerate(self.model.feature_names)}
+                        for var_name in integer_variables:
+                            if var_name in var_to_idx:
+                                idx = var_to_idx[var_name]
+                                best_candidates[:, idx] = torch.round(best_candidates[:, idx])
+                    
+                    best_candidates = best_candidates.numpy()
             else:
                 # For purely continuous variables
                 batch_candidates, batch_acq_values = optimize_acqf(
@@ -304,7 +327,17 @@ class BoTorchAcquisition(BaseAcquisition):
                     options=options,
                 )
                 
-                best_candidates = batch_candidates.detach().cpu().numpy()
+                best_candidates = batch_candidates.detach().cpu()
+                
+                # Apply integer constraints if needed
+                if integer_variables:
+                    var_to_idx = {name: i for i, name in enumerate(self.model.feature_names)}
+                    for var_name in integer_variables:
+                        if var_name in var_to_idx:
+                            idx = var_to_idx[var_name]
+                            best_candidates[:, idx] = torch.round(best_candidates[:, idx])
+                
+                best_candidates = best_candidates.numpy()
         else:
             # If candidates are provided, evaluate them directly
             if isinstance(candidate_points, np.ndarray):
@@ -345,6 +378,9 @@ class BoTorchAcquisition(BaseAcquisition):
                             value = inv_encoding[value]
                         elif int(value) in inv_encoding:
                             value = inv_encoding[int(value)]
+                    # If this is an integer variable, ensure it's an integer
+                    elif name in integer_variables:
+                        value = int(round(float(value)))
                     
                     point_dict[name] = value
                 
@@ -366,6 +402,9 @@ class BoTorchAcquisition(BaseAcquisition):
                     value = inv_encoding[value]
                 elif int(value) in inv_encoding:
                     value = inv_encoding[int(value)]
+            # If this is an integer variable, ensure it's an integer
+            elif name in integer_variables:
+                value = int(round(float(value)))
             
             result[name] = value
             
@@ -470,10 +509,13 @@ class BoTorchAcquisition(BaseAcquisition):
         # Get bounds from the search space
         bounds_tensor = self._get_bounds_from_search_space()
         
-        # Identify categorical variables and their possible values
+        # Identify categorical and integer variables
         categorical_variables = []
+        integer_variables = []
         if hasattr(self.search_space_obj, 'get_categorical_variables'):
             categorical_variables = self.search_space_obj.get_categorical_variables()
+        if hasattr(self.search_space_obj, 'get_integer_variables'):
+            integer_variables = self.search_space_obj.get_integer_variables()
     
         # Prepare for optimization
         torch.manual_seed(self.random_state)
@@ -489,6 +531,12 @@ class BoTorchAcquisition(BaseAcquisition):
             lower_bounds, upper_bounds = bounds_tensor[0], bounds_tensor[1]
             X_samples = torch.rand(n_samples, len(lower_bounds), dtype=torch.double)
             X_samples = X_samples * (upper_bounds - lower_bounds) + lower_bounds
+            
+            # Round integer variables to nearest integer
+            if integer_variables:
+                for i, feature_name in enumerate(self.model.feature_names):
+                    if feature_name in integer_variables:
+                        X_samples[:, i] = torch.round(X_samples[:, i])
             
             # Evaluate model at all samples
             self.model.model.eval()
@@ -517,10 +565,24 @@ class BoTorchAcquisition(BaseAcquisition):
             grid_points = []
             
             # Create grid for each dimension
-            for i in range(len(lower_bounds)):
-                grid_points.append(torch.linspace(
-                    lower_bounds[i], upper_bounds[i], n_points, dtype=torch.double
-                ))
+            for i, feature_name in enumerate(self.model.feature_names):
+                if feature_name in integer_variables:
+                    # For integer variables, create integer grid
+                    min_val = int(lower_bounds[i])
+                    max_val = int(upper_bounds[i])
+                    if max_val - min_val + 1 <= n_points:
+                        # If range is small, use all integer values
+                        grid_points.append(torch.arange(min_val, max_val + 1, dtype=torch.double))
+                    else:
+                        # If range is large, sample n_points integers
+                        step = max(1, (max_val - min_val) // (n_points - 1))
+                        values = torch.arange(min_val, max_val + 1, step, dtype=torch.double)
+                        grid_points.append(values[:n_points])
+                else:
+                    # For continuous variables, use linspace
+                    grid_points.append(torch.linspace(
+                        lower_bounds[i], upper_bounds[i], n_points, dtype=torch.double
+                    ))
             
             # Create meshgrid
             meshgrid = torch.meshgrid(*grid_points, indexing='ij')
@@ -558,6 +620,9 @@ class BoTorchAcquisition(BaseAcquisition):
                     value = inv_encoding[value]
                 elif int(value) in inv_encoding:
                     value = inv_encoding[int(value)]
+            # If this is an integer variable, ensure it's an integer
+            elif name in integer_variables:
+                value = int(round(value))
         
             result[name] = value
             

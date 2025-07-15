@@ -144,6 +144,10 @@ class SearchSpace:
         """Get list of categorical variable names."""
         return self.categorical_variables.copy()
 
+    def get_integer_variables(self) -> List[str]:
+        """Get list of integer variable names."""
+        return [var["name"] for var in self.variables if var["type"] == "integer"]
+
     def save_to_json(self, filepath: str):
         """Save search space to a JSON file."""
         with open(filepath, 'w') as f:
