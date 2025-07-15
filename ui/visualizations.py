@@ -52,10 +52,41 @@ class Visualizations:
             'label_fontsize': 10,
             'title_fontweight': "normal",
             'label_fontweight': "normal",
-            'show_experiments': True,  # Add this line
-            'show_next_point': True    # Add this line
+            'tick_style': "x and y",  # Set default to "x and y"
+            'tick_direction': "out",  # Set default to "out"
+            'show_experiments': False,  # Disabled by default
+            'show_next_point': False,    # Disabled by default
+            'x_number_format': "auto",  # X-axis number formatting
+            'y_number_format': "auto",  # Y-axis number formatting
+            'colorbar_format': "auto"   # Colorbar number formatting
         }
         self.last_plot_method = None
+
+    def _get_number_formatter(self, format_type):
+        """Create a matplotlib formatter based on the format type."""
+        from matplotlib.ticker import FuncFormatter, ScalarFormatter, PercentFormatter
+        import matplotlib.ticker as ticker
+        
+        if format_type == "auto":
+            return None  # Use matplotlib's default
+        elif format_type == "decimal":
+            return FuncFormatter(lambda x, p: f"{x:.2f}")
+        elif format_type == "scientific":
+            return ticker.ScientificFormatter(precision=2)
+        elif format_type == "percent":
+            # Handle both 0-1 range and 0-100 range automatically
+            def percent_formatter(x, p):
+                if abs(x) <= 1.0:  # Assume 0-1 range
+                    return f"{x*100:.1f}%"
+                else:  # Assume already in percentage
+                    return f"{x:.1f}%"
+            return FuncFormatter(percent_formatter)
+        elif format_type == "integer":
+            return FuncFormatter(lambda x, p: f"{int(round(x))}")
+        elif format_type == "custom":
+            return FuncFormatter(lambda x, p: f"{x:.3g}")  # General format with 3 significant digits
+        else:
+            return None
 
     def initialize_figure(self):
         """Initialize the Matplotlib figure and axes."""
@@ -332,7 +363,7 @@ class Visualizations:
         # Plot experimental data points only if customization option is True
         if (self.exp_df is not None and 
             not self.exp_df.empty and 
-            self.customization_options.get('show_experiments', True)):
+            self.customization_options.get('show_experiments', False)):
             if axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns:
                 self.ax.scatter(
                     self.exp_df[axis_x_name], 
@@ -347,7 +378,7 @@ class Visualizations:
         main_app = self.parent.main_app if hasattr(self.parent, 'main_app') else self.parent
         if (hasattr(main_app, 'next_point') and 
             main_app.next_point is not None and 
-            self.customization_options.get('show_next_point', True)):
+            self.customization_options.get('show_next_point', False)):
             next_point = main_app.next_point
             if axis_x_name in next_point.columns and axis_y_name in next_point.columns:
                 self.ax.scatter(
@@ -360,21 +391,38 @@ class Visualizations:
                     zorder=10  # Ensure it's on top
                 )
                 
-        # Add legend if there are labeled elements and not already present
-        if not self.ax.get_legend() and (self.customization_options.get('show_experiments', True) or 
-                                         self.customization_options.get('show_next_point', True)):
+        # Add legend if there are labeled elements and they are being shown
+        legend_needed = False
+        if (self.exp_df is not None and 
+            not self.exp_df.empty and 
+            self.customization_options.get('show_experiments', False) and
+            axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns):
+            legend_needed = True
+        
+        main_app = self.parent.main_app if hasattr(self.parent, 'main_app') else self.parent
+        if (hasattr(main_app, 'next_point') and 
+            main_app.next_point is not None and 
+            self.customization_options.get('show_next_point', False) and
+            axis_x_name in main_app.next_point.columns and axis_y_name in main_app.next_point.columns):
+            legend_needed = True
+            
+        if legend_needed and not self.ax.get_legend():
             self.ax.legend()
 
-        # Set default labels as defined by this plot.
-        self.ax.set_xlabel(axis_x_name)
-        self.ax.set_ylabel(axis_y_name)
-        self.ax.set_title("Contour Plot of Model Predictions")
+        # Set default labels as defined by this plot only if not customized by user
+        if not self.customization_options.get('xlabel_user_set'):
+            self.ax.set_xlabel(axis_x_name)
+            self.customization_options['xlabel'] = axis_x_name
+        if not self.customization_options.get('ylabel_user_set'):
+            self.ax.set_ylabel(axis_y_name)
+            self.customization_options['ylabel'] = axis_y_name
+        if not self.customization_options.get('title_user_set'):
+            self.ax.set_title("Contour Plot of Model Predictions")
+            self.customization_options['title'] = "Contour Plot of Model Predictions"
+        
         self.fig.tight_layout()
 
-        # Store the current plot settings in customization options.
-        self.customization_options['title'] = "Contour Plot of Model Predictions"
-        self.customization_options['xlabel'] = axis_x_name
-        self.customization_options['ylabel'] = axis_y_name
+        # Store the current plot settings in customization options (only if not user-set)
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
 
@@ -403,34 +451,43 @@ class Visualizations:
 
         if error_metric == "RMSE":
             self.ax.plot(x_range, rmse_values, marker='o')
-            self.ax.set_title("RMSE vs Number of Observations")
-            self.ax.set_ylabel("RMSE")
-            self.customization_options['title'] = "RMSE vs Number of Observations"
-            self.customization_options['ylabel'] = "RMSE"
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title("RMSE vs Number of Observations")
+                self.customization_options['title'] = "RMSE vs Number of Observations"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("RMSE")
+                self.customization_options['ylabel'] = "RMSE"
         elif error_metric == "MAE":
             self.ax.plot(x_range, mae_values, marker='o')
-            self.ax.set_title("MAE vs Number of Observations")
-            self.ax.set_ylabel("MAE")
-            self.customization_options['title'] = "MAE vs Number of Observations"
-            self.customization_options['ylabel'] = "MAE"
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title("MAE vs Number of Observations")
+                self.customization_options['title'] = "MAE vs Number of Observations"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("MAE")
+                self.customization_options['ylabel'] = "MAE"
         elif error_metric == "MAPE":
             self.ax.plot(x_range, mape_values, marker='o')
-            self.ax.set_title("MAPE vs Number of Observations")
-            self.ax.set_ylabel("MAPE (%)")
-            self.customization_options['title'] = "MAPE vs Number of Observations"
-            self.customization_options['ylabel'] = "MAPE (%)"
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title("MAPE vs Number of Observations")
+                self.customization_options['title'] = "MAPE vs Number of Observations"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("MAPE (%)")
+                self.customization_options['ylabel'] = "MAPE (%)"
         elif error_metric == "R2":
             self.ax.plot(x_range, r2_values, marker='o')
-            self.ax.set_title("R² vs Number of Observations")
-            self.ax.set_ylabel("R²")
-            self.customization_options['title'] = "R² vs Number of Observations"
-            self.customization_options['ylabel'] = "R²"
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title("R² vs Number of Observations")
+                self.customization_options['title'] = "R² vs Number of Observations"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("R²")
+                self.customization_options['ylabel'] = "R²"
         else:
             print("Error: Unknown error metric selected.")
             return
 
-        self.ax.set_xlabel("Number of Observations")
-        self.customization_options['xlabel'] = "Number of Observations"
+        if not self.customization_options.get('xlabel_user_set'):
+            self.ax.set_xlabel("Number of Observations")
+            self.customization_options['xlabel'] = "Number of Observations"
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
         self.fig.tight_layout()
@@ -567,16 +624,19 @@ class Visualizations:
         max_val = max(np.max(y_true_all), np.max(y_pred_all))
         self.ax.plot([min_val, max_val], [min_val, max_val], 'r--')
         
-        # Set labels and title
+        # Set labels and title only if not customized by user
         title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
-        self.ax.set_title(title_str)
-        self.ax.set_xlabel("Actual Values")
-        self.ax.set_ylabel("Predicted Values")
+        if not self.customization_options.get('title_user_set'):
+            self.ax.set_title(title_str)
+            self.customization_options['title'] = title_str
+        if not self.customization_options.get('xlabel_user_set'):
+            self.ax.set_xlabel("Actual Values")
+            self.customization_options['xlabel'] = "Actual Values"
+        if not self.customization_options.get('ylabel_user_set'):
+            self.ax.set_ylabel("Predicted Values")
+            self.customization_options['ylabel'] = "Predicted Values"
         
-        # Store customization options
-        self.customization_options['title'] = title_str
-        self.customization_options['xlabel'] = "Actual Values"
-        self.customization_options['ylabel'] = "Predicted Values"
+        # Store axis limits
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
         
@@ -593,7 +653,7 @@ class Visualizations:
         """Open a window to customize plot parameters, prepopulated with current settings."""
         customization_window = ctk.CTkToplevel(self.parent)
         customization_window.title("Customize Plot")
-        customization_window.geometry("300x550")  # Increased height for additional controls
+        customization_window.geometry("300x650")  # Increased height for number formatting controls
         customization_window.resizable(False, False)
         customization_window.lift()
         customization_window.focus_force()
@@ -698,21 +758,48 @@ class Visualizations:
         label_fontstyle_menu.pack(pady=5)
 
         ctk.CTkLabel(frame, text="Tick Style:").pack(pady=5)
-        tick_style_var = ctk.StringVar(value="all")
+        tick_style_var = ctk.StringVar(value=self.customization_options.get('tick_style', "x and y"))
         tick_style_menu = ctk.CTkOptionMenu(frame, values=["all", "x and y", "none"], variable=tick_style_var)
         tick_style_menu.pack(pady=5)
 
         ctk.CTkLabel(frame, text="Tick Direction:").pack(pady=5)
-        tick_direction_var = ctk.StringVar(value="in")
+        tick_direction_var = ctk.StringVar(value=self.customization_options.get('tick_direction', "out"))
         tick_direction_menu = ctk.CTkOptionMenu(frame, values=["in", "out"], variable=tick_direction_var)
         tick_direction_menu.pack(pady=5)
+
+        # Add a section title for number formatting options
+        ctk.CTkLabel(frame, text="Number Formatting", font=("Arial", 12, "bold")).pack(pady=(15, 5))
+        
+        # Add a small help text
+        help_text = "Format options: auto, decimal (0.00), scientific (1e-3), percent (50%), integer (1), custom (3 sig figs)"
+        help_label = ctk.CTkLabel(frame, text=help_text, wraplength=280, font=("Arial", 9))
+        help_label.pack(pady=(0, 10))
+        
+        # X-axis number formatting
+        ctk.CTkLabel(frame, text="X-Axis Number Format:").pack(pady=5)
+        x_format_var = ctk.StringVar(value=self.customization_options.get('x_number_format', "auto"))
+        x_format_options = ["auto", "decimal", "scientific", "percent", "integer", "custom"]
+        x_format_menu = ctk.CTkOptionMenu(frame, values=x_format_options, variable=x_format_var)
+        x_format_menu.pack(pady=5)
+        
+        # Y-axis number formatting
+        ctk.CTkLabel(frame, text="Y-Axis Number Format:").pack(pady=5)
+        y_format_var = ctk.StringVar(value=self.customization_options.get('y_number_format', "auto"))
+        y_format_menu = ctk.CTkOptionMenu(frame, values=x_format_options, variable=y_format_var)
+        y_format_menu.pack(pady=5)
+        
+        # Colorbar number formatting
+        ctk.CTkLabel(frame, text="Colorbar Number Format:").pack(pady=5)
+        colorbar_format_var = ctk.StringVar(value=self.customization_options.get('colorbar_format', "auto"))
+        colorbar_format_menu = ctk.CTkOptionMenu(frame, values=x_format_options, variable=colorbar_format_var)
+        colorbar_format_menu.pack(pady=5)
 
         # Add a section title for data display options
         ctk.CTkLabel(frame, text="Data Display Options", font=("Arial", 12, "bold")).pack(pady=(15, 5))
         
         # Add toggle for experimental points
         show_exp_points_var = ctk.BooleanVar(
-            value=self.customization_options.get('show_experiments', True)
+            value=self.customization_options.get('show_experiments', False)
         )
         show_exp_switch = ctk.CTkSwitch(
             frame, 
@@ -723,7 +810,7 @@ class Visualizations:
         
         # Add toggle for next point
         show_next_point_var = ctk.BooleanVar(
-            value=self.customization_options.get('show_next_point', True)
+            value=self.customization_options.get('show_next_point', False)
         )
         show_next_switch = ctk.CTkSwitch(
             frame, 
@@ -736,33 +823,60 @@ class Visualizations:
         button_frame.pack(pady=10, fill="x")
 
         def apply_customizations():
-            self.customization_options = {
-                'title': title_entry.get(),
-                'xlabel': x_label_entry.get(),
-                'ylabel': y_label_entry.get(),
-                'colormap': colormap_var.get(),
-                'font': font_var.get(),
-                'xlim': [float(x_min_entry.get()), float(x_max_entry.get())],
-                'ylim': [float(y_min_entry.get()), float(y_max_entry.get())],
-                'title_fontsize': int(title_fontsize_entry.get()),
-                'label_fontsize': int(label_fontsize_entry.get()),
-                'title_fontstyle': title_fontstyle_var.get(),
-                'label_fontstyle': label_fontstyle_var.get(),
-                'tick_style': tick_style_var.get(),
-                'tick_direction': tick_direction_var.get(),
-                'show_experiments': show_exp_points_var.get(),  # Save the toggle state
-                'show_next_point': show_next_point_var.get()    # Save the toggle state
-            }
-            self.apply_customizations_to_axes()
-            
-            # Redraw the plot with the new settings
-            if self.last_plot_method is not None:
-                self.last_plot_method()
-            else:
-                self.canvas.draw()
+            try:
+                # Store user customizations
+                user_customizations = {
+                    'title': title_entry.get(),
+                    'xlabel': x_label_entry.get(),
+                    'ylabel': y_label_entry.get(),
+                    'colormap': colormap_var.get(),
+                    'font': font_var.get(),
+                    'xlim': [float(x_min_entry.get()), float(x_max_entry.get())],
+                    'ylim': [float(y_min_entry.get()), float(y_max_entry.get())],
+                    'title_fontsize': int(title_fontsize_entry.get()),
+                    'label_fontsize': int(label_fontsize_entry.get()),
+                    'title_fontstyle': title_fontstyle_var.get(),
+                    'label_fontstyle': label_fontstyle_var.get(),
+                    'tick_style': tick_style_var.get(),
+                    'tick_direction': tick_direction_var.get(),
+                    'show_experiments': show_exp_points_var.get(),
+                    'show_next_point': show_next_point_var.get(),
+                    'x_number_format': x_format_var.get(),
+                    'y_number_format': y_format_var.get(),
+                    'colorbar_format': colorbar_format_var.get(),
+                    # Set flags to indicate these were set by user
+                    'title_user_set': True,
+                    'xlabel_user_set': True,
+                    'ylabel_user_set': True
+                }
+                
+                # Update the customization options with user values
+                self.customization_options.update(user_customizations)
+                
+                # Apply customizations directly without regenerating the plot
+                self.apply_customizations_to_axes()
+                
+                # If we're changing data display options (experiments/next point), 
+                # we need to redraw the plot to show/hide those elements
+                if (self.last_plot_method == self.plot_contour and 
+                    ('show_experiments' in user_customizations or 'show_next_point' in user_customizations)):
+                    self.last_plot_method()
+                
+                # Briefly change button text to show success
+                apply_button.configure(text="Applied!")
+                customization_window.after(1000, lambda: apply_button.configure(text="Apply"))
+                
+            except Exception as e:
+                print(f"Error applying customizations: {e}")
+                # Change button text to show error
+                apply_button.configure(text="Error!")
+                customization_window.after(2000, lambda: apply_button.configure(text="Apply"))
 
         apply_button = ctk.CTkButton(button_frame, text="Apply", command=apply_customizations)
-        apply_button.pack(pady=10)
+        apply_button.pack(side="left", padx=5, pady=10)
+        
+        close_button = ctk.CTkButton(button_frame, text="Close", command=customization_window.destroy)
+        close_button.pack(side="right", padx=5, pady=10)
 
     def apply_customizations_to_axes(self):
         """
@@ -786,19 +900,20 @@ class Visualizations:
             self.ax.set_xlim(custom['xlim'])
         if custom.get('ylim'):
             self.ax.set_ylim(custom['ylim'])
-        if custom.get('tick_style'):
-            tick_style = custom['tick_style']
-            tick_direction = custom.get('tick_direction', 'in')
-            if tick_style == 'all':
-                self.ax.tick_params(axis='both', which='both', direction=tick_direction,
-                                    bottom=True, top=True, left=True, right=True)
-            elif tick_style == 'x and y':
-                self.ax.tick_params(axis='x', which='both', direction=tick_direction,
-                                    bottom=True, top=False)
-                self.ax.tick_params(axis='y', which='both', direction=tick_direction,
-                                    left=True, right=False)
-            elif tick_style == 'none':
-                self.ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False)
+        
+        # Apply tick styling (use defaults if not explicitly set)
+        tick_style = custom.get('tick_style', 'x and y')
+        tick_direction = custom.get('tick_direction', 'out')
+        if tick_style == 'all':
+            self.ax.tick_params(axis='both', which='both', direction=tick_direction,
+                                bottom=True, top=True, left=True, right=True)
+        elif tick_style == 'x and y':
+            self.ax.tick_params(axis='x', which='both', direction=tick_direction,
+                                bottom=True, top=False)
+            self.ax.tick_params(axis='y', which='both', direction=tick_direction,
+                                left=True, right=False)
+        elif tick_style == 'none':
+            self.ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False)
 
         if custom.get('colormap') and self.ax.collections:
             try:
@@ -812,6 +927,26 @@ class Visualizations:
                     label.set_fontname(font)
                     if custom.get('label_fontstyle') == 'bold':
                         label.set_fontweight('bold')
+            
+            # Apply colorbar number formatting
+            colorbar_format = custom.get('colorbar_format', 'auto')
+            colorbar_formatter = self._get_number_formatter(colorbar_format)
+            if colorbar_formatter:
+                self.colorbar.ax.yaxis.set_major_formatter(colorbar_formatter)
+        
+        # Apply axis number formatting (apply defaults if not set)
+        x_format = custom.get('x_number_format', 'auto')
+        x_formatter = self._get_number_formatter(x_format)
+        if x_formatter:
+            self.ax.xaxis.set_major_formatter(x_formatter)
+        
+        y_format = custom.get('y_number_format', 'auto')
+        y_formatter = self._get_number_formatter(y_format)
+        if y_formatter:
+            self.ax.yaxis.set_major_formatter(y_formatter)
+        
+        # Apply tight layout to prevent label cutoff
+        self.fig.tight_layout()
         self.canvas.draw()
 
 
