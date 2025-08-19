@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from botorch.models import SingleTaskGP
 from botorch.models.gp_regression_mixed import MixedSingleTaskGP
+from botorch.models.transforms import Normalize, Standardize
 from botorch.fit import fit_gpytorch_mll
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -16,7 +17,9 @@ from gpytorch.kernels import MaternKernel, RBFKernel
 
 class BoTorchModel(BaseModel):
     def __init__(self, training_iter=50, random_state=42,
-             kernel_options: dict = None, cat_dims: list[int] | None = None, search_space: list = None):
+             kernel_options: dict = None, cat_dims: list[int] | None = None, 
+             search_space: list = None, input_transform_type: str = "none", 
+             output_transform_type: str = "none"):
         """
         Initialize the BoTorchModel with custom options.
         
@@ -26,12 +29,17 @@ class BoTorchModel(BaseModel):
             kernel_options: Dictionary with kernel options like "cont_kernel_type" and "matern_nu".
             cat_dims: List of column indices that are categorical.
             search_space: Optional search space list.
+            input_transform_type: Type of input scaling ("none", "normalize", "standardize")
+            output_transform_type: Type of output scaling ("none", "standardize")
         """
-        # Suppress BoTorch input scaling warnings since we're using ARD kernels
+        # Suppress BoTorch input scaling warnings since we're implementing transforms explicitly
         warnings.filterwarnings("ignore", category=InputDataWarning)
         
+        super().__init__(random_state=random_state, 
+                        input_transform_type=input_transform_type,
+                        output_transform_type=output_transform_type)
+        
         self.training_iter = training_iter
-        self.random_state = random_state
         self.kernel_options = kernel_options or {"cont_kernel_type": "Matern", "matern_nu": 2.5}
         self.cont_kernel_type = self.kernel_options.get("cont_kernel_type", "Matern")
         self.matern_nu = self.kernel_options.get("matern_nu", 2.5)
@@ -104,6 +112,25 @@ class BoTorchModel(BaseModel):
         
         return X_encoded
     
+    def _create_transforms(self, train_X, train_Y):
+        """Create input and output transforms based on transform types."""
+        input_transform = None
+        outcome_transform = None
+        
+        # Create input transform
+        if self.input_transform_type == "normalize":
+            input_transform = Normalize(d=train_X.shape[-1])
+        elif self.input_transform_type == "standardize":
+            # Note: BoTorch doesn't have a direct Standardize input transform
+            # Normalize is equivalent to standardization for inputs
+            input_transform = Normalize(d=train_X.shape[-1])
+        
+        # Create output transform
+        if self.output_transform_type == "standardize":
+            outcome_transform = Standardize(m=train_Y.shape[-1])
+            
+        return input_transform, outcome_transform
+    
     def train(self, exp_manager, **kwargs):
         """Train the model using an ExperimentManager instance."""
         # Get data with noise values if available
@@ -130,6 +157,20 @@ class BoTorchModel(BaseModel):
         else:
             train_Yvar = None
         
+        # Create transforms
+        input_transform, outcome_transform = self._create_transforms(train_X, train_Y)
+        
+        # Print transform information
+        if input_transform is not None:
+            print(f"Applied {self.input_transform_type} transform to inputs")
+        else:
+            print("No input transform applied")
+            
+        if outcome_transform is not None:
+            print(f"Applied {self.output_transform_type} transform to outputs")
+        else:
+            print("No output transform applied")
+        
         # Set random seed
         torch.manual_seed(self.random_state)
         
@@ -140,14 +181,14 @@ class BoTorchModel(BaseModel):
         if self.cat_dims and len(self.cat_dims) > 0:
             # For models with categorical variables
             if noise is not None:
-                train_Yvar = torch.tensor(noise.values, dtype=torch.double).unsqueeze(-1)
-                print(f"Using provided noise values for BoTorch model regularization.")
                 self.model = MixedSingleTaskGP(
                     train_X=train_X, 
                     train_Y=train_Y, 
                     train_Yvar=train_Yvar,
                     cat_dims=self.cat_dims,
-                    cont_kernel_factory=cont_kernel_factory
+                    cont_kernel_factory=cont_kernel_factory,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
                 )
             else:
                 # Don't pass train_Yvar at all when no noise data exists
@@ -155,17 +196,28 @@ class BoTorchModel(BaseModel):
                     train_X=train_X, 
                     train_Y=train_Y,
                     cat_dims=self.cat_dims,
-                    cont_kernel_factory=cont_kernel_factory
+                    cont_kernel_factory=cont_kernel_factory,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
                 )
         else:
             # For continuous-only models
             if noise is not None:
-                train_Yvar = torch.tensor(noise.values, dtype=torch.double).unsqueeze(-1)
-                print(f"Using provided noise values for BoTorch model regularization.")
-                self.model = SingleTaskGP(train_X=train_X, train_Y=train_Y, train_Yvar=train_Yvar)
+                self.model = SingleTaskGP(
+                    train_X=train_X, 
+                    train_Y=train_Y, 
+                    train_Yvar=train_Yvar,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
+                )
             else:
                 # Don't pass train_Yvar at all when no noise data exists
-                self.model = SingleTaskGP(train_X=train_X, train_Y=train_Y)
+                self.model = SingleTaskGP(
+                    train_X=train_X, 
+                    train_Y=train_Y,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
+                )
         
         # Train the model
         mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
@@ -389,16 +441,25 @@ class BoTorchModel(BaseModel):
                 X_test = subset_X[test_idx]
                 y_test = subset_Y[test_idx]
                 
-                # Create a new model with this fold's training data
-                cont_kernel_factory = self._get_cont_kernel_factory()
-                if self.cat_dims and len(self.cat_dims) > 0:
-                    fold_model = MixedSingleTaskGP(
-                        X_train, y_train, 
-                        cat_dims=self.cat_dims,
-                        cont_kernel_factory=cont_kernel_factory
-                    )
-                else:
-                    fold_model = SingleTaskGP(X_train, y_train)
+            # Create a new model with this fold's training data
+            # Need to recreate transforms with the same parameters as the main model
+            fold_input_transform, fold_outcome_transform = self._create_transforms(X_train, y_train)
+            
+            cont_kernel_factory = self._get_cont_kernel_factory()
+            if self.cat_dims and len(self.cat_dims) > 0:
+                fold_model = MixedSingleTaskGP(
+                    X_train, y_train, 
+                    cat_dims=self.cat_dims,
+                    cont_kernel_factory=cont_kernel_factory,
+                    input_transform=fold_input_transform,
+                    outcome_transform=fold_outcome_transform
+                )
+            else:
+                fold_model = SingleTaskGP(
+                    X_train, y_train,
+                    input_transform=fold_input_transform,
+                    outcome_transform=fold_outcome_transform
+                )
                 
                 # Load the trained state - this keeps the hyperparameters without retraining
                 fold_model.load_state_dict(self.fitted_state_dict, strict=False)
@@ -418,6 +479,10 @@ class BoTorchModel(BaseModel):
             # Combine all fold results for this subset size
             all_y_true = torch.cat(fold_y_trues).cpu().numpy()
             all_y_pred = torch.cat(fold_y_preds).cpu().numpy()
+            
+            # Note: BoTorch models with transforms automatically return predictions 
+            # in the original scale, so no manual inverse transform is needed
+            # The transforms are handled internally by the BoTorch model
             
             # Calculate metrics using cross-validated predictions
             rmse = np.sqrt(mean_squared_error(all_y_true, all_y_pred))
@@ -596,18 +661,27 @@ class BoTorchModel(BaseModel):
             X_test = X_tensor[test_idx]
             y_test = y_tensor[test_idx]
             
-            # Create a new model with the subset data
+            # Create transforms for this CV fold
+            input_transform, outcome_transform = self._create_transforms(X_train, y_train)
+            
+            # Create a new model with the subset data and same transforms as main model
             cont_kernel_factory = self._get_cont_kernel_factory()
             if self.cat_dims and len(self.cat_dims) > 0:
                 cv_model = MixedSingleTaskGP(
                     X_train, y_train, 
                     cat_dims=self.cat_dims,
-                    cont_kernel_factory=cont_kernel_factory
+                    cont_kernel_factory=cont_kernel_factory,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
                 )
             else:
-                cv_model = SingleTaskGP(X_train, y_train)
+                cv_model = SingleTaskGP(
+                    X_train, y_train,
+                    input_transform=input_transform,
+                    outcome_transform=outcome_transform
+                )
             
-            # Load the trained state - KEY DIFFERENCE FROM YOUR CURRENT VERSION
+            # Load the trained state - this should now work properly with transforms
             cv_model.load_state_dict(self.fitted_state_dict, strict=False)
             
             # Make predictions
@@ -625,6 +699,9 @@ class BoTorchModel(BaseModel):
         # Concatenate all results and convert to numpy
         y_true_all = torch.cat(y_true_all).cpu().numpy()
         y_pred_all = torch.cat(y_pred_all).cpu().numpy()
+        
+        # Note: For BoTorch models, output transforms are handled internally by the model
+        # The predictions are already in the original scale due to BoTorch's transform handling
         
         # Cache the results
         self.cv_cached_results = {

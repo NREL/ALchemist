@@ -141,16 +141,45 @@ class GaussianProcessPanel(ctk.CTkFrame):
         )
         self.optimizer_menu.pack(pady=5)
 
+        # === Input/Output Scaling Options ===
+        # Input scaling
+        self.sk_input_scale_label = ctk.CTkLabel(self.sklearn_frame, text='Input Scaling:', text_color="grey")
+        self.sk_input_scale_label.pack(pady=2)
+        self.sk_input_scale_var = ctk.StringVar(value="none")
+        self.sk_input_scale_menu = ctk.CTkOptionMenu(
+            self.sklearn_frame,
+            values=["none", "minmax", "standard", "robust"],
+            variable=self.sk_input_scale_var,
+            state="disabled"
+        )
+        self.sk_input_scale_menu.pack(pady=5)
+
+        # Output scaling
+        self.sk_output_scale_label = ctk.CTkLabel(self.sklearn_frame, text='Output Scaling:', text_color="grey")
+        self.sk_output_scale_label.pack(pady=2)
+        self.sk_output_scale_var = ctk.StringVar(value="none")
+        self.sk_output_scale_menu = ctk.CTkOptionMenu(
+            self.sklearn_frame,
+            values=["none", "minmax", "standard", "robust"],
+            variable=self.sk_output_scale_var,
+            state="disabled"
+        )
+        self.sk_output_scale_menu.pack(pady=5)
+
         # Store advanced widgets and labels for toggling
         self.advanced_widgets = [
             self.kernel_menu,
             self.optimizer_menu,
-            self.nu_menu
+            self.nu_menu,
+            self.sk_input_scale_menu,
+            self.sk_output_scale_menu
         ]
         self.advanced_labels = [
             self.kernel_label,
             self.optimizer_label,
-            self.nu_label
+            self.nu_label,
+            self.sk_input_scale_label,
+            self.sk_output_scale_label
         ]
 
     def create_botorch_widgets(self):
@@ -184,6 +213,29 @@ class GaussianProcessPanel(ctk.CTkFrame):
             wraplength=250
         )
         self.bt_info_label.pack(pady=5)
+
+        # === Input/Output Scaling Options ===
+        # Input scaling
+        self.bt_input_scale_label = ctk.CTkLabel(self.botorch_frame, text='Input Scaling:')
+        self.bt_input_scale_label.pack(pady=2)
+        self.bt_input_scale_var = ctk.StringVar(value="none")
+        self.bt_input_scale_menu = ctk.CTkOptionMenu(
+            self.botorch_frame,
+            values=["none", "normalize", "standardize"],
+            variable=self.bt_input_scale_var
+        )
+        self.bt_input_scale_menu.pack(pady=5)
+
+        # Output scaling
+        self.bt_output_scale_label = ctk.CTkLabel(self.botorch_frame, text='Output Scaling:')
+        self.bt_output_scale_label.pack(pady=2)
+        self.bt_output_scale_var = ctk.StringVar(value="none")
+        self.bt_output_scale_menu = ctk.CTkOptionMenu(
+            self.botorch_frame,
+            values=["none", "standardize"],
+            variable=self.bt_output_scale_var
+        )
+        self.bt_output_scale_menu.pack(pady=5)
 
     # ==========================
     # BACKEND AND ACQUISITION OPTIONS
@@ -424,7 +476,9 @@ class GaussianProcessPanel(ctk.CTkFrame):
                     kernel_options=kernel_options,
                     n_restarts_optimizer=n_restarts,
                     random_state=random_state,
-                    optimizer=self.optimizer_var.get()
+                    optimizer=self.optimizer_var.get(),
+                    input_transform_type=self.sk_input_scale_var.get(),
+                    output_transform_type=self.sk_output_scale_var.get()
                 )
                 
             elif backend == "botorch":
@@ -445,7 +499,9 @@ class GaussianProcessPanel(ctk.CTkFrame):
                     kernel_options=bt_kernel_options,
                     cat_dims=cat_dims,
                     training_iter=100,
-                    random_state=random_state
+                    random_state=random_state,
+                    input_transform_type=self.bt_input_scale_var.get(),
+                    output_transform_type=self.bt_output_scale_var.get()
                 )
             
             # Removed the elif backend == "ax": block

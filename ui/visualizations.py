@@ -295,6 +295,22 @@ class Visualizations:
                 x_idx = feature_names.index(axis_x_name)
                 y_idx = feature_names.index(axis_y_name)
                 
+                # Use data range instead of search space range for better visualization
+                # Get the actual range of the training data
+                if axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns:
+                    x_data_range = (self.exp_df[axis_x_name].min(), self.exp_df[axis_x_name].max())
+                    y_data_range = (self.exp_df[axis_y_name].min(), self.exp_df[axis_y_name].max())
+                    
+                    # Expand the range slightly (10% on each side) for better visualization
+                    x_margin = (x_data_range[1] - x_data_range[0]) * 0.1
+                    y_margin = (y_data_range[1] - y_data_range[0]) * 0.1
+                    x_range_plot = (x_data_range[0] - x_margin, x_data_range[1] + x_margin)
+                    y_range_plot = (y_data_range[0] - y_margin, y_data_range[1] + y_margin)
+                else:
+                    # Fallback to search space bounds
+                    x_range_plot = axis_x_dim.bounds
+                    y_range_plot = axis_y_dim.bounds
+                
                 # Get fixed values for other dimensions
                 fixed_values = {}
                 for i, dim_name in enumerate(feature_names):
@@ -303,8 +319,8 @@ class Visualizations:
                 
                 # Get contour data
                 X1, X2, y_pred = model.generate_contour_data(
-                    x_range=axis_x_dim.bounds,
-                    y_range=axis_y_dim.bounds,
+                    x_range=x_range_plot,
+                    y_range=y_range_plot,
                     fixed_values=fixed_values,
                     x_idx=x_idx,
                     y_idx=y_idx
@@ -318,9 +334,24 @@ class Visualizations:
                 y_pred = np.zeros_like(X1)  # Placeholder
         else:
             # For non-BoTorch models, use existing code
+            # Use data range instead of search space range for better visualization
+            if axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns:
+                x_data_range = (self.exp_df[axis_x_name].min(), self.exp_df[axis_x_name].max())
+                y_data_range = (self.exp_df[axis_y_name].min(), self.exp_df[axis_y_name].max())
+                
+                # Expand the range slightly (10% on each side) for better visualization
+                x_margin = (x_data_range[1] - x_data_range[0]) * 0.1
+                y_margin = (y_data_range[1] - y_data_range[0]) * 0.1
+                x_range_plot = (x_data_range[0] - x_margin, x_data_range[1] + x_margin)
+                y_range_plot = (y_data_range[0] - y_margin, y_data_range[1] + y_margin)
+            else:
+                # Fallback to search space bounds
+                x_range_plot = axis_x_dim.bounds
+                y_range_plot = axis_y_dim.bounds
+            
             # Create a grid for the two selected dimensions.
-            x1 = np.linspace(axis_x_dim.bounds[0], axis_x_dim.bounds[1], 100)
-            x2 = np.linspace(axis_y_dim.bounds[0], axis_y_dim.bounds[1], 100)
+            x1 = np.linspace(x_range_plot[0], x_range_plot[1], 100)
+            x2 = np.linspace(y_range_plot[0], y_range_plot[1], 100)
             X1, X2 = np.meshgrid(x1, x2)
             
             # Create a dataframe with all variables needed for prediction

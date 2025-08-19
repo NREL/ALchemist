@@ -6,9 +6,18 @@ import numpy as np
 from typing import Dict, Tuple, Any, Optional, List, Union
 
 class BaseModel(ABC):
-    def __init__(self, random_state: int = 42):
-        """Initialize the model with a random state for reproducibility."""
+    def __init__(self, random_state: int = 42, input_transform_type: str = "none", 
+                 output_transform_type: str = "none"):
+        """Initialize the model with a random state for reproducibility.
+        
+        Args:
+            random_state: Random seed for reproducibility
+            input_transform_type: Type of input scaling ("none", "standard", "minmax", "robust")
+            output_transform_type: Type of output scaling ("none", "standard")
+        """
         self.random_state = random_state
+        self.input_transform_type = input_transform_type
+        self.output_transform_type = output_transform_type
         self._is_trained = False
         
     @abstractmethod
