@@ -253,20 +253,27 @@ class SklearnModel(BaseModel):
         """Preprocess X for prediction (apply the same transformations as in training)."""
         if isinstance(X, pd.DataFrame):
             if self.categorical_variables and self.encoder:
-                categorical_X = X[self.categorical_variables] if len(self.categorical_variables) > 0 else None
-                numerical_X = X.drop(columns=self.categorical_variables) if len(self.categorical_variables) > 0 else X
+                # Check which categorical variables are actually present in the input
+                available_categorical_vars = [var for var in self.categorical_variables if var in X.columns]
                 
-                if categorical_X is not None and not categorical_X.empty:
-                    encoded_categorical = self.encoder.transform(categorical_X)
-                    encoded_categorical_df = pd.DataFrame(
-                        encoded_categorical,
-                        columns=self.encoder.get_feature_names_out(self.categorical_variables),
-                        index=X.index
-                    )
-                    # Merge numerical and encoded categorical data
-                    processed_X = pd.concat([numerical_X, encoded_categorical_df], axis=1).values
+                if available_categorical_vars:
+                    categorical_X = X[available_categorical_vars]
+                    numerical_X = X.drop(columns=available_categorical_vars)
+                    
+                    if not categorical_X.empty:
+                        encoded_categorical = self.encoder.transform(categorical_X)
+                        encoded_categorical_df = pd.DataFrame(
+                            encoded_categorical,
+                            columns=self.encoder.get_feature_names_out(available_categorical_vars),
+                            index=X.index
+                        )
+                        # Merge numerical and encoded categorical data
+                        processed_X = pd.concat([numerical_X, encoded_categorical_df], axis=1).values
+                    else:
+                        processed_X = numerical_X.values
                 else:
-                    processed_X = numerical_X.values
+                    # No categorical variables present in input, treat all as numerical
+                    processed_X = X.values
             else:
                 processed_X = X.values
         else:
@@ -283,7 +290,8 @@ class SklearnModel(BaseModel):
         """Train the model using the ExperimentManager."""
         # Store the original feature names before preprocessing
         X_orig, y_orig, noise = experiment_manager.get_features_target_and_noise()
-        self.feature_names = X_orig.columns.tolist()
+        self.original_feature_names = X_orig.columns.tolist()
+        self.X_orig = X_orig  # Store original data for contour generation
         
         X, y = self._preprocess_data(experiment_manager)
         self.kernel = self._build_kernel(X)
@@ -418,7 +426,11 @@ class SklearnModel(BaseModel):
                 mae = mean_absolute_error(y_test.values, y_pred_orig)
                 with np.errstate(divide='ignore', invalid='ignore'):
                     mape = np.nanmean(np.abs((y_test.values - y_pred_orig) / (np.abs(y_test.values) + 1e-9))) * 100
-                r2 = r2_score(y_test.values, y_pred_orig)
+                # Only calculate R² if we have at least 2 samples
+                if len(y_test.values) >= 2:
+                    r2 = r2_score(y_test.values, y_pred_orig)
+                else:
+                    r2 = np.nan
                 rmse_values.append(rmse)
                 mae_values.append(mae)
                 mape_values.append(mape)
@@ -467,7 +479,11 @@ class SklearnModel(BaseModel):
                     fold_mae.append(mean_absolute_error(y_test_fold.values, y_pred_orig))
                     with np.errstate(divide='ignore', invalid='ignore'):
                         fold_mape.append(np.nanmean(np.abs((y_test_fold.values - y_pred_orig) / (np.abs(y_test_fold.values) + 1e-9))) * 100)
-                    fold_r2.append(r2_score(y_test_fold.values, y_pred_orig))
+                    # Only calculate R² if we have at least 2 samples
+                    if len(y_test_fold.values) >= 2:
+                        fold_r2.append(r2_score(y_test_fold.values, y_pred_orig))
+                    else:
+                        fold_r2.append(np.nan)
                 
                 # Average across folds
                 rmse_values.append(np.mean(fold_rmse))
@@ -556,35 +572,62 @@ class SklearnModel(BaseModel):
         """
         if self.model is None:
             raise ValueError("Model is not trained yet")
+            
+        # Get the original variable names from training data
+        if hasattr(self, 'original_feature_names') and self.original_feature_names:
+            original_feature_names = self.original_feature_names
+        elif hasattr(self, 'X_orig') and self.X_orig is not None:
+            original_feature_names = self.X_orig.columns.tolist()
+        else:
+            # Fallback: use feature names if available, otherwise generic names
+            if hasattr(self, 'feature_names') and self.feature_names:
+                original_feature_names = self.feature_names
+            else:
+                original_feature_names = [f'dim_{i}' for i in range(2)]
+        
+        # Check if x or y axes correspond to categorical variables
+        x_var_name = original_feature_names[x_idx] if x_idx < len(original_feature_names) else None
+        y_var_name = original_feature_names[y_idx] if y_idx < len(original_feature_names) else None
+        
+        if (hasattr(self, 'categorical_variables') and 
+            ((x_var_name and x_var_name in self.categorical_variables) or 
+             (y_var_name and y_var_name in self.categorical_variables))):
+            raise ValueError(f"Cannot create contour plot with categorical variables on axes. "
+                           f"X-axis: {x_var_name}, Y-axis: {y_var_name}. "
+                           f"Categorical variables: {self.categorical_variables}")
         
         # Create grid in original scale
         x_vals = np.linspace(x_range[0], x_range[1], 100)
         y_vals = np.linspace(y_range[0], y_range[1], 100)
         X, Y = np.meshgrid(x_vals, y_vals)
         
-        # Total dimensions in the model (use stored feature names if available)
-        if hasattr(self, 'feature_names') and self.feature_names:
-            input_dim = len(self.feature_names)
-            feature_names = self.feature_names
-        else:
-            # Fallback: assume we have the same number of dimensions as the training data
-            input_dim = self.X_train_.shape[1] if hasattr(self, 'X_train_') else 2
-            feature_names = [f'dim_{i}' for i in range(input_dim)]
-        
-        # Create DataFrame for predictions in original scale
+        # Create DataFrame for predictions using original variable names
         grid_data = []
         for i in range(len(X.ravel())):
             row = {}
-            for dim_idx in range(input_dim):
+            for dim_idx in range(len(original_feature_names)):
+                var_name = original_feature_names[dim_idx]
+                
                 if dim_idx == x_idx:
-                    row[feature_names[dim_idx]] = X.ravel()[i]
+                    row[var_name] = X.ravel()[i]
                 elif dim_idx == y_idx:
-                    row[feature_names[dim_idx]] = Y.ravel()[i]
+                    row[var_name] = Y.ravel()[i]
                 elif dim_idx in fixed_values:
-                    row[feature_names[dim_idx]] = fixed_values[dim_idx]
+                    # Use the fixed value directly - it should already be in the correct format
+                    row[var_name] = fixed_values[dim_idx]
                 else:
-                    # Use midpoint of range as default
-                    row[feature_names[dim_idx]] = 0.5  # Default value
+                    # For variables not being plotted and not in fixed_values,
+                    # we need to set appropriate default values
+                    if hasattr(self, 'categorical_variables') and var_name in self.categorical_variables:
+                        # For categorical variables, use the first category from training data
+                        if hasattr(self, 'X_orig') and self.X_orig is not None and var_name in self.X_orig.columns:
+                            unique_values = self.X_orig[var_name].unique()
+                            row[var_name] = unique_values[0] if len(unique_values) > 0 else 'default'
+                        else:
+                            row[var_name] = 'default'
+                    else:
+                        # For numerical variables, use midpoint (0.5)
+                        row[var_name] = 0.5
             grid_data.append(row)
         
         # Convert to DataFrame

@@ -99,9 +99,18 @@ class BoTorchAcquisition(BaseAcquisition):
         torch.manual_seed(self.random_state)
         
         # Get best observed value from the model
+        # Important: Use original scale values, not transformed values, because
+        # the acquisition function optimization works in original space
         if hasattr(self.model, 'model') and hasattr(self.model.model, 'train_targets'):
-            train_Y = self.model.model.train_targets.cpu().numpy()
-            best_f = float(np.max(train_Y) if self.maximize else np.min(train_Y))
+            # Check if we have access to original scale targets
+            if hasattr(self.model, 'Y_orig') and self.model.Y_orig is not None:
+                # Use original scale targets for best_f calculation
+                train_Y_orig = self.model.Y_orig.cpu().numpy() if torch.is_tensor(self.model.Y_orig) else self.model.Y_orig
+                best_f = float(np.max(train_Y_orig) if self.maximize else np.min(train_Y_orig))
+            else:
+                # Fallback: use train_targets (may be in transformed space)
+                train_Y = self.model.model.train_targets.cpu().numpy()
+                best_f = float(np.max(train_Y) if self.maximize else np.min(train_Y))
             best_f = torch.tensor(best_f, dtype=torch.double)
         else:
             best_f = torch.tensor(0.0, dtype=torch.double)

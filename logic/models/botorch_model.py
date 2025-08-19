@@ -226,6 +226,10 @@ class BoTorchModel(BaseModel):
         # Store the trained state for later use
         self.fitted_state_dict = self.model.state_dict()
         self._is_trained = True  # Mark model as trained
+        
+        # Store original scale targets for acquisition function calculations
+        # This is needed when output transforms are used
+        self.Y_orig = train_Y.clone()
 
         # After model is trained, cache CV results
         if kwargs.get('cache_cv', True):
@@ -441,25 +445,25 @@ class BoTorchModel(BaseModel):
                 X_test = subset_X[test_idx]
                 y_test = subset_Y[test_idx]
                 
-            # Create a new model with this fold's training data
-            # Need to recreate transforms with the same parameters as the main model
-            fold_input_transform, fold_outcome_transform = self._create_transforms(X_train, y_train)
-            
-            cont_kernel_factory = self._get_cont_kernel_factory()
-            if self.cat_dims and len(self.cat_dims) > 0:
-                fold_model = MixedSingleTaskGP(
-                    X_train, y_train, 
-                    cat_dims=self.cat_dims,
-                    cont_kernel_factory=cont_kernel_factory,
-                    input_transform=fold_input_transform,
-                    outcome_transform=fold_outcome_transform
-                )
-            else:
-                fold_model = SingleTaskGP(
-                    X_train, y_train,
-                    input_transform=fold_input_transform,
-                    outcome_transform=fold_outcome_transform
-                )
+                # Create a new model with this fold's training data
+                # Need to recreate transforms with the same parameters as the main model
+                fold_input_transform, fold_outcome_transform = self._create_transforms(X_train, y_train)
+                
+                cont_kernel_factory = self._get_cont_kernel_factory()
+                if self.cat_dims and len(self.cat_dims) > 0:
+                    fold_model = MixedSingleTaskGP(
+                        X_train, y_train, 
+                        cat_dims=self.cat_dims,
+                        cont_kernel_factory=cont_kernel_factory,
+                        input_transform=fold_input_transform,
+                        outcome_transform=fold_outcome_transform
+                    )
+                else:
+                    fold_model = SingleTaskGP(
+                        X_train, y_train,
+                        input_transform=fold_input_transform,
+                        outcome_transform=fold_outcome_transform
+                    )
                 
                 # Load the trained state - this keeps the hyperparameters without retraining
                 fold_model.load_state_dict(self.fitted_state_dict, strict=False)
