@@ -574,10 +574,28 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
                 }
                 
                 # Prepare model data for the notification window
+                hyperparams = self.main_app.gpr_model.get_hyperparameters()
+                
+                # Format kernel information for display
+                kernel_display = "Unknown"
+                if isinstance(hyperparams, dict):
+                    kernel_type = hyperparams.get('kernel_type', 'Unknown')
+                    model_type = hyperparams.get('model_type', 'Unknown')
+                    
+                    if model_type == 'MixedSingleTaskGP':
+                        kernel_display = f"Mixed({kernel_type}+Categorical)"
+                    else:
+                        kernel_display = kernel_type
+                        
+                    # Add Matern nu parameter if available
+                    if kernel_type == 'Matern' and 'nu' in hyperparams:
+                        nu = hyperparams['nu']
+                        kernel_display += f" (ν={nu})"
+                
                 model_data = {
                     'backend': backend,
-                    'kernel': str(self.main_app.gpr_model.kernel if hasattr(self.main_app.gpr_model, 'kernel') else "Unknown"),
-                    'hyperparameters': self.main_app.gpr_model.get_hyperparameters(),
+                    'kernel': kernel_display,
+                    'hyperparameters': hyperparams,
                     'metrics': {
                         'RMSE': self.main_app.rmse_values[-1] if hasattr(self.main_app, 'rmse_values') and self.main_app.rmse_values else None,
                         'R²': self.main_app.r2_values[-1] if hasattr(self.main_app, 'r2_values') and self.main_app.r2_values else None
@@ -744,10 +762,28 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
                     }
                     
                     # Prepare model data
+                    hyperparams = self.main_app.gpr_model.get_hyperparameters()
+                    
+                    # Format kernel information for BoTorch models
+                    kernel_display = "Unknown"
+                    if isinstance(hyperparams, dict):
+                        kernel_type = hyperparams.get('kernel_type', 'Unknown')
+                        model_type = hyperparams.get('model_type', 'Unknown')
+                        
+                        if model_type == 'MixedSingleTaskGP':
+                            kernel_display = f"Mixed({kernel_type}+Categorical)"
+                        else:
+                            kernel_display = kernel_type
+                            
+                        # Add Matern nu parameter if available
+                        if kernel_type == 'Matern' and 'nu' in hyperparams:
+                            nu = hyperparams['nu']
+                            kernel_display += f" (ν={nu})"
+                    
                     model_data = {
                         'backend': 'botorch',
-                        'kernel': self.main_app.gpr_model.get_hyperparameters().get('kernel', 'Unknown'),
-                        'hyperparameters': self.main_app.gpr_model.get_hyperparameters(),
+                        'kernel': kernel_display,
+                        'hyperparameters': hyperparams,
                         'metrics': {
                             'RMSE': self.main_app.rmse_values[-1] if hasattr(self.main_app, 'rmse_values') and self.main_app.rmse_values else None,
                             'R²': self.main_app.r2_values[-1] if hasattr(self.main_app, 'r2_values') and self.main_app.r2_values else None

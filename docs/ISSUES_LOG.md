@@ -20,7 +20,7 @@ If you encounter a problem or have feedback, please [open an issue on GitHub](ht
 
 | Issue                                                                                         | Date Reported | Status      | Notes / Workarounds                                                                                 |
 |-----------------------------------------------------------------------------------------------|---------------|-------------|-----------------------------------------------------------------------------------------------------|
-| BoTorch kernel hyperparameters not shown in "Next Point" dialog                               | 2024-06-16    | Open        | Hyperparameters are available in the console output. UI fix planned.                                |
+| None currently - see resolved issues below                                                   | -             | -           | -                                                                                                   |
 
 ---
 
@@ -28,6 +28,7 @@ If you encounter a problem or have feedback, please [open an issue on GitHub](ht
 
 | Issue                                                                 | Date Reported | Date Resolved | Notes                                                                                               |
 |-----------------------------------------------------------------------|---------------|---------------|-----------------------------------------------------------------------------------------------------|
+| **BoTorch kernel hyperparameters not shown in "Next Point" dialog**  | **2024-06-16** | **2025-08-20** | **✅ RESOLVED**: Enhanced hyperparameter extraction with recursive kernel traversal. Now properly displays ARD lengthscales, kernel types, noise parameters, and transform information for both SingleTaskGP and MixedSingleTaskGP models. Handles complex AdditiveKernel structures with categorical/continuous variables. |
 | GUI not displaying fully on macOS; windows may be cut off             | 2024-06-16    | 2025-06-29    | Resolved as of latest testing; GUI now displays correctly on Mac without external monitor.           |
 | Loading variables from CSV does not work; only JSON loads correctly   | 2025-06-29    | 2025-07-15    | Fixed CSV parsing for integer min/max values and categorical value parsing.                         |
 | Saving variables as CSV and reloading does not restore variables      | 2025-06-29    | 2025-07-15    | Fixed Integer variable population and main UI update after variable definition.                     |

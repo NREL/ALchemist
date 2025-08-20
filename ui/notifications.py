@@ -250,12 +250,51 @@ class ResultNotificationWindow:
         hyperparams = model_data.get('hyperparameters', {})
         if isinstance(hyperparams, dict):
             for param_name, param_value in hyperparams.items():
-                if isinstance(param_value, (list, np.ndarray)):
-                    param_str = str(param_value)
+                # Skip internal parameters used for formatting
+                if param_name in ['continuous_features', 'covar_module_type', 'additive_kernels', 'primary_lengthscales']:
+                    continue
+                
+                # Special handling for lengthscales to make them more readable
+                if param_name == 'lengthscale' and isinstance(param_value, (list, np.ndarray)):
+                    # For mixed models, prefer primary_lengthscales if available
+                    display_lengthscales = hyperparams.get('primary_lengthscales', param_value)
+                    continuous_features = hyperparams.get('continuous_features', [])
+                    
+                    if len(display_lengthscales) == 1:
+                        # Isotropic kernel
+                        param_str = f"{float(display_lengthscales[0]):.4f} (isotropic)"
+                    else:
+                        # ARD kernel - show primary lengthscales for continuous features
+                        if continuous_features and len(continuous_features) == len(display_lengthscales):
+                            # Show individual lengthscales with feature names
+                            param_str = f"ARD Continuous Features:"
+                            for i, (feature, ls) in enumerate(zip(continuous_features, display_lengthscales)):
+                                self._add_info_row(model_scroll, f"  └─ {feature}", f"{float(ls):.4f}")
+                            
+                            # Also show summary if we have additional lengthscales
+                            if len(param_value) > len(display_lengthscales):
+                                extra_count = len(param_value) - len(display_lengthscales)
+                                param_str += f" (+{extra_count} additional kernel parameters)"
+                        else:
+                            # Fallback to showing all lengthscales
+                            lengthscale_strs = [f"{float(ls):.4f}" for ls in display_lengthscales]
+                            param_str = f"[{', '.join(lengthscale_strs)}] (ARD)"
+                            
+                            # Add kernel structure info if available
+                            kernel_types = hyperparams.get('additive_kernels', [])
+                            if kernel_types:
+                                param_str += f" from {kernel_types}"
+                
+                elif isinstance(param_value, (list, np.ndarray)):
+                    if len(param_value) == 1:
+                        param_str = f"{float(param_value[0]):.6f}"
+                    else:
+                        param_str = f"[{', '.join([f'{float(v):.4f}' for v in param_value])}]"
                 elif isinstance(param_value, (int, float, np.number)):
                     param_str = f"{float(param_value):.6f}"
                 else:
                     param_str = str(param_value)
+                
                 self._add_info_row(model_scroll, param_name, param_str)
                 
         # Add performance metrics section

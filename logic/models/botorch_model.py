@@ -525,24 +525,158 @@ class BoTorchModel(BaseModel):
             
         try:
             params = {}
-            # Extract lengthscales from the model
-            if hasattr(self.model, 'covar_module') and hasattr(self.model.covar_module, 'base_kernel'):
-                if hasattr(self.model.covar_module.base_kernel, 'lengthscale'):
-                    lengthscale = self.model.covar_module.base_kernel.lengthscale.detach().numpy()
-                    params['lengthscale'] = lengthscale.tolist() if hasattr(lengthscale, 'tolist') else lengthscale
+            
+            # Add debugging information about model structure
+            model_type = type(self.model).__name__
+            params['model_type'] = model_type
+            
+            # Debug model structure
+            if hasattr(self.model, 'covar_module'):
+                covar_type = type(self.model.covar_module).__name__
+                params['covar_module_type'] = covar_type
+                
+                # Handle different covariance module structures
+                covar_module = self.model.covar_module
+                
+                # Try multiple access patterns to get lengthscale and outputscale
+                lengthscale_found = False
+                outputscale_found = False
+                
+                # Pattern 1: AdditiveKernel (for MixedSingleTaskGP with categorical variables)
+                if hasattr(covar_module, 'kernels'):
+                    # This is an AdditiveKernel - iterate through sub-kernels
+                    all_lengthscales = []
+                    kernel_info = []
                     
-                if hasattr(self.model.covar_module, 'outputscale'):
-                    outputscale = self.model.covar_module.outputscale.detach().numpy()
-                    params['outputscale'] = outputscale.tolist() if hasattr(outputscale, 'tolist') else outputscale
+                    def extract_continuous_lengthscales(kernel):
+                        """Extract lengthscales from only the continuous kernel components."""
+                        lengthscales = []
+                        continuous_kernels = []
+                        
+                        # Check for direct lengthscale from continuous kernels only
+                        kernel_type = type(kernel).__name__
+                        if kernel_type in ['MaternKernel', 'RBFKernel', 'PeriodicKernel'] and hasattr(kernel, 'lengthscale') and kernel.lengthscale is not None:
+                            ls = kernel.lengthscale.detach().numpy()
+                            lengthscales.extend(ls.flatten().tolist())
+                            continuous_kernels.append(f"{kernel_type}({len(ls.flatten())} dims)")
+                            return lengthscales, continuous_kernels
+                        
+                        # Check base_kernel (for ScaleKernel wrapping continuous kernels)
+                        if hasattr(kernel, 'base_kernel') and kernel.base_kernel is not None:
+                            base_lengthscales, base_kernels = extract_continuous_lengthscales(kernel.base_kernel)
+                            lengthscales.extend(base_lengthscales)
+                            continuous_kernels.extend(base_kernels)
+                        
+                        # Check for sub-kernels (for AdditiveKernel, ProductKernel)
+                        if hasattr(kernel, 'kernels'):
+                            for sub_kernel in kernel.kernels:
+                                sub_lengthscales, sub_kernels = extract_continuous_lengthscales(sub_kernel)
+                                lengthscales.extend(sub_lengthscales)
+                                continuous_kernels.extend(sub_kernels)
+                        
+                        return lengthscales, continuous_kernels
                     
-            # Include kernel info
+                    # Extract only continuous lengthscales and clean kernel info
+                    all_continuous_kernels = []
+                    for i, kernel in enumerate(covar_module.kernels):
+                        kernel_lengthscales, kernel_types = extract_continuous_lengthscales(kernel)
+                        all_lengthscales.extend(kernel_lengthscales)
+                        all_continuous_kernels.extend(kernel_types)
+                    
+                    # Store clean kernel info
+                    if all_continuous_kernels:
+                        kernel_info = all_continuous_kernels
+                    
+                    if all_lengthscales:
+                        params['lengthscale'] = all_lengthscales
+                        lengthscale_found = True
+                    
+                    # Add info about the additive kernel structure
+                    params['additive_kernels'] = kernel_info
+                
+                # Pattern 2: Direct access to base_kernel.lengthscale (most common)
+                if not lengthscale_found and hasattr(covar_module, 'base_kernel') and hasattr(covar_module.base_kernel, 'lengthscale'):
+                    lengthscale = covar_module.base_kernel.lengthscale.detach().numpy()
+                    params['lengthscale'] = lengthscale.flatten().tolist()  # Flatten for display
+                    lengthscale_found = True
+                
+                # Pattern 3: For mixed models, try data_covar_module
+                if not lengthscale_found and hasattr(covar_module, 'data_covar_module'):
+                    data_covar = covar_module.data_covar_module
+                    if hasattr(data_covar, 'base_kernel') and hasattr(data_covar.base_kernel, 'lengthscale'):
+                        lengthscale = data_covar.base_kernel.lengthscale.detach().numpy()
+                        params['lengthscale'] = lengthscale.flatten().tolist()
+                        lengthscale_found = True
+                
+                # Pattern 4: Direct access to lengthscale (for some kernel types)
+                if not lengthscale_found and hasattr(covar_module, 'lengthscale') and covar_module.lengthscale is not None:
+                    lengthscale = covar_module.lengthscale.detach().numpy()
+                    params['lengthscale'] = lengthscale.flatten().tolist()
+                    lengthscale_found = True
+                
+                # Get outputscale - try multiple patterns
+                if hasattr(covar_module, 'outputscale'):
+                    outputscale = covar_module.outputscale.detach().numpy()
+                    params['outputscale'] = outputscale.tolist() if hasattr(outputscale, 'tolist') else float(outputscale)
+                    outputscale_found = True
+                elif hasattr(covar_module, 'data_covar_module') and hasattr(covar_module.data_covar_module, 'outputscale'):
+                    outputscale = covar_module.data_covar_module.outputscale.detach().numpy()
+                    params['outputscale'] = outputscale.tolist() if hasattr(outputscale, 'tolist') else float(outputscale)
+                    outputscale_found = True
+                
+                # Add feature names for lengthscale interpretation
+                if 'lengthscale' in params and hasattr(self, 'original_feature_names'):
+                    continuous_features = []
+                    if self.cat_dims:
+                        # Filter out categorical dimensions
+                        for i, feature_name in enumerate(self.original_feature_names):
+                            if i not in self.cat_dims:
+                                continuous_features.append(feature_name)
+                    else:
+                        # All features are continuous
+                        continuous_features = self.original_feature_names
+                    
+                    # For mixed models, we may have duplicate lengthscales due to complex kernel structure
+                    # Try to map only to the actual continuous features we know about
+                    if len(continuous_features) > 0:
+                        # Take only the first set of lengthscales that match our continuous features
+                        num_continuous = len(continuous_features)
+                        if len(params['lengthscale']) >= num_continuous:
+                            # Use only the first n lengthscales corresponding to our continuous features
+                            params['continuous_features'] = continuous_features
+                            params['primary_lengthscales'] = params['lengthscale'][:num_continuous]
+                
+                # Try to extract noise parameter
+                if hasattr(self.model, 'likelihood') and hasattr(self.model.likelihood, 'noise'):
+                    noise = self.model.likelihood.noise.detach().numpy()
+                    params['noise'] = noise.tolist() if hasattr(noise, 'tolist') else float(noise)
+                    
+            # Include kernel configuration info
             params['kernel_type'] = self.kernel_options.get('cont_kernel_type', 'Unknown')
             if params['kernel_type'] == 'Matern':
                 params['nu'] = self.kernel_options.get('matern_nu', None)
                 
+            # Add transform information
+            if hasattr(self.model, 'input_transform') and self.model.input_transform is not None:
+                params['input_transform'] = type(self.model.input_transform).__name__
+            else:
+                params['input_transform'] = 'None'
+                
+            if hasattr(self.model, 'outcome_transform') and self.model.outcome_transform is not None:
+                params['outcome_transform'] = type(self.model.outcome_transform).__name__  
+            else:
+                params['outcome_transform'] = 'None'
+                
             return params
         except Exception as e:
-            return {"error": str(e)}
+            # More detailed error reporting
+            import traceback
+            error_details = {
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "model_type": type(self.model).__name__ if self.model else "None"
+            }
+            return error_details
 
     def generate_contour_data(self, x_range, y_range, fixed_values, x_idx=0, y_idx=2):
         """
