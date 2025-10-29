@@ -469,3 +469,176 @@ class ResultNotificationWindow:
             
         except Exception as e:
             print(f"Error exporting results: {e}")
+
+
+class CalibrationWarningDialog:
+    """Dialog to warn users about poor model calibration and suggest acquisition parameter adjustments."""
+    
+    def __init__(self, parent, calibration_factor, backend="scikit-learn"):
+        """
+        Display a warning dialog about poor calibration.
+        
+        Args:
+            parent: Parent widget
+            calibration_factor: The computed calibration factor (std of z-scores)
+            backend: Model backend ("scikit-learn" or "botorch")
+        """
+        self.window = ctk.CTkToplevel(parent)
+        self.window.title("⚠ Model Calibration Warning")
+        self.window.geometry("550x400")
+        self.window.lift()
+        self.window.focus_force()
+        self.window.grab_set()
+        
+        # Determine if over-confident or under-confident
+        if calibration_factor > 1.2:
+            self.issue_type = "over-confident"
+            self.direction = "increase"
+        else:  # calibration_factor < 0.8
+            self.issue_type = "under-confident"
+            self.direction = "decrease"
+        
+        self.calibration_factor = calibration_factor
+        self.backend = backend
+        
+        # Main frame
+        main_frame = ctk.CTkFrame(self.window)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Warning icon and title
+        title_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        title_frame.pack(fill="x", pady=(0, 15))
+        
+        warning_label = ctk.CTkLabel(
+            title_frame,
+            text="⚠",
+            font=("Arial", 48),
+            text_color="#FFA500"
+        )
+        warning_label.pack(side="left", padx=(0, 15))
+        
+        title_text = ctk.CTkLabel(
+            title_frame,
+            text=f"Model is {self.issue_type.title()}",
+            font=("Arial", 24, "bold")
+        )
+        title_text.pack(side="left")
+        
+        # Calibration info
+        info_frame = ctk.CTkFrame(main_frame)
+        info_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(
+            info_frame,
+            text=f"Calibration Factor: {calibration_factor:.4f}",
+            font=("Arial", 14, "bold")
+        ).pack(pady=5)
+        
+        explanation = (
+            f"The model's predicted uncertainties are too {'narrow' if self.issue_type == 'over-confident' else 'wide'}.\n"
+            f"This means the model is {'underestimating' if self.issue_type == 'over-confident' else 'overestimating'} "
+            f"how uncertain it should be about predictions."
+        )
+        
+        ctk.CTkLabel(
+            info_frame,
+            text=explanation,
+            font=("Arial", 12),
+            wraplength=480,
+            justify="left"
+        ).pack(pady=10, padx=10)
+        
+        # Recommendation frame
+        rec_frame = ctk.CTkFrame(main_frame)
+        rec_frame.pack(fill="both", expand=True, pady=10)
+        
+        ctk.CTkLabel(
+            rec_frame,
+            text="💡 Recommended Actions:",
+            font=("Arial", 14, "bold"),
+            anchor="w"
+        ).pack(fill="x", padx=10, pady=(10, 5))
+        
+        # Action 1: Calibration checkbox
+        action1 = (
+            "✓ Keep 'Calibrate Uncertainty' checked\n"
+            "  (Predictions shown to you will be corrected)"
+        )
+        ctk.CTkLabel(
+            rec_frame,
+            text=action1,
+            font=("Arial", 11),
+            anchor="w",
+            justify="left"
+        ).pack(fill="x", padx=20, pady=2)
+        
+        # Action 2: Adjust acquisition parameters
+        if self.issue_type == "over-confident":
+            # Over-confident: increase exploration
+            action2 = (
+                f"⚠ {self.direction.title()} acquisition exploration parameters:\n"
+                f"  • For EI/PI: Increase ξ (xi) to ~0.05-0.10\n"
+                f"  • For UCB: Increase κ (kappa) to ~2.5-3.0\n"
+                f"  (This compensates for underestimated uncertainties)"
+            )
+        else:
+            # Under-confident: decrease exploration
+            action2 = (
+                f"⚠ {self.direction.title()} acquisition exploration parameters:\n"
+                f"  • For EI/PI: Decrease ξ (xi) to ~0.001-0.005\n"
+                f"  • For UCB: Decrease κ (kappa) to ~1.0-1.5\n"
+                f"  (This compensates for overestimated uncertainties)"
+            )
+        
+        ctk.CTkLabel(
+            rec_frame,
+            text=action2,
+            font=("Arial", 11),
+            anchor="w",
+            justify="left",
+            text_color="#FFA500"
+        ).pack(fill="x", padx=20, pady=10)
+        
+        # Note about acquisition
+        note_text = (
+            "Note: Acquisition functions use uncalibrated uncertainties, so manual\n"
+            "parameter adjustment helps maintain proper exploration/exploitation balance."
+        )
+        ctk.CTkLabel(
+            rec_frame,
+            text=note_text,
+            font=("Arial", 10, "italic"),
+            anchor="w",
+            justify="left",
+            text_color="gray"
+        ).pack(fill="x", padx=20, pady=(5, 10))
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.pack(fill="x", pady=(10, 0))
+        
+        close_button = ctk.CTkButton(
+            button_frame,
+            text="Got it",
+            command=self.window.destroy,
+            width=120
+        )
+        close_button.pack(side="right")
+
+
+def show_calibration_warning(parent, calibration_factor, backend="scikit-learn"):
+    """
+    Show calibration warning dialog if calibration is poor.
+    
+    Args:
+        parent: Parent widget
+        calibration_factor: The computed calibration factor
+        backend: Model backend
+        
+    Returns:
+        True if warning was shown, False otherwise
+    """
+    if calibration_factor < 0.8 or calibration_factor > 1.2:
+        CalibrationWarningDialog(parent, calibration_factor, backend)
+        return True
+    return False

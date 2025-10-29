@@ -166,13 +166,24 @@ class GaussianProcessPanel(ctk.CTkFrame):
         )
         self.sk_output_scale_menu.pack(pady=5)
 
+        # Calibrate uncertainty checkbox (advanced option, disabled by default)
+        self.sk_calibrate_uncertainty_var = ctk.BooleanVar(value=False)
+        self.sk_calibrate_uncertainty_checkbox = ctk.CTkCheckBox(
+            self.sklearn_frame,
+            text="Calibrate Uncertainty",
+            variable=self.sk_calibrate_uncertainty_var,
+            state="disabled"
+        )
+        self.sk_calibrate_uncertainty_checkbox.pack(pady=5)
+
         # Store advanced widgets and labels for toggling
         self.advanced_widgets = [
             self.kernel_menu,
             self.optimizer_menu,
             self.nu_menu,
             self.sk_input_scale_menu,
-            self.sk_output_scale_menu
+            self.sk_output_scale_menu,
+            self.sk_calibrate_uncertainty_checkbox
         ]
         self.advanced_labels = [
             self.kernel_label,
@@ -191,7 +202,8 @@ class GaussianProcessPanel(ctk.CTkFrame):
             self.botorch_frame,
             values=["RBF", "Matern"],
             variable=self.bt_kernel_var,
-            command=self.update_bt_nu_visibility
+            command=self.update_bt_nu_visibility,
+            state="disabled"
         )
         self.bt_kernel_menu.pack(pady=5)
         self.bt_nu_label = ctk.CTkLabel(self.botorch_frame, text="Matern nu:")
@@ -199,7 +211,8 @@ class GaussianProcessPanel(ctk.CTkFrame):
         self.bt_nu_menu = ctk.CTkOptionMenu(
             self.botorch_frame,
             values=["0.5", "1.5", "2.5"],
-            variable=self.bt_nu_var
+            variable=self.bt_nu_var,
+            state="disabled"
         )
         if self.bt_kernel_var.get() == "Matern":
             self.bt_nu_label.pack(pady=2)
@@ -222,7 +235,8 @@ class GaussianProcessPanel(ctk.CTkFrame):
         self.bt_input_scale_menu = ctk.CTkOptionMenu(
             self.botorch_frame,
             values=["none", "normalize", "standardize"],
-            variable=self.bt_input_scale_var
+            variable=self.bt_input_scale_var,
+            state="disabled"
         )
         self.bt_input_scale_menu.pack(pady=5)
 
@@ -233,9 +247,35 @@ class GaussianProcessPanel(ctk.CTkFrame):
         self.bt_output_scale_menu = ctk.CTkOptionMenu(
             self.botorch_frame,
             values=["none", "standardize"],
-            variable=self.bt_output_scale_var
+            variable=self.bt_output_scale_var,
+            state="disabled"
         )
         self.bt_output_scale_menu.pack(pady=5)
+
+        # Calibrate uncertainty checkbox (advanced option, disabled by default)
+        self.bt_calibrate_uncertainty_var = ctk.BooleanVar(value=False)
+        self.bt_calibrate_uncertainty_checkbox = ctk.CTkCheckBox(
+            self.botorch_frame,
+            text="Calibrate Uncertainty",
+            variable=self.bt_calibrate_uncertainty_var,
+            state="disabled"
+        )
+        self.bt_calibrate_uncertainty_checkbox.pack(pady=5)
+
+        # Store BoTorch advanced widgets for toggling
+        self.bt_advanced_widgets = [
+            self.bt_kernel_menu,
+            self.bt_nu_menu,
+            self.bt_input_scale_menu,
+            self.bt_output_scale_menu,
+            self.bt_calibrate_uncertainty_checkbox
+        ]
+        self.bt_advanced_labels = [
+            self.bt_kernel_label,
+            self.bt_nu_label,
+            self.bt_input_scale_label,
+            self.bt_output_scale_label
+        ]
 
     # ==========================
     # BACKEND AND ACQUISITION OPTIONS
@@ -288,12 +328,12 @@ class GaussianProcessPanel(ctk.CTkFrame):
             label.configure(text_color="white" if state == "normal" else "grey")
 
         # Apply toggle to BoTorch advanced widgets and labels
-        botorch_widgets = [self.bt_kernel_menu, self.bt_nu_menu]
-        botorch_labels = [self.bt_kernel_label, self.bt_nu_label]
-        for widget in botorch_widgets:
-            widget.configure(state=state)
-        for label in botorch_labels:
-            label.configure(text_color="white" if state == "normal" else "grey")
+        if hasattr(self, 'bt_advanced_widgets'):
+            for widget in self.bt_advanced_widgets:
+                widget.configure(state=state)
+        if hasattr(self, 'bt_advanced_labels'):
+            for label in self.bt_advanced_labels:
+                label.configure(text_color="white" if state == "normal" else "grey")
 
         # Update visibility of Matern nu options based on current backend
         backend = self.backend_var.get()
@@ -512,8 +552,21 @@ class GaussianProcessPanel(ctk.CTkFrame):
             # Create an ExperimentManager instance with current data
             experiment_manager = self.prepare_experiment_data()
             
+            # Get calibration setting based on backend
+            if backend == "scikit-learn":
+                calibrate_uncertainty = self.sk_calibrate_uncertainty_var.get()
+            elif backend == "botorch":
+                calibrate_uncertainty = self.bt_calibrate_uncertainty_var.get()
+            else:
+                calibrate_uncertainty = True  # Default
+            
             # Train the model using the experiment manager
-            model.train(experiment_manager)
+            model.train(experiment_manager, calibrate_uncertainty=calibrate_uncertainty)
+            
+            # Check for calibration warnings and show popup if needed
+            if calibrate_uncertainty and hasattr(model, 'calibration_enabled') and model.calibration_enabled:
+                from ui.notifications import show_calibration_warning
+                show_calibration_warning(self, model.calibration_factor, backend)
             
             # Store the trained model in the main app
             self.main_app.gpr_model = model

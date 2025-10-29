@@ -51,6 +51,10 @@ class BoTorchModel(BaseModel):
         self.fitted_state_dict = None    # Store the trained model's state
         self.cv_cached_results = None  # Will store y_true and y_pred from cross-validation
         self._is_trained = False  # Initialize training status
+        
+        # Calibration attributes
+        self.calibration_enabled = False
+        self.calibration_factor = 1.0  # Multiplicative factor for std (s = std(z))
     
     def _get_cont_kernel_factory(self):
         """Returns a factory function for the continuous kernel."""
@@ -236,6 +240,10 @@ class BoTorchModel(BaseModel):
             # Cache CV results
             self._cache_cross_validation_results(X, y)
         
+        # Compute calibration factors if requested
+        if kwargs.get('calibrate_uncertainty', True) and self.cv_cached_results is not None:
+            self._compute_calibration_factors()
+        
         return self
     
     def predict(self, X, return_std=False, **kwargs):
@@ -264,6 +272,11 @@ class BoTorchModel(BaseModel):
             
             if return_std:
                 std = posterior.variance.clamp_min(1e-9).sqrt().squeeze(-1).cpu().numpy()
+                
+                # Apply calibration to standard deviation if enabled
+                if self.calibration_enabled:
+                    std = std * self.calibration_factor
+                
                 return mean, std
                 
             return mean
@@ -788,6 +801,7 @@ class BoTorchModel(BaseModel):
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
         y_true_all = []
         y_pred_all = []
+        y_std_all = []
         
         # Need to convert tensor back to numpy for KFold
         X_np = X_tensor.cpu().numpy()
@@ -829,14 +843,18 @@ class BoTorchModel(BaseModel):
             with torch.no_grad():
                 posterior = cv_model.posterior(X_test)
                 preds = posterior.mean.squeeze(-1)
+                # Get standard deviation from variance
+                stds = posterior.variance.clamp_min(1e-9).sqrt().squeeze(-1)
                 
                 # Store results
                 y_true_all.append(y_test.squeeze(-1))
                 y_pred_all.append(preds)
+                y_std_all.append(stds)
         
         # Concatenate all results and convert to numpy
         y_true_all = torch.cat(y_true_all).cpu().numpy()
         y_pred_all = torch.cat(y_pred_all).cpu().numpy()
+        y_std_all = torch.cat(y_std_all).cpu().numpy()
         
         # Note: For BoTorch models, output transforms are handled internally by the model
         # The predictions are already in the original scale due to BoTorch's transform handling
@@ -844,5 +862,54 @@ class BoTorchModel(BaseModel):
         # Cache the results
         self.cv_cached_results = {
             'y_true': y_true_all,
-            'y_pred': y_pred_all
+            'y_pred': y_pred_all,
+            'y_std': y_std_all
         }
+
+    def _compute_calibration_factors(self):
+        """
+        Compute calibration factor from CV results.
+        The calibration_factor is the std of z-scores (standardized residuals).
+        This factor will be used to scale predicted std in future predictions.
+        Also creates a calibrated copy of CV results for plotting.
+        """
+        if self.cv_cached_results is None:
+            print("Warning: No CV results available for calibration.")
+            return
+        
+        y_true = self.cv_cached_results['y_true']
+        y_pred = self.cv_cached_results['y_pred']
+        y_std = self.cv_cached_results['y_std']
+        
+        # Compute standardized residuals (z-scores)
+        z_scores = (y_true - y_pred) / y_std
+        
+        # Calibration factor = std(z)
+        self.calibration_factor = np.std(z_scores, ddof=1)
+        self.calibration_enabled = True
+        
+        # Create calibrated copy of CV results for plotting
+        self.cv_cached_results_calibrated = {
+            'y_true': y_true.copy(),
+            'y_pred': y_pred.copy(),
+            'y_std': y_std * self.calibration_factor  # Apply calibration
+        }
+        
+        # Print calibration info
+        print(f"\n{'='*60}")
+        print("UNCERTAINTY CALIBRATION")
+        print(f"{'='*60}")
+        print(f"Calibration factor (s): {self.calibration_factor:.4f}")
+        print(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
+        print(f"  - Note: Acquisition functions use uncalibrated uncertainties")
+        
+        if self.calibration_factor < 0.8:
+            print("  ⚠ Model appears under-confident (s < 1)")
+            print("     Predicted uncertainties will be DECREASED")
+        elif self.calibration_factor > 1.2:
+            print("  ⚠ Model appears over-confident (s > 1)")
+            print("     Predicted uncertainties will be INCREASED")
+        else:
+            print("  ✓ Uncertainty appears well-calibrated")
+        
+        print(f"{'='*60}\n")

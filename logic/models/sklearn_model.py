@@ -40,6 +40,10 @@ class SklearnModel(BaseModel):
         self.categorical_variables = []
         self.cv_cached_results = None  # Will store y_true and y_pred from cross-validation
         
+        # Calibration attributes
+        self.calibration_enabled = False
+        self.calibration_factor = 1.0  # Multiplicative factor for std (s = std(z))
+        
         # Initialize transform objects
         self.input_scaler = None
         self.output_scaler = None
@@ -322,6 +326,12 @@ class SklearnModel(BaseModel):
         # After model is trained, cache CV results
         if kwargs.get('cache_cv', True):
             self._cache_cross_validation_results(experiment_manager)
+        
+        # Compute calibration factors if requested
+        if kwargs.get('calibrate_uncertainty', True) and self.cv_cached_results is not None:
+            self._compute_calibration_factors()
+        
+        return self
 
     def predict(self, X, return_std=False, **kwargs):
         """
@@ -344,6 +354,11 @@ class SklearnModel(BaseModel):
         # Handle output scaling inverse transform
         if return_std:
             pred_mean, pred_std = predictions
+            
+            # Apply calibration to standard deviation if enabled
+            if self.calibration_enabled:
+                pred_std = pred_std * self.calibration_factor
+            
             # Inverse transform the mean predictions
             if self.output_scaler is not None:
                 pred_mean_scaled = self.output_scaler.inverse_transform(pred_mean.reshape(-1, 1)).ravel()
@@ -517,6 +532,7 @@ class SklearnModel(BaseModel):
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
         y_true_all = []
         y_pred_all = []
+        y_std_all = []
         
         for train_idx, test_idx in kf.split(X_orig):
             # Split original data
@@ -541,20 +557,76 @@ class SklearnModel(BaseModel):
             
             # Preprocess test data using the fitted scalers (no refitting)
             X_test_processed = self._preprocess_subset(X_test_fold, categorical_variables, fit_scalers=False)
-            y_pred_scaled = cv_model.predict(X_test_processed)
+            y_pred_scaled, y_std_scaled = cv_model.predict(X_test_processed, return_std=True)
             
             # Inverse transform predictions to original scale
             y_pred_orig = self._inverse_scale_output(y_pred_scaled.reshape(-1, 1)).ravel()
             
+            # Scale standard deviation to original scale
+            if self.output_scaler is not None:
+                y_std_orig = y_std_scaled * self.output_scaler.scale_[0]
+            else:
+                y_std_orig = y_std_scaled
+            
             # Store results in original scale
             y_true_all.extend(y_test_fold.values)
             y_pred_all.extend(y_pred_orig)
+            y_std_all.extend(y_std_orig)
         
         # Cache the results
         self.cv_cached_results = {
             'y_true': np.array(y_true_all),
-            'y_pred': np.array(y_pred_all)
+            'y_pred': np.array(y_pred_all),
+            'y_std': np.array(y_std_all)
         }
+
+    def _compute_calibration_factors(self):
+        """
+        Compute calibration factor from CV results.
+        The calibration_factor is the std of z-scores (standardized residuals).
+        This factor will be used to scale predicted std in future predictions.
+        Also creates a calibrated copy of CV results for plotting.
+        """
+        if self.cv_cached_results is None:
+            print("Warning: No CV results available for calibration.")
+            return
+        
+        y_true = self.cv_cached_results['y_true']
+        y_pred = self.cv_cached_results['y_pred']
+        y_std = self.cv_cached_results['y_std']
+        
+        # Compute standardized residuals (z-scores)
+        z_scores = (y_true - y_pred) / y_std
+        
+        # Calibration factor = std(z)
+        self.calibration_factor = np.std(z_scores, ddof=1)
+        self.calibration_enabled = True
+        
+        # Create calibrated copy of CV results for plotting
+        self.cv_cached_results_calibrated = {
+            'y_true': y_true.copy(),
+            'y_pred': y_pred.copy(),
+            'y_std': y_std * self.calibration_factor  # Apply calibration
+        }
+        
+        # Print calibration info
+        print(f"\n{'='*60}")
+        print("UNCERTAINTY CALIBRATION")
+        print(f"{'='*60}")
+        print(f"Calibration factor (s): {self.calibration_factor:.4f}")
+        print(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
+        print(f"  - Note: Acquisition functions use uncalibrated uncertainties")
+        
+        if self.calibration_factor < 0.8:
+            print("  ⚠ Model appears under-confident (s < 1)")
+            print("     Predicted uncertainties will be DECREASED")
+        elif self.calibration_factor > 1.2:
+            print("  ⚠ Model appears over-confident (s > 1)")
+            print("     Predicted uncertainties will be INCREASED")
+        else:
+            print("  ✓ Uncertainty appears well-calibrated")
+        
+        print(f"{'='*60}\n")
 
     def generate_contour_data(self, x_range, y_range, fixed_values, x_idx=0, y_idx=1):
         """

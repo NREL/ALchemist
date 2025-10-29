@@ -11,6 +11,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 import pandas as pd
 import threading
 from ui.custom_widgets import CTkSpinbox
+from scipy import stats
 
 plt.rcParams['savefig.dpi'] = 600
 
@@ -116,26 +117,70 @@ class Visualizations:
         # Proceed with the rest of the method
         visualization_window = ctk.CTkToplevel(self.parent)
         visualization_window.title("Model Visualizations")
-        visualization_window.geometry("900x650")
+        visualization_window.geometry("900x700")
         visualization_window.lift()
         visualization_window.focus_force()
         visualization_window.grab_set()
 
         # Top control frame for other visualizations (metrics, parity, hyperparameters)
-        control_frame = ctk.CTkFrame(visualization_window)
-        control_frame.pack(side="top", fill="x", padx=10, pady=10)
+        # Use two rows to avoid crowding
+        control_container = ctk.CTkFrame(visualization_window)
+        control_container.pack(side="top", fill="x", padx=10, pady=10)
+        
+        # First row: Plot type controls
+        control_frame_row1 = ctk.CTkFrame(control_container, fg_color="transparent")
+        control_frame_row1.pack(side="top", fill="x", pady=(0, 5))
 
         self.error_metric_var = ctk.StringVar(value="RMSE")
         self.error_metric_menu = ctk.CTkOptionMenu(
-            control_frame,
+            control_frame_row1,
             values=["RMSE", "MAE", "MAPE", "R2"],
-            variable=self.error_metric_var
+            variable=self.error_metric_var,
+            width=100
         )
-        self.error_metric_menu.pack(side="left", padx=10)
-        self.plot_metrics_button = ctk.CTkButton(control_frame, text="Plot Metrics", command=self.plot_metrics)
-        self.plot_metrics_button.pack(side="left", padx=10)
-        self.plot_parity_button = ctk.CTkButton(control_frame, text="Plot Parity", command=self.plot_parity)
-        self.plot_parity_button.pack(side="left", padx=10)
+        self.error_metric_menu.pack(side="left", padx=5)
+        self.plot_metrics_button = ctk.CTkButton(control_frame_row1, text="Plot Metrics", command=self.plot_metrics, width=100)
+        self.plot_metrics_button.pack(side="left", padx=5)
+        self.plot_parity_button = ctk.CTkButton(control_frame_row1, text="Plot Parity", command=self.plot_parity, width=100)
+        self.plot_parity_button.pack(side="left", padx=5)
+        
+        # Add sigma multiplier control for parity plot error bars
+        ctk.CTkLabel(control_frame_row1, text="Error bars:").pack(side="left", padx=(15, 5))
+        self.sigma_multiplier_var = ctk.StringVar(value="1.96")
+        self.sigma_multiplier_menu = ctk.CTkOptionMenu(
+            control_frame_row1,
+            values=["None", "1.0", "1.96", "2.0", "2.58", "3.0"],
+            variable=self.sigma_multiplier_var,
+            width=80
+        )
+        self.sigma_multiplier_menu.pack(side="left", padx=5)
+        
+        # Second row: Calibration controls
+        control_frame_row2 = ctk.CTkFrame(control_container, fg_color="transparent")
+        control_frame_row2.pack(side="top", fill="x")
+        
+        # Add calibration analysis buttons
+        self.plot_qq_button = ctk.CTkButton(control_frame_row2, text="Plot Q-Q", command=self.plot_qq_plot, width=100)
+        self.plot_qq_button.pack(side="left", padx=5)
+        self.plot_calibration_button = ctk.CTkButton(control_frame_row2, text="Plot Calibration", command=self.plot_calibration_curve, width=120)
+        self.plot_calibration_button.pack(side="left", padx=5)
+        
+        # Add toggle for calibrated/uncalibrated results
+        # Default to True if calibrated results exist, False otherwise
+        has_calibrated = (hasattr(self.gpr_model, 'cv_cached_results_calibrated') and 
+                         self.gpr_model.cv_cached_results_calibrated is not None)
+        self.use_calibrated_var = ctk.BooleanVar(value=has_calibrated)
+        self.use_calibrated_checkbox = ctk.CTkCheckBox(
+            control_frame_row2,
+            text="Use Calibrated",
+            variable=self.use_calibrated_var,
+            command=self._on_calibration_toggle
+        )
+        self.use_calibrated_checkbox.pack(side="left", padx=(15, 5))
+        
+        # Disable checkbox if no calibrated results available
+        if not has_calibrated:
+            self.use_calibrated_checkbox.configure(state="disabled")
 
         # Main container holds the plot and the contour controls side by side.
         main_container = ctk.CTkFrame(visualization_window)
@@ -511,12 +556,26 @@ class Visualizations:
         # Clear the current plot
         self.clear_current_plot()
         
+        # Get sigma multiplier from UI
+        sigma_str = self.sigma_multiplier_var.get() if hasattr(self, 'sigma_multiplier_var') else "1.96"
+        use_error_bars = sigma_str != "None"
+        sigma_multiplier = float(sigma_str) if use_error_bars else 1.96
+        
         # Check if the model has cached CV results
-        if hasattr(self.gpr_model, 'cv_cached_results') and self.gpr_model.cv_cached_results is not None:
+        # Prefer calibrated results if toggle is ON and available
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+            cv_results = self.gpr_model.cv_cached_results_calibrated
+            y_true_all = cv_results['y_true']
+            y_pred_all = cv_results['y_pred']
+            y_std_all = cv_results.get('y_std', None)
+            print("Using calibrated cross-validation results")
+        elif hasattr(self.gpr_model, 'cv_cached_results') and self.gpr_model.cv_cached_results is not None:
             # Use cached results
             cv_results = self.gpr_model.cv_cached_results
             y_true_all = cv_results['y_true']
             y_pred_all = cv_results['y_pred']
+            y_std_all = cv_results.get('y_std', None)
             
             print("Using cached cross-validation results")
         else:
@@ -534,6 +593,7 @@ class Visualizations:
             kf = KFold(n_splits=5, shuffle=True, random_state=42)
             y_true_all = []
             y_pred_all = []
+            y_std_all = []
             
             # Perform cross-validation based on backend type
             if backend == "SklearnModel":
@@ -559,15 +619,16 @@ class Visualizations:
                         X_train_processed = self.gpr_model._preprocess_X(X_train)
                         cv_model.fit(X_train_processed, y_train.values)
                         X_test_processed = self.gpr_model._preprocess_X(X_test)
-                        y_pred = cv_model.predict(X_test_processed)
+                        y_pred, y_std = cv_model.predict(X_test_processed, return_std=True)
                     else:
                         # Fallback to direct fitting
                         cv_model.fit(X_train.values, y_train.values)
-                        y_pred = cv_model.predict(X_test.values)
+                        y_pred, y_std = cv_model.predict(X_test.values, return_std=True)
                     
                     # Store actual and predicted values
                     y_true_all.extend(y_test.values)
                     y_pred_all.extend(y_pred)
+                    y_std_all.extend(y_std)
                         
             elif backend == "BoTorchModel":
                 # For BoTorch models
@@ -600,12 +661,13 @@ class Visualizations:
                     if hasattr(self.gpr_model, 'fitted_state_dict') and self.gpr_model.fitted_state_dict is not None:
                         temp_model.model.load_state_dict(self.gpr_model.fitted_state_dict, strict=False)
                     
-                    # Make predictions on test set
-                    y_pred = temp_model.predict(X_test)
+                    # Make predictions on test set with std
+                    y_pred, y_std = temp_model.predict(X_test, return_std=True)
                     
                     # Store results
                     y_true_all.extend(y_test.values)
                     y_pred_all.extend(y_pred)
+                    y_std_all.extend(y_std)
             else:
                 print(f"Error: Unsupported backend type '{backend}' for parity plot.")
                 return
@@ -613,6 +675,7 @@ class Visualizations:
         # Convert to numpy arrays
         y_true_all = np.array(y_true_all)
         y_pred_all = np.array(y_pred_all)
+        y_std_all = np.array(y_std_all) if y_std_all is not None and len(y_std_all) > 0 else None
         
         # Calculate metrics
         rmse = np.sqrt(mean_squared_error(y_true_all, y_pred_all))
@@ -622,16 +685,40 @@ class Visualizations:
         except:
             r2 = float('nan')
         
-        # Create parity plot
-        self.ax.scatter(y_true_all, y_pred_all, alpha=0.7)
+        # Create parity plot with error bars if available
+        if use_error_bars and y_std_all is not None:
+            # Calculate error bar sizes (vertical only, on y-axis)
+            yerr = sigma_multiplier * y_std_all
+            
+            # Plot with error bars
+            self.ax.errorbar(y_true_all, y_pred_all, yerr=yerr, 
+                           fmt='o', alpha=0.7, capsize=3, capthick=1,
+                           elinewidth=1, markersize=5)
+        else:
+            # Plot without error bars
+            self.ax.scatter(y_true_all, y_pred_all, alpha=0.7)
         
         # Add parity line (y=x)
         min_val = min(np.min(y_true_all), np.min(y_pred_all))
         max_val = max(np.max(y_true_all), np.max(y_pred_all))
-        self.ax.plot([min_val, max_val], [min_val, max_val], 'r--')
+        self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='Parity line')
+        
+        # Determine confidence interval percentage for title
+        ci_labels = {
+            1.0: "68% CI",
+            1.96: "95% CI",
+            2.0: "95.4% CI",
+            2.58: "99% CI",
+            3.0: "99.7% CI"
+        }
+        ci_label = ci_labels.get(sigma_multiplier, f"{sigma_multiplier}σ")
         
         # Set labels and title only if not customized by user
-        title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
+        if use_error_bars and y_std_all is not None:
+            title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}\nError bars: ±{sigma_multiplier}σ ({ci_label})"
+        else:
+            title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
+            
         if not self.customization_options.get('title_user_set'):
             self.ax.set_title(title_str)
             self.customization_options['title'] = title_str
@@ -653,6 +740,334 @@ class Visualizations:
         
         # Remember last plot method
         self.last_plot_method = self.plot_parity
+
+    def compute_calibration_metrics(self):
+        """
+        Compute empirical calibration metrics for the GP model.
+        Uses calibrated CV results if toggle is enabled AND available, otherwise uses uncalibrated.
+        
+        Returns:
+            dict: Dictionary containing coverage fractions at different sigma levels
+                  and sample size, or None if insufficient data
+        """
+        # Check if we have CV results with standard deviations
+        if not hasattr(self.gpr_model, 'cv_cached_results') or self.gpr_model.cv_cached_results is None:
+            print("Error: No cached cross-validation results available. Train a model first.")
+            return None
+        
+        # Use calibrated results if toggle is ON and calibrated results exist
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+            cv_results = self.gpr_model.cv_cached_results_calibrated
+            results_type = "calibrated"
+        else:
+            cv_results = self.gpr_model.cv_cached_results
+            results_type = "uncalibrated"
+            
+        y_true = cv_results.get('y_true')
+        y_pred = cv_results.get('y_pred')
+        y_std = cv_results.get('y_std')
+        
+        if y_true is None or y_pred is None or y_std is None:
+            print("Error: Cross-validation results missing standard deviations.")
+            return None
+        
+        # Compute empirical coverage at different sigma levels
+        sigma_levels = [1.0, 1.96, 2.0, 2.58, 3.0]
+        nominal_coverage = {
+            1.0: 0.683,   # ~68.3%
+            1.96: 0.950,  # ~95.0%
+            2.0: 0.954,   # ~95.4%
+            2.58: 0.990,  # ~99.0%
+            3.0: 0.997    # ~99.7%
+        }
+        
+        coverage_results = {}
+        for sigma in sigma_levels:
+            # Check if true value falls within predicted interval
+            lower_bound = y_pred - sigma * y_std
+            upper_bound = y_pred + sigma * y_std
+            within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
+            empirical_coverage = np.mean(within_interval)
+            
+            coverage_results[sigma] = {
+                'empirical': empirical_coverage,
+                'nominal': nominal_coverage[sigma],
+                'n_samples': len(y_true),
+                'results_type': results_type
+            }
+        
+        return coverage_results
+
+    def compute_zscore_diagnostics(self):
+        """
+        Compute z-score diagnostics (standardized residuals).
+        Uses calibrated CV results if available, otherwise uses uncalibrated.
+        
+        Returns:
+            dict: Dictionary containing z-scores, mean, std, and sample size,
+                  or None if insufficient data
+        """
+        # Check if we have CV results with standard deviations
+        if not hasattr(self.gpr_model, 'cv_cached_results') or self.gpr_model.cv_cached_results is None:
+            print("Error: No cached cross-validation results available. Train a model first.")
+            return None
+        
+        # Use calibrated results if toggle is ON and calibrated results exist
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+            cv_results = self.gpr_model.cv_cached_results_calibrated
+            results_type = "calibrated"
+        else:
+            cv_results = self.gpr_model.cv_cached_results
+            results_type = "uncalibrated"
+            
+        y_true = cv_results.get('y_true')
+        y_pred = cv_results.get('y_pred')
+        y_std = cv_results.get('y_std')
+        
+        if y_true is None or y_pred is None or y_std is None:
+            print("Error: Cross-validation results missing standard deviations.")
+            return None
+        
+        # Compute standardized residuals (z-scores)
+        z_scores = (y_true - y_pred) / y_std
+        
+        return {
+            'z_scores': z_scores,
+            'mean': np.mean(z_scores),
+            'std': np.std(z_scores, ddof=1),  # Sample std with N-1
+            'n_samples': len(z_scores),
+            'results_type': results_type
+        }
+
+    def plot_qq_plot(self):
+        """Generate and display a Q-Q plot of standardized residuals vs. normal distribution."""
+        # Compute z-score diagnostics
+        z_diagnostics = self.compute_zscore_diagnostics()
+        
+        if z_diagnostics is None:
+            return
+        
+        z_scores = z_diagnostics['z_scores']
+        z_mean = z_diagnostics['mean']
+        z_std = z_diagnostics['std']
+        n_samples = z_diagnostics['n_samples']
+        results_type = z_diagnostics.get('results_type', 'uncalibrated')
+        
+        # Clear the current plot
+        self.clear_current_plot()
+        
+        # Sort z-scores
+        z_sorted = np.sort(z_scores)
+        
+        # Compute theoretical quantiles from standard normal distribution
+        theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(z_scores)))
+        
+        # Create Q-Q plot
+        self.ax.scatter(theoretical_quantiles, z_sorted, alpha=0.7, s=30, edgecolors='k', linewidth=0.5)
+        
+        # Add diagonal reference line (perfect calibration)
+        min_val = min(theoretical_quantiles.min(), z_sorted.min())
+        max_val = max(theoretical_quantiles.max(), z_sorted.max())
+        self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2, label='Perfect calibration')
+        
+        # Add confidence bands (optional - using ±1.96/sqrt(n) as rough guide)
+        # For small samples, this gives a sense of expected deviation
+        if n_samples < 100:
+            se = 1.96 / np.sqrt(n_samples)
+            self.ax.fill_between([min_val, max_val], 
+                                [min_val - se, max_val - se], 
+                                [min_val + se, max_val + se], 
+                                alpha=0.2, color='red', label='Approximate 95% CI')
+        
+        # Set labels and title
+        cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
+        title_str = f"Q-Q Plot: Standardized Residuals vs. Normal Distribution{cal_label}\n"
+        title_str += f"Mean(z) = {z_mean:.3f}, Std(z) = {z_std:.3f}, N = {n_samples}"
+        
+        if not self.customization_options.get('title_user_set'):
+            self.ax.set_title(title_str, fontsize=11)
+            self.customization_options['title'] = title_str
+        if not self.customization_options.get('xlabel_user_set'):
+            self.ax.set_xlabel("Theoretical Quantiles (Standard Normal)")
+            self.customization_options['xlabel'] = "Theoretical Quantiles (Standard Normal)"
+        if not self.customization_options.get('ylabel_user_set'):
+            self.ax.set_ylabel("Observed Quantiles (Standardized Residuals)")
+            self.customization_options['ylabel'] = "Observed Quantiles (Standardized Residuals)"
+        
+        self.ax.legend(loc='best')
+        self.ax.grid(True, alpha=0.3)
+        
+        # Store axis limits
+        self.customization_options['xlim'] = self.ax.get_xlim()
+        self.customization_options['ylim'] = self.ax.get_ylim()
+        
+        # Apply customizations and draw
+        self.apply_customizations_to_axes()
+        self.fig.tight_layout()
+        self.canvas.draw()
+        
+        # Print diagnostics to console
+        cal_status = "CALIBRATED" if results_type == "calibrated" else "UNCALIBRATED"
+        print("\n" + "="*60)
+        print(f"Z-SCORE DIAGNOSTICS ({cal_status})")
+        print("="*60)
+        print(f"Mean(z):     {z_mean:.4f}  (expected ≈ 0 for well-calibrated)")
+        print(f"Std(z):      {z_std:.4f}  (expected ≈ 1 for well-calibrated)")
+        print(f"Sample size: {n_samples}")
+        print("="*60)
+        if abs(z_mean) < 0.1 and abs(z_std - 1.0) < 0.2:
+            print("✓ Model appears well-calibrated (unbiased, good uncertainty)")
+        elif abs(z_mean) > 0.2:
+            print("⚠ Model may be biased (mean(z) far from 0)")
+        elif abs(z_std - 1.0) > 0.3:
+            if z_std < 1.0:
+                print("⚠ Model may be under-confident (std(z) < 1)")
+            else:
+                print("⚠ Model may be over-confident (std(z) > 1)")
+        print("="*60 + "\n")
+        
+        # Remember last plot method
+        self.last_plot_method = self.plot_qq_plot
+
+    def plot_calibration_curve(self):
+        """Generate and display a calibration curve (reliability diagram)."""
+        # Compute calibration metrics
+        calibration_metrics = self.compute_calibration_metrics()
+        
+        if calibration_metrics is None:
+            return
+        
+        # Get results type from metrics
+        results_type = list(calibration_metrics.values())[0].get('results_type', 'uncalibrated')
+        
+        # Get CV results for computing custom probability levels
+        # Use calibrated if toggle is ON and available
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+            cv_results = self.gpr_model.cv_cached_results_calibrated
+        else:
+            cv_results = self.gpr_model.cv_cached_results
+            
+        y_true = cv_results['y_true']
+        y_pred = cv_results['y_pred']
+        y_std = cv_results['y_std']
+        n_samples = len(y_true)
+        
+        # Clear the current plot
+        self.clear_current_plot()
+        
+        # Compute empirical coverage for a range of nominal probabilities
+        # Use sigma values corresponding to different confidence levels
+        nominal_probs = np.arange(0.10, 1.00, 0.05)
+        empirical_coverage = []
+        
+        for prob in nominal_probs:
+            # Convert probability to sigma multiplier (assuming normal distribution)
+            # For symmetric interval: P(|Z| < z) = prob → z = Φ^(-1)((1+prob)/2)
+            sigma = stats.norm.ppf((1 + prob) / 2)
+            
+            # Compute empirical coverage at this sigma level
+            lower_bound = y_pred - sigma * y_std
+            upper_bound = y_pred + sigma * y_std
+            within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
+            empirical_coverage.append(np.mean(within_interval))
+        
+        empirical_coverage = np.array(empirical_coverage)
+        
+        # Create calibration plot
+        self.ax.plot(nominal_probs, empirical_coverage, 'o-', linewidth=2, 
+                    markersize=6, label='Empirical coverage', color='steelblue')
+        
+        # Add perfect calibration line (diagonal)
+        self.ax.plot([0, 1], [0, 1], 'r--', linewidth=2, label='Perfect calibration')
+        
+        # Shade over-confident and under-confident regions
+        self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage, 
+                            where=(empirical_coverage < nominal_probs),
+                            alpha=0.2, color='orange', label='Over-confident')
+        self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage, 
+                            where=(empirical_coverage >= nominal_probs),
+                            alpha=0.2, color='blue', label='Under-confident')
+        
+        # Set labels and title
+        cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
+        title_str = f"Calibration Curve (Reliability Diagram){cal_label}\nN = {n_samples}"
+        
+        if not self.customization_options.get('title_user_set'):
+            self.ax.set_title(title_str)
+            self.customization_options['title'] = title_str
+        if not self.customization_options.get('xlabel_user_set'):
+            self.ax.set_xlabel("Nominal Coverage Probability")
+            self.customization_options['xlabel'] = "Nominal Coverage Probability"
+        if not self.customization_options.get('ylabel_user_set'):
+            self.ax.set_ylabel("Empirical Coverage Probability")
+            self.customization_options['ylabel'] = "Empirical Coverage Probability"
+        
+        self.ax.legend(loc='best')
+        self.ax.grid(True, alpha=0.3)
+        self.ax.set_xlim([0, 1])
+        self.ax.set_ylim([0, 1])
+        
+        # Store axis limits
+        self.customization_options['xlim'] = self.ax.get_xlim()
+        self.customization_options['ylim'] = self.ax.get_ylim()
+        
+        # Apply customizations and draw
+        self.apply_customizations_to_axes()
+        self.fig.tight_layout()
+        self.canvas.draw()
+        
+        # Print calibration metrics to console
+        cal_status = "(CALIBRATED)" if results_type == "calibrated" else "(UNCALIBRATED)"
+        print("\n" + "="*70)
+        print(f"CALIBRATION METRICS (Empirical Coverage) {cal_status}")
+        print("="*70)
+        print(f"{'Confidence':<15} {'Nominal':<12} {'Empirical':<12} {'Difference':<12} {'Status'}")
+        print("-"*70)
+        
+        for sigma, metrics in sorted(calibration_metrics.items()):
+            nominal = metrics['nominal']
+            empirical = metrics['empirical']
+            diff = empirical - nominal
+            
+            # Determine status
+            if abs(diff) < 0.05:
+                status = "✓ Good"
+            elif diff > 0.1:
+                status = "⚠ Under-conf"
+            elif diff < -0.1:
+                status = "⚠ Over-conf"
+            else:
+                status = "~ Acceptable"
+            
+            # Format sigma as confidence level
+            if sigma == 1.0:
+                conf_label = "±1.0σ (68%)"
+            elif sigma == 1.96:
+                conf_label = "±1.96σ (95%)"
+            elif sigma == 2.0:
+                conf_label = "±2.0σ (95%)"
+            elif sigma == 2.58:
+                conf_label = "±2.58σ (99%)"
+            elif sigma == 3.0:
+                conf_label = "±3.0σ (99.7%)"
+            else:
+                conf_label = f"±{sigma}σ"
+            
+            print(f"{conf_label:<15} {nominal:>6.3f} ({nominal*100:>4.1f}%)  {empirical:>6.3f} ({empirical*100:>4.1f}%)  "
+                  f"{diff:>+6.3f} ({diff*100:>+5.1f}%)  {status}")
+        
+        print("-"*70)
+        print(f"Sample size: N = {n_samples}")
+        if n_samples < 30:
+            print("⚠ WARNING: Small sample size (N < 30). Coverage estimates may be noisy.")
+            print("           Consider reporting binomial confidence intervals.")
+        print("="*70 + "\n")
+        
+        # Remember last plot method
+        self.last_plot_method = self.plot_calibration_curve
 
     
     def customize_plot(self, event=None):
@@ -986,4 +1401,13 @@ class Visualizations:
                 print("Error removing previous colorbar:", e)
             self.colorbar = None
         self.ax.clear()
+
+    def _on_calibration_toggle(self):
+        """Callback when calibrated/uncalibrated toggle is changed. Re-plots the last plot."""
+        if self.last_plot_method is not None:
+            print(f"\nSwitching to {'calibrated' if self.use_calibrated_var.get() else 'uncalibrated'} results...")
+            self.last_plot_method()  # Re-run the last plot method
+        else:
+            print("No plot to refresh yet. Generate a plot first.")
+
 
