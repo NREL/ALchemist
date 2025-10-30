@@ -10,6 +10,9 @@ from CTkMessagebox import CTkMessagebox
 from skopt.space import Real, Integer, Categorical
 from skopt.sampler import Lhs
 from logic.clustering import cluster_pool
+from alchemist_core.config import get_logger
+
+logger = get_logger(__name__)
 
 def search_space_to_dict_list(search_space):
     """Convert a list of skopt.space objects into a list of dictionaries for hashing/caching."""
@@ -45,7 +48,7 @@ def generate_pool(search_space, experiments_df=None, pool_size=10000, lhs_iterat
     with caching support.
     """
     if debug:
-        print("Generating pool...")
+        logger.info("Generating pool...")
 
     # Cap pool_size and lhs_iterations to recommended limits.
     if pool_size > 10000:
@@ -66,9 +69,9 @@ def generate_pool(search_space, experiments_df=None, pool_size=10000, lhs_iterat
 
     # Debug print: Check search space definition
     if debug:
-        print("Search space definition:")
+        logger.info("Search space definition:")
         for dim in search_space:
-            print(f"  - {dim.name}: {dim}")
+            logger.info(f"  - {dim.name}: {dim}")
 
     # Generate a cache key based on the search space and sampling parameters.
     space_dict = search_space_to_dict_list(search_space)
@@ -80,14 +83,14 @@ def generate_pool(search_space, experiments_df=None, pool_size=10000, lhs_iterat
     cache_file = os.path.join(cache_dir, f"pool_{cache_key}.pkl")
     if os.path.exists(cache_file):
         if debug:
-            print("Loading cached pool.")
+            logger.info("Loading cached pool.")
         pool = joblib.load(cache_file)
         
         # Debug print: Check if SAPO34 is in the loaded pool
         if debug and "Catalyst" in pool.columns:
-            print("Unique Catalyst values in cached pool:", pool["Catalyst"].unique())
+            logger.info(f"Unique Catalyst values in cached pool: {pool['Catalyst'].unique()}")
         elif debug:
-            print("Warning: Catalyst column not found in cached pool!")
+            logger.warning("Catalyst column not found in cached pool!")
 
         return pool
 
@@ -108,14 +111,14 @@ def generate_pool(search_space, experiments_df=None, pool_size=10000, lhs_iterat
 
     # Debug print: Check the unique values sampled for categorical variables
     if debug and "Catalyst" in sampled_df.columns:
-        print("Unique Catalyst values in sampled_df:", sampled_df["Catalyst"].unique())
+        logger.info(f"Unique Catalyst values in sampled_df: {sampled_df['Catalyst'].unique()}")
     elif debug:
-        print("Warning: Catalyst column missing from sampled_df!")
+        logger.warning("Catalyst column missing from sampled_df!")
 
     # If there are existing experiments, append them.
     if experiments_df is not None and not experiments_df.empty:
         if debug:
-            print("Appending existing experiments to the pool.")
+            logger.info("Appending existing experiments to the pool.")
         existing_points = experiments_df.drop(columns='Output').values.astype(float)
         existing_df = pd.DataFrame(existing_points, columns=var_names)
         pool = pd.concat([sampled_df, existing_df], ignore_index=True)
@@ -124,16 +127,16 @@ def generate_pool(search_space, experiments_df=None, pool_size=10000, lhs_iterat
 
     # Debug print: Final unique values after merging with experiments
     if debug and "Catalyst" in pool.columns:
-        print("Final unique Catalyst values in pool:", pool["Catalyst"].unique())
+        logger.info(f"Final unique Catalyst values in pool: {pool['Catalyst'].unique()}")
     elif debug:
-        print("Warning: Catalyst column missing from final pool!")
+        logger.warning("Catalyst column missing from final pool!")
 
     # Cache the pool for future reuse.
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     joblib.dump(pool, cache_file)
     if debug:
-        print("Saving new pool to cache.")
+        logger.info("Saving new pool to cache.")
 
     return pool
 

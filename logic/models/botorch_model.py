@@ -9,11 +9,14 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import KFold
 from .base_model import BaseModel
+from alchemist_core.config import get_logger
 import warnings
 from botorch.models.utils.assorted import InputDataWarning
 
 # Import necessary kernels from GPyTorch
 from gpytorch.kernels import MaternKernel, RBFKernel
+
+logger = get_logger(__name__)
 
 class BoTorchModel(BaseModel):
     def __init__(self, training_iter=50, random_state=42,
@@ -145,7 +148,7 @@ class BoTorchModel(BaseModel):
         
         # Store the original feature names before encoding
         self.original_feature_names = X.columns.tolist()
-        print(f"Training with {len(self.original_feature_names)} original features: {self.original_feature_names}")
+        logger.info(f"Training with {len(self.original_feature_names)} original features: {self.original_feature_names}")
         
         # Encode categorical variables
         X_encoded = self._encode_categorical_data(X)
@@ -157,7 +160,7 @@ class BoTorchModel(BaseModel):
         # Convert noise values to tensor if available
         if noise is not None:
             train_Yvar = torch.tensor(noise.values, dtype=torch.double).unsqueeze(-1)
-            print(f"Using provided noise values for BoTorch model regularization.")
+            logger.info(f"Using provided noise values for BoTorch model regularization.")
         else:
             train_Yvar = None
         
@@ -166,14 +169,14 @@ class BoTorchModel(BaseModel):
         
         # Print transform information
         if input_transform is not None:
-            print(f"Applied {self.input_transform_type} transform to inputs")
+            logger.info(f"Applied {self.input_transform_type} transform to inputs")
         else:
-            print("No input transform applied")
+            logger.info("No input transform applied")
             
         if outcome_transform is not None:
-            print(f"Applied {self.output_transform_type} transform to outputs")
+            logger.info(f"Applied {self.output_transform_type} transform to outputs")
         else:
-            print("No output transform applied")
+            logger.info("No output transform applied")
         
         # Set random seed
         torch.manual_seed(self.random_state)
@@ -437,7 +440,7 @@ class BoTorchModel(BaseModel):
         # Evaluate on increasing subsets of data
         for i in range(max(cv_splits+1, 5), len(full_X) + 1):
             if debug:
-                print(f"Evaluating with {i} observations")
+                logger.info(f"Evaluating with {i} observations")
                 
             subset_X = full_X[:i]
             subset_Y = full_Y[:i]
@@ -741,18 +744,18 @@ class BoTorchModel(BaseModel):
                             value = float(self.categorical_encodings[feature_name][value])
                         else:
                             # If the value is not in our encoding map, use a default (0)
-                            print(f"Warning: Value '{value}' not found in encoding for '{feature_name}'. Using default value 0.")
+                            logger.warning(f"Value '{value}' not found in encoding for '{feature_name}'. Using default value 0.")
                             value = 0.0
                     else:
                         # No encoding available, use default
-                        print(f"Warning: No encoding found for categorical feature '{feature_name}'. Using default value 0.")
+                        logger.warning(f"No encoding found for categorical feature '{feature_name}'. Using default value 0.")
                         value = 0.0
                 elif not isinstance(value, (int, float)):
                     # For any other non-numeric types, convert to float if possible
                     try:
                         value = float(value)
                     except (ValueError, TypeError):
-                        print(f"Warning: Cannot convert value '{value}' to float. Using default value 0.")
+                        logger.warning(f"Cannot convert value '{value}' to float. Using default value 0.")
                         value = 0.0
                         
                 # Create tensor with the fixed value
@@ -874,7 +877,7 @@ class BoTorchModel(BaseModel):
         Also creates a calibrated copy of CV results for plotting.
         """
         if self.cv_cached_results is None:
-            print("Warning: No CV results available for calibration.")
+            logger.warning("No CV results available for calibration.")
             return
         
         y_true = self.cv_cached_results['y_true']
@@ -896,20 +899,20 @@ class BoTorchModel(BaseModel):
         }
         
         # Print calibration info
-        print(f"\n{'='*60}")
-        print("UNCERTAINTY CALIBRATION")
-        print(f"{'='*60}")
-        print(f"Calibration factor (s): {self.calibration_factor:.4f}")
-        print(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
-        print(f"  - Note: Acquisition functions use uncalibrated uncertainties")
+        logger.info(f"\n{'='*60}")
+        logger.info("UNCERTAINTY CALIBRATION")
+        logger.info(f"{'='*60}")
+        logger.info(f"Calibration factor (s): {self.calibration_factor:.4f}")
+        logger.info(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
+        logger.info(f"  - Note: Acquisition functions use uncalibrated uncertainties")
         
         if self.calibration_factor < 0.8:
-            print("  ⚠ Model appears under-confident (s < 1)")
-            print("     Predicted uncertainties will be DECREASED")
+            logger.info("  ⚠ Model appears under-confident (s < 1)")
+            logger.info("     Predicted uncertainties will be DECREASED")
         elif self.calibration_factor > 1.2:
-            print("  ⚠ Model appears over-confident (s > 1)")
-            print("     Predicted uncertainties will be INCREASED")
+            logger.info("  ⚠ Model appears over-confident (s > 1)")
+            logger.info("     Predicted uncertainties will be INCREASED")
         else:
-            print("  ✓ Uncertainty appears well-calibrated")
+            logger.info("  ✓ Uncertainty appears well-calibrated")
         
-        print(f"{'='*60}\n")
+        logger.info(f"{'='*60}\n")
