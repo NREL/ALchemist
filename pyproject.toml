@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alchemist"
-version = "0.1.0"
+version = "0.2.0-dev"
 description = "Active learning and optimization toolkit"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -36,7 +36,7 @@ alchemist = "main:main"
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
-include = ["ui*", "logic*"]
+include = ["ui*", "logic*", "alchemist_core*"]
 
 [project.urls]
 "Homepage" = "https://github.com/NREL/ALchemist"
