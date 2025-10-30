@@ -37,10 +37,14 @@ __email__ = "caleb.coatney@nrel.gov"
 from alchemist_core.data.search_space import SearchSpace
 from alchemist_core.data.experiment_manager import ExperimentManager
 
+# Event system
+from alchemist_core.events import EventEmitter
+
 # Public API (will be added incrementally)
 __all__ = [
     "SearchSpace",
     "ExperimentManager",
+    "EventEmitter",
     # Session API will be added in later branches
     # "OptimizationSession",
 ]
