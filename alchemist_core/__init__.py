@@ -43,14 +43,21 @@ from alchemist_core.events import EventEmitter
 # Configuration and logging
 from alchemist_core.config import configure_logging, get_logger, set_verbosity
 
-# Public API (will be added incrementally)
+# High-level session API
+from alchemist_core.session import OptimizationSession
+
+# Public API
 __all__ = [
+    # High-level API (recommended entry point)
+    "OptimizationSession",
+    
+    # Data structures
     "SearchSpace",
     "ExperimentManager",
+    
+    # Events and logging
     "EventEmitter",
     "configure_logging",
     "get_logger",
     "set_verbosity",
-    # Session API will be added in later branches
-    # "OptimizationSession",
 ]
