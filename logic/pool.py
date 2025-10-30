@@ -6,7 +6,6 @@ import hashlib
 import os
 import joblib
 import json
-from CTkMessagebox import CTkMessagebox
 from skopt.space import Real, Integer, Categorical
 from skopt.sampler import Lhs
 from logic.clustering import cluster_pool
@@ -197,44 +196,5 @@ def load_search_space_from_file(file_path):
         return search_space, categorical_variables
 
     except Exception as e:
-        CTkMessagebox.showerror("Load Error", str(e))
-        return None, None
-
-def plot_pool(pool, var1, var2, ax, kmeans=None, add_cluster=False, experiments=None):
-    """
-    Plots a scatter plot of two variables from the experimental pool.
-
-    Args:
-        pool (pd.DataFrame): DataFrame containing the experimental points.
-        var1 (str): Name of the variable for the x-axis.
-        var2 (str): Name of the variable for the y-axis.
-        ax (matplotlib.axes.Axes): The axis object to plot the data on.
-        kmeans: A precomputed clustering object. If None, clustering is not performed.
-        add_cluster (bool): If True and kmeans has 'largest_empty_cluster', highlights that cluster.
-        experiments: (Unused in this version; previously used for clustering.)
-    """
-    # Extract the data for the selected variables
-    x_data = pool[var1]
-    y_data = pool[var2]
-
-    if kmeans is not None:
-        labels = kmeans.labels_
-        for i in range(kmeans.n_clusters):
-            cluster_points = pool[labels == i]
-            ax.scatter(cluster_points[var1], cluster_points[var2],
-                       label=f'Cluster {i}', alpha=0.1)
-        
-        # If requested and available, highlight the largest empty cluster.
-        if add_cluster and hasattr(kmeans, 'largest_empty_cluster'):
-            largest_empty_cluster = kmeans.largest_empty_cluster
-            largest_empty_cluster_points = pool[labels == largest_empty_cluster]
-            ax.scatter(largest_empty_cluster_points[var1],
-                       largest_empty_cluster_points[var2],
-                       marker='o', alpha=0.9, label='Largest Empty Cluster')
-    else:
-        ax.scatter(x_data, y_data, alpha=0.1)
-    
-    # Set the labels and title of the plot
-    ax.set_xlabel(var1)
-    ax.set_ylabel(var2)
-    ax.set_title("Experimental Pool")
+        logger.error(f"Failed to load search space: {e}")
+        raise ValueError(f"Failed to load search space from {file_path}: {e}") from e
