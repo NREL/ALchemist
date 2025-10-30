@@ -361,12 +361,16 @@ class BoTorchModel(BaseModel):
                 if isinstance(self.model, MixedSingleTaskGP):
                     params["kernel"] = "MixedSingleTaskGP"
                     if self.lengthscales is not None:
-                        for i, ls in enumerate(self.lengthscales.flatten()):
+                        # Handle both list and tensor types
+                        ls_values = self.lengthscales if isinstance(self.lengthscales, list) else self.lengthscales.flatten()
+                        for i, ls in enumerate(ls_values):
                             params[f"continuous_dim_{i}_lengthscale"] = float(ls)
                 else:
                     params["kernel"] = self.kernel_type
                     if self.lengthscales is not None:
-                        for i, ls in enumerate(self.lengthscales.flatten()):
+                        # Handle both list and tensor types
+                        ls_values = self.lengthscales if isinstance(self.lengthscales, list) else self.lengthscales.flatten()
+                        for i, ls in enumerate(ls_values):
                             params[f"lengthscale_{i}"] = float(ls)
                 
                 # Add categorical information if applicable
