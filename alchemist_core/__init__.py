@@ -40,11 +40,17 @@ from alchemist_core.data.experiment_manager import ExperimentManager
 # Event system
 from alchemist_core.events import EventEmitter
 
+# Configuration and logging
+from alchemist_core.config import configure_logging, get_logger, set_verbosity
+
 # Public API (will be added incrementally)
 __all__ = [
     "SearchSpace",
     "ExperimentManager",
     "EventEmitter",
+    "configure_logging",
+    "get_logger",
+    "set_verbosity",
     # Session API will be added in later branches
     # "OptimizationSession",
 ]

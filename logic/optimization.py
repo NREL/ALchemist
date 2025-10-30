@@ -1,7 +1,10 @@
 from logic.acquisition.skopt_acquisition import SkoptAcquisition
+from alchemist_core.config import get_logger
 import pandas as pd
 import numpy as np
 import warnings
+
+logger = get_logger(__name__)
 
 def select_optimize(search_space, experiments=None, base_estimator='GP', acq_func='gp_hedge', verbose=True, random_state=42):
     """
@@ -33,6 +36,6 @@ def select_optimize(search_space, experiments=None, base_estimator='GP', acq_fun
     next_x = acquisition.select_next()
     
     if verbose:
-        print('Suggested Next Experiment:\n', next_x)
+        logger.info(f'Suggested Next Experiment:\n{next_x}')
     
     return next_x

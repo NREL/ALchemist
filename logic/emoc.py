@@ -30,9 +30,12 @@ import pandas as pd
 from skopt.space import Categorical
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
+from alchemist_core.config import get_logger
 import scipy
 import scipy.special
 import warnings
+
+logger = get_logger(__name__)
 
 
 def gaussianAbsoluteMoment(muTilde, predVar, norm=1):
@@ -128,7 +131,7 @@ def select_EMOC(pool, X, y, search_space, model=None, verbose=False):
     if hasattr(model, 'predict'):
         # Determine the point in the pool that would maximize output change
         if verbose:
-            print("Selecting point that maximizes expected output change...")
+            logger.info("Selecting point that maximizes expected output change...")
         
         predictions = []
         stds = []
@@ -179,11 +182,11 @@ def select_EMOC(pool, X, y, search_space, model=None, verbose=False):
             # Initialize lengthscales using the mean of each column in the encoded observed data.
             ls_init = np.mean(encoded_X.values, axis=0)
             default_kernel = C() * RBF(length_scale=ls_init)
-            print("Notice: Using default GaussianProcessRegressor model with parameters:")
-            print("  Kernel:", default_kernel)
-            print("  Optimizer: fmin_l_bfgs_b")
-            print("  n_restarts_optimizer: 20")
-            print("  random_state: 42")
+            logger.info("Notice: Using default GaussianProcessRegressor model with parameters:")
+            logger.info(f"  Kernel: {default_kernel}")
+            logger.info("  Optimizer: fmin_l_bfgs_b")
+            logger.info("  n_restarts_optimizer: 20")
+            logger.info("  random_state: 42")
             model = GaussianProcessRegressor(kernel=default_kernel,
                                              optimizer='fmin_l_bfgs_b',
                                              n_restarts_optimizer=20,
@@ -202,10 +205,10 @@ def select_EMOC(pool, X, y, search_space, model=None, verbose=False):
         # Extract the learned lengthscale vector and noise variance.
         lengthscales = kernel.get_params()["k2__length_scale"]
         if verbose:
-            print(f"Learned Lengthscales: {lengthscales}")
+            logger.info(f"Learned Lengthscales: {lengthscales}")
         sigmaN = model.alpha_
         if verbose:
-            print(f"Noise variance (sigmaN): {sigmaN}")
+            logger.info(f"Noise variance (sigmaN): {sigmaN}")
 
         # Compute EMOC scores on the encoded pool using the encoded observed data.
         var = calcEMOC(encoded_pool.values, encoded_X.values, kernel, model, sigmaN)

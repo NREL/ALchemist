@@ -2,6 +2,9 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from alchemist_core.config import get_logger
+
+logger = get_logger(__name__)
 
 class ExperimentLogger:
     """
@@ -61,7 +64,7 @@ class ExperimentLogger:
             self.current_log_file.flush()  # Ensure it's written immediately
         
         if print_to_console:
-            print(message)
+            logger.info(message)
     
     def log_model_training(self, model_data):
         """Log model training details"""

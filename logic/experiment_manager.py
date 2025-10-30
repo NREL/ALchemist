@@ -1,8 +1,11 @@
 from typing import Dict, List, Optional, Tuple, Union
+from alchemist_core.config import get_logger
 import pandas as pd
 import numpy as np
 import os
 import json
+
+logger = get_logger(__name__)
 
 class ExperimentManager:
     """
@@ -124,9 +127,9 @@ class ExperimentManager:
         if 'Noise' in self.df.columns:
             try:
                 self.df['Noise'] = pd.to_numeric(self.df['Noise'])
-                print(f"Loaded experiment data with noise column. Noise values will be used for model regularization.")
+                logger.info(f"Loaded experiment data with noise column. Noise values will be used for model regularization.")
             except ValueError:
-                print("Warning: Noise column contains non-numeric values. Converting to default noise level.")
+                logger.warning("Noise column contains non-numeric values. Converting to default noise level.")
                 self.df['Noise'] = 1e-10  # Default small noise
         
         return self

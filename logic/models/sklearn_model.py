@@ -1,6 +1,7 @@
 from .base_model import BaseModel
 from logic.search_space import SearchSpace
 from logic.experiment_manager import ExperimentManager
+from alchemist_core.config import get_logger
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -10,6 +11,8 @@ import scipy.optimize
 
 from skopt.learning import GaussianProcessRegressor
 from skopt.learning.gaussian_process.kernels import RBF, Matern, RationalQuadratic, ConstantKernel as C
+
+logger = get_logger(__name__)
 
 class SklearnModel(BaseModel):
     def __init__(self, kernel_options: dict, n_restarts_optimizer=30, random_state=42, 
@@ -106,7 +109,7 @@ class SklearnModel(BaseModel):
         
         # Store noise values for later use in the model (use None if no noise provided)
         self.alpha = noise.values if noise is not None else None
-        print(f"{'Using provided noise values for regularization' if noise is not None else 'No noise values provided - using scikit-learn default regularization'}")
+        logger.info(f"{'Using provided noise values for regularization' if noise is not None else 'No noise values provided - using scikit-learn default regularization'}")
         
         # Separate categorical and numerical columns
         categorical_df = X[categorical_variables] if categorical_variables else None
@@ -131,23 +134,23 @@ class SklearnModel(BaseModel):
         # Apply input scaling if enabled
         if self.input_scaler is not None:
             processed_X_scaled = self.input_scaler.fit_transform(processed_X.values)
-            print(f"Applied {self.input_transform_type} scaling to input features")
+            logger.info(f"Applied {self.input_transform_type} scaling to input features")
         else:
             processed_X_scaled = processed_X.values
-            print("No input scaling applied")
+            logger.info("No input scaling applied")
 
         # Apply output scaling if enabled
         y_processed = y.values.reshape(-1, 1)
         if self.output_scaler is not None:
             y_scaled = self.output_scaler.fit_transform(y_processed).ravel()
-            print(f"Applied {self.output_transform_type} scaling to output")
+            logger.info(f"Applied {self.output_transform_type} scaling to output")
         else:
             y_scaled = y_processed.ravel()
-            print("No output scaling applied")
+            logger.info("No output scaling applied")
 
         # Save the feature names for debugging dimensional mismatches
         self.feature_names = processed_X.columns.tolist()
-        print(f"Model trained with {len(self.feature_names)} features: {self.feature_names}")
+        logger.info(f"Model trained with {len(self.feature_names)} features: {self.feature_names}")
         
         return processed_X_scaled, y_scaled
 
@@ -588,7 +591,7 @@ class SklearnModel(BaseModel):
         Also creates a calibrated copy of CV results for plotting.
         """
         if self.cv_cached_results is None:
-            print("Warning: No CV results available for calibration.")
+            logger.warning("No CV results available for calibration.")
             return
         
         y_true = self.cv_cached_results['y_true']
@@ -610,23 +613,23 @@ class SklearnModel(BaseModel):
         }
         
         # Print calibration info
-        print(f"\n{'='*60}")
-        print("UNCERTAINTY CALIBRATION")
-        print(f"{'='*60}")
-        print(f"Calibration factor (s): {self.calibration_factor:.4f}")
-        print(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
-        print(f"  - Note: Acquisition functions use uncalibrated uncertainties")
+        logger.info(f"\n{'='*60}")
+        logger.info("UNCERTAINTY CALIBRATION")
+        logger.info(f"{'='*60}")
+        logger.info(f"Calibration factor (s): {self.calibration_factor:.4f}")
+        logger.info(f"  - Future σ predictions will be multiplied by {self.calibration_factor:.4f}")
+        logger.info(f"  - Note: Acquisition functions use uncalibrated uncertainties")
         
         if self.calibration_factor < 0.8:
-            print("  ⚠ Model appears under-confident (s < 1)")
-            print("     Predicted uncertainties will be DECREASED")
+            logger.info("  ⚠ Model appears under-confident (s < 1)")
+            logger.info("     Predicted uncertainties will be DECREASED")
         elif self.calibration_factor > 1.2:
-            print("  ⚠ Model appears over-confident (s > 1)")
-            print("     Predicted uncertainties will be INCREASED")
+            logger.info("  ⚠ Model appears over-confident (s > 1)")
+            logger.info("     Predicted uncertainties will be INCREASED")
         else:
-            print("  ✓ Uncertainty appears well-calibrated")
+            logger.info("  ✓ Uncertainty appears well-calibrated")
         
-        print(f"{'='*60}\n")
+        logger.info(f"{'='*60}\n")
 
     def generate_contour_data(self, x_range, y_range, fixed_values, x_idx=0, y_idx=1):
         """

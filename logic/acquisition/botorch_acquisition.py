@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Union, Tuple, Any
+from alchemist_core.config import get_logger
 import numpy as np
 import pandas as pd
 import torch
@@ -18,6 +19,8 @@ from botorch.acquisition.active_learning import qNegIntegratedPosteriorVariance
 from botorch.sampling import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf, optimize_acqf_mixed
 from .base_acquisition import BaseAcquisition
+
+logger = get_logger(__name__)
 from logic.search_space import SearchSpace
 from logic.models.botorch_model import BoTorchModel
 
@@ -304,7 +307,7 @@ class BoTorchAcquisition(BaseAcquisition):
                     
                     best_candidates = best_candidates.numpy()
                 except Exception as e:
-                    print(f"Error in optimize_acqf_mixed: {e}")
+                    logger.error(f"Error in optimize_acqf_mixed: {e}")
                     # Fallback to standard optimization
                     batch_candidates, batch_acq_values = optimize_acqf(
                         acq_function=self.acq_function,
@@ -565,9 +568,9 @@ class BoTorchAcquisition(BaseAcquisition):
             # Convert to numpy
             best_candidate = best_x.cpu().numpy().reshape(1, -1)
         except Exception as e:
-            print(f"Error in random search optimization: {e}")
+            logger.error(f"Error in random search optimization: {e}")
             # Fallback to grid search
-            print("Falling back to grid search...")
+            logger.info("Falling back to grid search...")
             
             # Create a simple grid search
             n_points = 10  # Points per dimension
