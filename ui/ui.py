@@ -14,7 +14,7 @@ import tkinter as tk
 from ui.variables_setup import SpaceSetupWindow
 from ui.gpr_panel import GaussianProcessPanel
 from ui.acquisition_panel import AcquisitionPanel
-from logic.pool import generate_pool, plot_pool
+from logic.pool import generate_pool
 from logic.clustering import cluster_pool
 from logic.emoc import select_EMOC
 from logic.optimization import select_optimize
@@ -23,6 +23,55 @@ from logic.experiment_manager import ExperimentManager
 from logic.logging import ExperimentLogger
 
 plt.rcParams['savefig.dpi'] = 600
+
+
+# ============================================================
+# UI Helper Functions
+# ============================================================
+
+def plot_pool(pool, var1, var2, ax, kmeans=None, add_cluster=False, experiments=None):
+    """
+    Plots a scatter plot of two variables from the experimental pool.
+
+    Args:
+        pool (pd.DataFrame): DataFrame containing the experimental points.
+        var1 (str): Name of the variable for the x-axis.
+        var2 (str): Name of the variable for the y-axis.
+        ax (matplotlib.axes.Axes): The axis object to plot the data on.
+        kmeans: A precomputed clustering object. If None, clustering is not performed.
+        add_cluster (bool): If True and kmeans has 'largest_empty_cluster', highlights that cluster.
+        experiments: (Unused in this version; previously used for clustering.)
+    """
+    # Extract the data for the selected variables
+    x_data = pool[var1]
+    y_data = pool[var2]
+
+    if kmeans is not None:
+        labels = kmeans.labels_
+        for i in range(kmeans.n_clusters):
+            cluster_points = pool[labels == i]
+            ax.scatter(cluster_points[var1], cluster_points[var2],
+                       label=f'Cluster {i}', alpha=0.1)
+        
+        # If requested and available, highlight the largest empty cluster.
+        if add_cluster and hasattr(kmeans, 'largest_empty_cluster'):
+            largest_empty_cluster = kmeans.largest_empty_cluster
+            largest_empty_cluster_points = pool[labels == largest_empty_cluster]
+            ax.scatter(largest_empty_cluster_points[var1],
+                       largest_empty_cluster_points[var2],
+                       marker='o', alpha=0.9, label='Largest Empty Cluster')
+    else:
+        ax.scatter(x_data, y_data, alpha=0.1)
+    
+    # Set the labels and title of the plot
+    ax.set_xlabel(var1)
+    ax.set_ylabel(var2)
+    ax.set_title("Experimental Pool")
+
+
+# ============================================================
+# Main Application
+# ============================================================
 
 class ALchemistApp(ctk.CTk):
     def __init__(self):
