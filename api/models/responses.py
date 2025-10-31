@@ -2,7 +2,7 @@
 Pydantic response models for API endpoints.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -17,14 +17,15 @@ class SessionCreateResponse(BaseModel):
     created_at: str = Field(..., description="Session creation timestamp")
     expires_at: str = Field(..., description="Session expiration timestamp")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "550e8400-e29b-41d4-a716-446655440000",
                 "created_at": "2025-10-31T14:30:00",
                 "expires_at": "2025-11-01T14:30:00"
             }
         }
+    )
 
 
 class VariableInfo(BaseModel):
@@ -62,8 +63,8 @@ class SessionInfoResponse(BaseModel):
     data: DataSummary
     model: Optional[ModelSummary]
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "550e8400-e29b-41d4-a716-446655440000",
                 "created_at": "2025-10-31T14:30:00",
@@ -84,6 +85,7 @@ class SessionInfoResponse(BaseModel):
                 "model": None
             }
         }
+    )
 
 
 # ============================================================
@@ -126,8 +128,8 @@ class ExperimentsSummaryResponse(BaseModel):
     target_stats: Dict[str, float]
     feature_names: List[str]
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "n_experiments": 10,
                 "has_data": True,
@@ -141,6 +143,7 @@ class ExperimentsSummaryResponse(BaseModel):
                 "feature_names": ["temperature", "pressure"]
             }
         }
+    )
 
 
 # ============================================================
@@ -156,8 +159,8 @@ class TrainModelResponse(BaseModel):
     metrics: Dict[str, float]
     message: str = "Model trained successfully"
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "backend": "sklearn",
@@ -174,6 +177,7 @@ class TrainModelResponse(BaseModel):
                 "message": "Model trained successfully"
             }
         }
+    )
 
 
 class ModelInfoResponse(BaseModel):
@@ -183,8 +187,8 @@ class ModelInfoResponse(BaseModel):
     metrics: Optional[Dict[str, float]]
     is_trained: bool
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "backend": "sklearn",
                 "hyperparameters": {"lengthscales": [50.2, 0.8]},
@@ -192,6 +196,7 @@ class ModelInfoResponse(BaseModel):
                 "is_trained": True
             }
         }
+    )
 
 
 # ============================================================
@@ -203,8 +208,8 @@ class AcquisitionResponse(BaseModel):
     suggestions: List[Dict[str, Any]]
     n_suggestions: int
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "suggestions": [
                     {"temperature": 375.2, "catalyst": "A"}
@@ -212,6 +217,7 @@ class AcquisitionResponse(BaseModel):
                 "n_suggestions": 1
             }
         }
+    )
 
 
 # ============================================================
@@ -230,8 +236,8 @@ class PredictionResponse(BaseModel):
     predictions: List[PredictionResult]
     n_predictions: int
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "predictions": [
                     {
@@ -243,6 +249,7 @@ class PredictionResponse(BaseModel):
                 "n_predictions": 1
             }
         }
+    )
 
 
 # ============================================================
@@ -255,11 +262,12 @@ class ErrorResponse(BaseModel):
     error_type: str
     status_code: int
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "detail": "Session not found",
                 "error_type": "SessionNotFoundError",
                 "status_code": 404
             }
         }
+    )

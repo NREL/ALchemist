@@ -236,11 +236,11 @@ class TestCatalystRealData:
         assert model_info["backend"] == "botorch"
         print(f"✓ Model verified")
 
-        # 5. Get acquisition suggestions using EI
+        # 5. Get acquisition suggestions using LogEI
         response = client.post(
             f"/api/v1/sessions/{session_id}/acquisition/suggest",
             json={
-                "strategy": "EI",
+                "strategy": "LogEI",
                 "goal": "maximize",
                 "n_suggestions": 1
             }
@@ -249,7 +249,7 @@ class TestCatalystRealData:
         suggestions = response.json()
         assert suggestions["n_suggestions"] == 1
         suggestion = suggestions["suggestions"][0]
-        print(f"✓ Generated suggestion using EI:")
+        print(f"✓ Generated suggestion using LogEI:")
         for key, value in suggestion.items():
             print(f"  - {key}: {value}")
 
@@ -332,10 +332,11 @@ class TestCatalystRealData:
             train_results = response.json()
             
             # Get suggestion
+            strategy = "LogEI" if backend == "botorch" else "EI"
             response = client.post(
                 f"/api/v1/sessions/{session_id}/acquisition/suggest",
                 json={
-                    "strategy": "EI",
+                    "strategy": strategy,
                     "goal": "maximize",
                     "n_suggestions": 1
                 }
