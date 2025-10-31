@@ -23,6 +23,7 @@ __pycache__/
 dist/
 build/
 site/
+.pytest_cache/
 
 # User-specific files
 *.rsuser

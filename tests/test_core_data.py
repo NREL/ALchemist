@@ -135,30 +135,6 @@ def test_integration():
     return True
 
 
-def test_backward_compatibility():
-    """Test that old imports still work"""
-    print("\nTesting backward compatibility...")
-    
-    try:
-        from logic.search_space import SearchSpace as OldSS
-        from logic.experiment_manager import ExperimentManager as OldEM
-        print("✓ Old imports from logic/ still work")
-    except ImportError as e:
-        print(f"✗ Old imports failed: {e}")
-        return False
-    
-    # Create instances to verify they work
-    old_space = OldSS()
-    old_space.add_variable("test", "real", min=0, max=1)
-    assert len(old_space) == 1
-    
-    old_manager = OldEM()
-    old_manager.add_experiment({"test": 0.5}, output_value=1.0)
-    assert len(old_manager) == 1
-    
-    print("✓ Old classes still functional")
-    return True
-
 
 def main():
     """Run all tests"""
@@ -173,7 +149,6 @@ def main():
         ("SearchSpace Test", test_search_space),
         ("ExperimentManager Test", test_experiment_manager),
         ("Integration Test", test_integration),
-        ("Backward Compatibility Test", test_backward_compatibility),
     ]
     
     for test_name, test_func in tests:

@@ -1,15 +1,29 @@
+"""
+UI-Layer Experiment Logging
+
+This module provides logging utilities for the ALchemist UI layer.
+It creates detailed log files for experiment workflows, recording:
+- Model training details and hyperparameters
+- Acquisition strategy results
+- Experiment data summaries
+
+This is separate from alchemist_core logging, which uses Python's logging module
+for console/file output. ExperimentLogger creates human-readable experiment reports.
+"""
+
 import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from alchemist_core.config import get_logger
 
-logger = get_logger(__name__)
 
 class ExperimentLogger:
     """
     Logger class for tracking and exporting experiment details.
     Records model training, acquisition suggestions, and experiment results.
+    
+    This creates formatted log files in the logs/ directory with experiment
+    details, separate from the console logging provided by alchemist_core.
     """
     def __init__(self, log_dir="logs"):
         """
@@ -23,15 +37,11 @@ class ExperimentLogger:
         self.current_log_file = None
         
         # Create log directory if it doesn't exist
-        import os
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
     
     def start_experiment(self, experiment_name=None):
         """Start a new experiment and create a log file"""
-        import os
-        from datetime import datetime
-        
         # Generate experiment ID using timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if experiment_name:
@@ -54,8 +64,6 @@ class ExperimentLogger:
     
     def log(self, message, print_to_console=True):
         """Log a message to the current log file and optionally print to console"""
-        from datetime import datetime
-        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message = f"[{timestamp}] {message}"
         
@@ -64,7 +72,7 @@ class ExperimentLogger:
             self.current_log_file.flush()  # Ensure it's written immediately
         
         if print_to_console:
-            logger.info(message)
+            print(message)  # Simple print for UI layer
     
     def log_model_training(self, model_data):
         """Log model training details"""
@@ -186,8 +194,6 @@ class ExperimentLogger:
     
     def end_experiment(self):
         """End the current experiment and close the log file"""
-        from datetime import datetime
-        
         if self.current_log_file:
             self.log("=====================================")
             self.log(f"EXPERIMENT ENDED: {self.current_experiment_id}")

@@ -14,13 +14,20 @@ import tkinter as tk
 from ui.variables_setup import SpaceSetupWindow
 from ui.gpr_panel import GaussianProcessPanel
 from ui.acquisition_panel import AcquisitionPanel
-from logic.pool import generate_pool
-from logic.clustering import cluster_pool
-from logic.emoc import select_EMOC
-from logic.optimization import select_optimize
-from logic.search_space import SearchSpace
-from logic.experiment_manager import ExperimentManager
-from logic.logging import ExperimentLogger
+
+# DEPRECATED: Pool visualization (will be removed in v0.3.0)
+from ui.pool_viz import generate_pool, plot_pool
+
+# Deprecated imports - these functions are no longer used in the modern UI
+# from logic.clustering import cluster_pool
+# from logic.emoc import select_EMOC
+# from logic.optimization import select_optimize
+
+from alchemist_core.data.search_space import SearchSpace
+from alchemist_core.data.experiment_manager import ExperimentManager
+
+# UI-layer utilities
+from ui.experiment_logger import ExperimentLogger
 
 # Import new session API
 from alchemist_core.session import OptimizationSession
@@ -32,46 +39,6 @@ plt.rcParams['savefig.dpi'] = 600
 # ============================================================
 # UI Helper Functions
 # ============================================================
-
-def plot_pool(pool, var1, var2, ax, kmeans=None, add_cluster=False, experiments=None):
-    """
-    Plots a scatter plot of two variables from the experimental pool.
-
-    Args:
-        pool (pd.DataFrame): DataFrame containing the experimental points.
-        var1 (str): Name of the variable for the x-axis.
-        var2 (str): Name of the variable for the y-axis.
-        ax (matplotlib.axes.Axes): The axis object to plot the data on.
-        kmeans: A precomputed clustering object. If None, clustering is not performed.
-        add_cluster (bool): If True and kmeans has 'largest_empty_cluster', highlights that cluster.
-        experiments: (Unused in this version; previously used for clustering.)
-    """
-    # Extract the data for the selected variables
-    x_data = pool[var1]
-    y_data = pool[var2]
-
-    if kmeans is not None:
-        labels = kmeans.labels_
-        for i in range(kmeans.n_clusters):
-            cluster_points = pool[labels == i]
-            ax.scatter(cluster_points[var1], cluster_points[var2],
-                       label=f'Cluster {i}', alpha=0.1)
-        
-        # If requested and available, highlight the largest empty cluster.
-        if add_cluster and hasattr(kmeans, 'largest_empty_cluster'):
-            largest_empty_cluster = kmeans.largest_empty_cluster
-            largest_empty_cluster_points = pool[labels == largest_empty_cluster]
-            ax.scatter(largest_empty_cluster_points[var1],
-                       largest_empty_cluster_points[var2],
-                       marker='o', alpha=0.9, label='Largest Empty Cluster')
-    else:
-        ax.scatter(x_data, y_data, alpha=0.1)
-    
-    # Set the labels and title of the plot
-    ax.set_xlabel(var1)
-    ax.set_ylabel(var2)
-    ax.set_title("Experimental Pool")
-
 
 # ============================================================
 # Main Application
@@ -592,15 +559,19 @@ class ALchemistApp(ctk.CTk):
         var2 = self.var2_dropdown.get()
 
         if self.cluster_switch.get():
+            # DEPRECATED: cluster_pool functionality is deprecated
+            print("WARNING: Clustering visualization is deprecated")
             # Compute kmeans if it hasn't been computed already.
-            if not hasattr(self, 'kmeans') or self.kmeans is None:
-                # Use skopt-compatible version
-                skopt_space = self._get_skopt_space()
-                _, _, self.kmeans = cluster_pool(self.pool, self.exp_df, skopt_space, add_cluster=False)
-            # If a next point exists, enable the highlighting of the largest empty cluster.
-            add_cluster_flag = True if self.next_point is not None else False
-            plot_pool(self.pool, var1, var2, self.ax, kmeans=self.kmeans,
-                    add_cluster=add_cluster_flag, experiments=self.exp_df)
+            # if not hasattr(self, 'kmeans') or self.kmeans is None:
+            #     # Use skopt-compatible version
+            #     skopt_space = self._get_skopt_space()
+            #     _, _, self.kmeans = cluster_pool(self.pool, self.exp_df, skopt_space, add_cluster=False)
+            # # If a next point exists, enable the highlighting of the largest empty cluster.
+            # add_cluster_flag = True if self.next_point is not None else False
+            # plot_pool(self.pool, var1, var2, self.ax, kmeans=self.kmeans,
+            #         add_cluster=add_cluster_flag, experiments=self.exp_df)
+            # Fallback to non-clustered visualization
+            plot_pool(self.pool, var1, var2, self.ax, kmeans=None, experiments=self.exp_df)
         else:
             plot_pool(self.pool, var1, var2, self.ax, kmeans=None, experiments=self.exp_df)
 
@@ -638,20 +609,26 @@ class ALchemistApp(ctk.CTk):
 
 
     def next_explore_point(self):
-        # Use skopt-compatible version
-        skopt_space = self._get_skopt_space()
-        # cluster_pool now returns the new clustering (with an added cluster) and kmeans.
-        labels, largest_empty_cluster, kmeans = cluster_pool(self.pool, self.exp_df, skopt_space, add_cluster=True)
-        # Update the stored kmeans object.
-        self.kmeans = kmeans
+        # DEPRECATED: This method uses legacy clustering and EMOC acquisition
+        # Use the modern AcquisitionPanel with session API instead
+        print("WARNING: next_explore_point() is deprecated and no longer functional")
+        print("Please use the Acquisition Panel in the UI for next point selection")
+        return
+        # # Use skopt-compatible version
+        # skopt_space = self._get_skopt_space()
+        # # cluster_pool now returns the new clustering (with an added cluster) and kmeans.
+        # labels, largest_empty_cluster, kmeans = cluster_pool(self.pool, self.exp_df, skopt_space, add_cluster=True)
+        # # Update the stored kmeans object.
+        # self.kmeans = kmeans
+        #
+        # largest_empty_cluster_points = self.pool[labels == largest_empty_cluster]
+        #
+        # X = self.exp_df.drop(columns='Output')
+        # y = self.exp_df['Output']
+        #
+        # self.next_point = select_EMOC(largest_empty_cluster_points, X, y, self.search_space, model=self.gpr_model, verbose=False)
+        # self.update_pool_plot()
 
-        largest_empty_cluster_points = self.pool[labels == largest_empty_cluster]
-
-        X = self.exp_df.drop(columns='Output')
-        y = self.exp_df['Output']
-
-        self.next_point = select_EMOC(largest_empty_cluster_points, X, y, self.search_space, model=self.gpr_model, verbose=False)
-        self.update_pool_plot()
 
 
     
@@ -669,31 +646,36 @@ class ALchemistApp(ctk.CTk):
         self.canvas.draw()
 
     def optimize_mode(self, use_dataframe=True):
-        '''Optimizes the next experiment point based on the loaded data.'''
-        if self.exp_df is not None and self.search_space is not None:
-            if use_dataframe:
-                next_point = select_optimize(self.search_space, self.exp_df, base_estimator=self.gpr_model)
-            else:
-                if hasattr(self, 'encoded_X') and hasattr(self, 'gpr_model'):
-                    X = self.encoded_X.values
-                    y = self.exp_df['Output'].values
-                    next_point = select_optimize(self.search_space, (X, y), base_estimator=self.gpr_model)
-                else:
-                    print('Encoded data or GPR model not found. Please train the model first.')
-                    return
+        '''DEPRECATED: Use AcquisitionPanel with OptimizationSession API instead.'''
+        print("WARNING: optimize_mode() is deprecated and no longer functional")
+        print("Please use the Acquisition Panel in the UI for optimization")
+        return
+        # '''Optimizes the next experiment point based on the loaded data.'''
+        # if self.exp_df is not None and self.search_space is not None:
+        #     if use_dataframe:
+        #         next_point = select_optimize(self.search_space, self.exp_df, base_estimator=self.gpr_model)
+        #     else:
+        #         if hasattr(self, 'encoded_X') and hasattr(self, 'gpr_model'):
+        #             X = self.encoded_X.values
+        #             y = self.exp_df['Output'].values
+        #             next_point = select_optimize(self.search_space, (X, y), base_estimator=self.gpr_model)
+        #         else:
+        #             print('Encoded data or GPR model not found. Please train the model first.')
+        #             return
+        #
+        #     # Convert the next_point to a DataFrame for consistency
+        #     next_point_df = pd.DataFrame([next_point], columns=self.exp_df.drop(columns='Output').columns)
+        #     
+        #     # Store the next point for visualization
+        #     self.next_point = next_point_df
+        #     
+        #     # Update the plot with the new point
+        #     self.update_pool_plot()
+        #     
+        #     print('Optimization mode activated.')
+        # else:
+        #     print('Please load experiments and variables before optimizing.')
 
-            # Convert the next_point to a DataFrame for consistency
-            next_point_df = pd.DataFrame([next_point], columns=self.exp_df.drop(columns='Output').columns)
-            
-            # Store the next point for visualization
-            self.next_point = next_point_df
-            
-            # Update the plot with the new point
-            self.update_pool_plot()
-            
-            print('Optimization mode activated.')
-        else:
-            print('Please load experiments and variables before optimizing.')
 
     def generate_initial_points(self):
         """Opens a window to select the sampling strategy and number of points."""
@@ -872,123 +854,127 @@ class ALchemistApp(ctk.CTk):
         self.model_frame.train_model_threaded()
 
     def run_selected_strategy(self):
-        """Executes the selected acquisition strategy."""
-        strategy = self.strategy_var.get()
-        try:
-            if strategy == "Expected Improvement (EI)":
-                self.next_point = select_EMOC(
-                    self.pool,
-                    self.exp_df.drop(columns='Output'),
-                    self.exp_df['Output'],
-                    self.search_space,
-                    model=self.gpr_model
-                )
-            elif strategy == "Upper Confidence Bound (UCB)":
-                self.next_point = select_optimize(
-                    self.search_space,
-                    self.exp_df,
-                    base_estimator=self.gpr_model,
-                    acq_func="ucb"
-                )
-            elif strategy == "Probability of Improvement (PI)":
-                self.next_point = select_optimize(
-                    self.search_space,
-                    self.exp_df,
-                    base_estimator=self.gpr_model,
-                    acq_func="pi"
-                )
-            elif strategy == "Thompson Sampling":
-                # Implement Thompson Sampling logic here
-                print("Thompson Sampling is not yet implemented.")
-                return
-            elif strategy == "Entropy Search":
-                # Implement Entropy Search logic here
-                print("Entropy Search is not yet implemented.")
-                return
-            elif strategy == "Custom Strategy":
-                # Allow the user to define a custom strategy
-                print("Custom Strategy is not yet implemented.")
-                return
-            elif strategy == "EMOC (Exploration)":
-                # Comment out import and implementation
-                # from logic.acquisition.emoc_acquisition import EMOCAcquisition
-                
-                # Placeholder message
-                print("EMOC acquisition function not implemented in this version.")
-                return
-                
-                # # Create acquisition function using trained model
-                # acquisition = EMOCAcquisition(
-                #     search_space=self.main_app.search_space,
-                #     model=self.main_app.gpr_model,
-                #     random_state=42
-                # )
-                # 
-                # # Update with existing data
-                # if hasattr(acquisition, 'update'):
-                #     acquisition.update(
-                #         self.main_app.exp_df.drop(columns='Output'),
-                #         self.main_app.exp_df['Output']
-                #     )
-                # 
-                # # Generate a pool if needed
-                # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
-                #     from logic.pool import generate_pool
-                #     self.main_app.pool = generate_pool(
-                #         self.main_app.search_space, 
-                #         self.main_app.exp_df, 
-                #         pool_size=5000
-                #     )
-                # 
-                # # Get next point
-                # next_point = acquisition.select_next(self.main_app.pool)
-                # 
-                # # acq_func_kwargs for result data
-                # acq_func_kwargs = {}
-                
-            elif strategy == "GandALF (Clustering + EMOC)":
-                # Comment out import and implementation
-                # from logic.acquisition.gandalf_acquisition import GandALFAcquisition
-                
-                # Placeholder message
-                print("GandALF acquisition function not implemented in this version.")
-                return
-                
-                # # Create acquisition instance
-                # acquisition = GandALFAcquisition(
-                #     search_space=self.main_app.search_space,
-                #     model=self.main_app.gpr_model,
-                #     random_state=42
-                # )
-                # 
-                # # Update with existing data
-                # acquisition.update(
-                #     self.main_app.exp_df.drop(columns='Output'),
-                #     self.main_app.exp_df['Output']
-                # )
-                # 
-                # # Generate a pool if needed
-                # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
-                #     from logic.pool import generate_pool
-                #     self.main_app.pool = generate_pool(
-                #         self.main_app.search_space, 
-                #         self.main_app.exp_df,
-                #         pool_size=5000
-                #     )
-                # 
-                # # Get next point
-                # next_point = acquisition.select_next(self.main_app.pool)
-                # 
-                # # acq_func_kwargs for result data
-                # acq_func_kwargs = {'clustering': True}
-            else:
-                print("Unknown strategy selected.")
-                return
-
-            self.update_pool_plot()
-            print(f"Strategy '{strategy}' executed successfully.")
-        except Exception as e:
-            print(f"Error executing strategy '{strategy}': {e}")
+        """DEPRECATED: Use AcquisitionPanel.run_selected_strategy() instead."""
+        print("WARNING: run_selected_strategy() is deprecated and no longer functional")
+        print("Please use the Acquisition Panel in the UI")
+        return
+        # """Executes the selected acquisition strategy."""
+        # strategy = self.strategy_var.get()
+        # try:
+        #     if strategy == "Expected Improvement (EI)":
+        #         self.next_point = select_EMOC(
+        #             self.pool,
+        #             self.exp_df.drop(columns='Output'),
+        #             self.exp_df['Output'],
+        #             self.search_space,
+        #             model=self.gpr_model
+        #         )
+        #     elif strategy == "Upper Confidence Bound (UCB)":
+        #         self.next_point = select_optimize(
+        #             self.search_space,
+        #             self.exp_df,
+        #             base_estimator=self.gpr_model,
+        #             acq_func="ucb"
+        #         )
+        #     elif strategy == "Probability of Improvement (PI)":
+        #         self.next_point = select_optimize(
+        #             self.search_space,
+        #             self.exp_df,
+        #             base_estimator=self.gpr_model,
+        #             acq_func="pi"
+        #         )
+        #     elif strategy == "Thompson Sampling":
+        #         # Implement Thompson Sampling logic here
+        #         print("Thompson Sampling is not yet implemented.")
+        #         return
+        #     elif strategy == "Entropy Search":
+        #         # Implement Entropy Search logic here
+        #         print("Entropy Search is not yet implemented.")
+        #         return
+        #     elif strategy == "Custom Strategy":
+        #         # Allow the user to define a custom strategy
+        #         print("Custom Strategy is not yet implemented.")
+        #         return
+        #     elif strategy == "EMOC (Exploration)":
+        #         # Comment out import and implementation
+        #         # from logic.acquisition.emoc_acquisition import EMOCAcquisition
+        #         
+        #         # Placeholder message
+        #         print("EMOC acquisition function not implemented in this version.")
+        #         return
+        #         
+        #         # # Create acquisition function using trained model
+        #         # acquisition = EMOCAcquisition(
+        #         #     search_space=self.main_app.search_space,
+        #         #     model=self.main_app.gpr_model,
+        #         #     random_state=42
+        #         # )
+        #         # 
+        #         # # Update with existing data
+        #         # if hasattr(acquisition, 'update'):
+        #         #     acquisition.update(
+        #         #         self.main_app.exp_df.drop(columns='Output'),
+        #         #         self.main_app.exp_df['Output']
+        #         #     )
+        #         # 
+        #         # # Generate a pool if needed
+        #         # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
+        #         #     from logic.pool import generate_pool
+        #         #     self.main_app.pool = generate_pool(
+        #         #         self.main_app.search_space, 
+        #         #         self.main_app.exp_df, 
+        #         #         pool_size=5000
+        #         #     )
+        #         # 
+        #         # # Get next point
+        #         # next_point = acquisition.select_next(self.main_app.pool)
+        #         # 
+        #         # # acq_func_kwargs for result data
+        #         # acq_func_kwargs = {}
+        #         
+        #     elif strategy == "GandALF (Clustering + EMOC)":
+        #         # Comment out import and implementation
+        #         # from logic.acquisition.gandalf_acquisition import GandALFAcquisition
+        #         
+        #         # Placeholder message
+        #         print("GandALF acquisition function not implemented in this version.")
+        #         return
+        #         
+        #         # # Create acquisition instance
+        #         # acquisition = GandALFAcquisition(
+        #         #     search_space=self.main_app.search_space,
+        #         #     model=self.main_app.gpr_model,
+        #         #     random_state=42
+        #         # )
+        #         # 
+        #         # # Update with existing data
+        #         # acquisition.update(
+        #         #     self.main_app.exp_df.drop(columns='Output'),
+        #         #     self.main_app.exp_df['Output']
+        #         # )
+        #         # 
+        #         # # Generate a pool if needed
+        #         # if not hasattr(self.main_app, 'pool') or self.main_app.pool is None:
+        #         #     from logic.pool import generate_pool
+        #         #     self.main_app.pool = generate_pool(
+        #         #         self.main_app.search_space, 
+        #         #         self.main_app.exp_df,
+        #         #         pool_size=5000
+        #         #     )
+        #         # 
+        #         # # Get next point
+        #         # next_point = acquisition.select_next(self.main_app.pool)
+        #         # 
+        #         # # acq_func_kwargs for result data
+        #         # acq_func_kwargs = {'clustering': True}
+        #     else:
+        #         print("Unknown strategy selected.")
+        #         return
+        # 
+        #     self.update_pool_plot()
+        #     print(f"Strategy '{strategy}' executed successfully.")
+        # except Exception as e:
+        #     print(f"Error executing strategy '{strategy}': {e}")
 
     def toggle_tabbed_layout(self):
         """Toggle between side-by-side and tabbed layout"""

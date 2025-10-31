@@ -735,7 +735,7 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             
             if backend == "scikit-learn":
                 # TEMPORARY: Direct acquisition import until Session API supports find_optimum
-                from logic.acquisition.skopt_acquisition import SkoptAcquisition
+                from alchemist_core.acquisition.skopt_acquisition import SkoptAcquisition
                 
                 # Create acquisition instance
                 acquisition = SkoptAcquisition(
@@ -755,7 +755,7 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
                 
             elif backend == "botorch":
                 # TEMPORARY: Direct acquisition import until Session API supports find_optimum
-                from logic.acquisition.botorch_acquisition import BoTorchAcquisition
+                from alchemist_core.acquisition.botorch_acquisition import BoTorchAcquisition
                 
                 # Create acquisition instance
                 acquisition = BoTorchAcquisition(

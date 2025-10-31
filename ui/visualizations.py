@@ -651,13 +651,13 @@ class Visualizations:
                     y_test = y.iloc[test_idx]
                     
                     # Create temporary experiment manager with the training data
-                    from logic.experiment_manager import ExperimentManager
+                    from alchemist_core.data.experiment_manager import ExperimentManager
                     temp_exp_manager = ExperimentManager()
                     train_df = pd.concat([X_train, y_train.rename("Output")], axis=1)
                     temp_exp_manager.df = train_df
                     
                     # TEMPORARY: Direct model import for CV fold recreation
-                    from logic.models.botorch_model import BoTorchModel
+                    from alchemist_core.models.botorch_model import BoTorchModel
                     temp_model = BoTorchModel(
                         training_iter=self.gpr_model.training_iter,
                         random_state=self.gpr_model.random_state,

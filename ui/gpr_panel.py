@@ -7,7 +7,7 @@ import pandas as pd
 import threading
 import traceback
 
-from logic.experiment_manager import ExperimentManager
+from alchemist_core.data.experiment_manager import ExperimentManager
 from ui.visualizations import Visualizations
 
 plt.rcParams['savefig.dpi'] = 600

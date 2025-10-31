@@ -71,9 +71,15 @@ def get_logger(name: str) -> logging.Logger:
         >>> from alchemist_core.config import get_logger
         >>> logger = get_logger(__name__)
         >>> logger.info("Starting computation...")
+    
+    Note:
+        If the name doesn't start with 'alchemist_core', it will be prefixed
+        with 'alchemist_core.' to maintain namespace consistency. This ensures
+        all alchemist_core loggers are grouped together.
     """
-    # Ensure name starts with alchemist_core
-    if not name.startswith('alchemist_core'):
+    # Only prepend alchemist_core if the name doesn't already have a package prefix
+    # This prevents creating names like "alchemist_core.logic.logging"
+    if not name.startswith('alchemist_core') and '.' not in name:
         name = f'alchemist_core.{name}'
     
     logger = logging.getLogger(name)
