@@ -280,7 +280,7 @@ class OptimizationSession:
         
         # Import appropriate model class
         if self.model_backend == 'sklearn':
-            from logic.models.sklearn_model import SklearnModel
+            from alchemist_core.models.sklearn_model import SklearnModel
             
             # Build kernel options
             kernel_options = {'kernel_type': kernel}
@@ -294,7 +294,7 @@ class OptimizationSession:
             )
             
         elif self.model_backend == 'botorch':
-            from logic.models.botorch_model import BoTorchModel
+            from alchemist_core.models.botorch_model import BoTorchModel
             
             # Build kernel options - BoTorch uses 'cont_kernel_type' not 'kernel_type'
             kernel_options = {'cont_kernel_type': kernel}
@@ -407,17 +407,22 @@ class OptimizationSession:
         
         # Import appropriate acquisition class
         if self.model_backend == 'sklearn':
-            from logic.acquisition.skopt_acquisition import SkoptAcquisition
+            from alchemist_core.acquisition.skopt_acquisition import SkoptAcquisition
             
             self.acquisition = SkoptAcquisition(
                 search_space=self.search_space.to_skopt(),
-                model=self.model.model,
+                model=self.model,  # Pass the full SklearnModel wrapper, not just .model
                 acq_func=strategy.lower(),
+                maximize=(goal.lower() == 'maximize'),
                 random_state=self.config['random_state']
             )
             
+            # Update acquisition with existing experimental data (un-encoded)
+            X, y = self.experiment_manager.get_features_and_target()
+            self.acquisition.update(X, y)
+            
         elif self.model_backend == 'botorch':
-            from logic.acquisition.botorch_acquisition import BoTorchAcquisition
+            from alchemist_core.acquisition.botorch_acquisition import BoTorchAcquisition
             
             self.acquisition = BoTorchAcquisition(
                 model=self.model,

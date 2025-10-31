@@ -76,7 +76,15 @@ def get_logger(name: str) -> logging.Logger:
     if not name.startswith('alchemist_core'):
         name = f'alchemist_core.{name}'
     
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    
+    # Prevent duplicate handlers in Jupyter notebook environments
+    # where modules may be reloaded
+    logger.propagate = True
+    if logger.handlers:
+        logger.handlers.clear()
+    
+    return logger
 
 
 def set_verbosity(verbose: bool = True) -> None:

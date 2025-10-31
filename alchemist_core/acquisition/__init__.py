@@ -1,7 +1,1 @@
-"""
-Acquisition function implementations for ALchemist Core.
-
-Will be populated in future branches.
-"""
-
-__all__ = []
+# Acquisition functions package
