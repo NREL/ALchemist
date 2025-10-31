@@ -13,6 +13,7 @@ memory/
 tests/catalyst_experiments.csv
 tests/catalyst_search_space.json
 tests/test_catalyst_workflow.py
+test_core.ipynb
 
 # Python-related
 __pycache__/
