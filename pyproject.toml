@@ -27,6 +27,11 @@ dependencies = [
     "tabulate",
     "ctkmessagebox",
     "joblib",
+    # FastAPI dependencies
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-multipart>=0.0.6",  # For file uploads
 ]
 
 [project.scripts]
@@ -36,7 +41,7 @@ alchemist = "main:main"
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
-include = ["ui*", "alchemist_core*"]
+include = ["ui*", "alchemist_core*", "api*"]
 
 [project.urls]
 "Homepage" = "https://github.com/NREL/ALchemist"

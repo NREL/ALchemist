@@ -278,6 +278,18 @@ class OptimizationSession:
         
         self.model_backend = backend.lower()
         
+        # Normalize kernel name to match expected case
+        kernel_name_map = {
+            'rbf': 'RBF',
+            'matern': 'Matern',
+            'rationalquadratic': 'RationalQuadratic',
+            'rational_quadratic': 'RationalQuadratic'
+        }
+        kernel = kernel_name_map.get(kernel.lower(), kernel)
+        
+        # Extract calibration_enabled before passing kwargs to model constructor
+        calibration_enabled = kwargs.pop('calibration_enabled', False)
+        
         # Import appropriate model class
         if self.model_backend == 'sklearn':
             from alchemist_core.models.sklearn_model import SklearnModel
@@ -321,8 +333,26 @@ class OptimizationSession:
         
         self.model.train(self.experiment_manager)
         
+        # Apply calibration if requested (sklearn only)
+        if calibration_enabled and self.model_backend == 'sklearn':
+            if hasattr(self.model, '_compute_calibration_factors'):
+                self.model._compute_calibration_factors()
+                logger.info("Uncertainty calibration enabled")
+        
         # Get hyperparameters
         hyperparams = self.model.get_hyperparameters()
+        
+        # Convert hyperparameters to JSON-serializable format
+        # (kernel objects can't be serialized directly)
+        json_hyperparams = {}
+        for key, value in hyperparams.items():
+            if isinstance(value, (int, float, str, bool, type(None))):
+                json_hyperparams[key] = value
+            elif isinstance(value, np.ndarray):
+                json_hyperparams[key] = value.tolist()
+            else:
+                # Convert complex objects to their string representation
+                json_hyperparams[key] = str(value)
         
         # Compute metrics from CV results if available
         metrics = {}
@@ -340,7 +370,7 @@ class OptimizationSession:
         results = {
             'backend': backend,
             'kernel': kernel,
-            'hyperparameters': hyperparams,
+            'hyperparameters': json_hyperparams,
             'metrics': metrics,
             'success': True
         }
@@ -373,9 +403,21 @@ class OptimizationSession:
                 'r2': float(r2_score(y_true, y_pred))
             }
         
+        # Get hyperparameters and make them JSON-serializable
+        hyperparams = self.model.get_hyperparameters()
+        json_hyperparams = {}
+        for key, value in hyperparams.items():
+            if isinstance(value, (int, float, str, bool, type(None))):
+                json_hyperparams[key] = value
+            elif isinstance(value, np.ndarray):
+                json_hyperparams[key] = value.tolist()
+            else:
+                # Convert complex objects to their string representation
+                json_hyperparams[key] = str(value)
+        
         return {
             'backend': self.model_backend,
-            'hyperparameters': self.model.get_hyperparameters(),
+            'hyperparameters': json_hyperparams,
             'metrics': metrics,
             'is_trained': True
         }
