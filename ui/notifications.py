@@ -287,9 +287,19 @@ class ResultNotificationWindow:
                 
                 elif isinstance(param_value, (list, np.ndarray)):
                     if len(param_value) == 1:
-                        param_str = f"{float(param_value[0]):.6f}"
+                        # Handle single-element arrays
+                        val = param_value[0]
+                        if isinstance(val, (tuple, list)):
+                            param_str = str(val)
+                        else:
+                            param_str = f"{float(val):.6f}"
                     else:
-                        param_str = f"[{', '.join([f'{float(v):.4f}' for v in param_value])}]"
+                        # Handle multi-element arrays - check if elements are tuples/lists
+                        try:
+                            param_str = f"[{', '.join([f'{float(v):.4f}' for v in param_value])}]"
+                        except (TypeError, ValueError):
+                            # If conversion fails (e.g., tuples in list), use string representation
+                            param_str = str(param_value)
                 elif isinstance(param_value, (int, float, np.number)):
                     param_str = f"{float(param_value):.6f}"
                 else:
