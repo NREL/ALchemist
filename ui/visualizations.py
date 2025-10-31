@@ -638,7 +638,11 @@ class Visualizations:
                     y_std_all.extend(y_std)
                         
             elif backend == "BoTorchModel":
-                # For BoTorch models
+                # TODO (Branch 9): Refactor parity plot to use session API
+                # This advanced visualization feature currently requires direct model instantiation
+                # for recreating CV folds. Future: Add CV prediction method to Session API.
+                
+                # For BoTorch models - TEMPORARY direct instantiation
                 for train_idx, test_idx in kf.split(X):
                     # Split data
                     X_train = X.iloc[train_idx]
@@ -652,7 +656,7 @@ class Visualizations:
                     train_df = pd.concat([X_train, y_train.rename("Output")], axis=1)
                     temp_exp_manager.df = train_df
                     
-                    # Create a new model instance with the same parameters
+                    # TEMPORARY: Direct model import for CV fold recreation
                     from logic.models.botorch_model import BoTorchModel
                     temp_model = BoTorchModel(
                         training_iter=self.gpr_model.training_iter,

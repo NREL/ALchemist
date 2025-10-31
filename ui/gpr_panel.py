@@ -7,10 +7,7 @@ import pandas as pd
 import threading
 import traceback
 
-from logic.acquisition.skopt_acquisition import SkoptAcquisition
 from logic.experiment_manager import ExperimentManager
-from logic.models.sklearn_model import SklearnModel
-from logic.models.botorch_model import BoTorchModel
 from ui.visualizations import Visualizations
 
 plt.rcParams['savefig.dpi'] = 600
@@ -364,98 +361,6 @@ class GaussianProcessPanel(ctk.CTkFrame):
             self.bt_nu_menu.pack_forget()
 
     # ==========================
-    # STRATEGY EXECUTION
-    # ==========================
-    def run_selected_strategy(self):
-        """Executes the selected acquisition strategy."""
-        if not hasattr(self.master, 'gpr_model') or self.master.gpr_model is None:
-            print("Error: Model not trained. Please train the model first.")
-            return
-            
-        backend = self.backend_var.get()
-        
-        try:
-            if backend == "scikit-learn":
-                strategy = self.acq_sklearn_var.get()
-                maximize = self.goal_var.get() == "Maximize"
-                
-                # Check if GP Hedge is enabled
-                if self.use_gp_hedge_var.get():
-                    acq_func = "gp_hedge"
-                    acq_func_kwargs = {
-                        "xi": float(self.xi_slider.get()),
-                        "kappa": float(self.kappa_slider.get())
-                    }
-                else:
-                    acq_func_map = {
-                        "Expected Improvement (EI)": "ei",
-                        "Upper Confidence Bound (UCB)": "ucb",
-                        "Probability of Improvement (PI)": "pi"
-                    }
-                    acq_func = acq_func_map.get(strategy, "ei")
-                    
-                    # Get acquisition function parameters
-                    acq_func_kwargs = {}
-                    if acq_func in ["ei", "pi"]:
-                        acq_func_kwargs["xi"] = float(self.xi_slider.get())
-                    elif acq_func == "ucb":
-                        acq_func_kwargs["kappa"] = float(self.kappa_slider.get())
-                
-                # Create acquisition function using our trained model directly
-                acquisition = SkoptAcquisition(
-                    search_space=self.master.search_space,
-                    model=self.master.gpr_model,
-                    acq_func=acq_func,
-                    maximize=maximize,
-                    acq_func_kwargs=acq_func_kwargs,
-                    random_state=42
-                )
-                
-                # Update with existing data
-                acquisition.update(
-                    self.master.exp_df.drop(columns='Output'),
-                    self.master.exp_df['Output']
-                )
-                
-                # Get next point
-                next_point = acquisition.select_next()
-                
-                # Convert to DataFrame for consistency
-                next_point_df = pd.DataFrame([next_point], 
-                                        columns=self.master.exp_df.drop(columns='Output').columns)
-                
-                # Store the next point
-                self.master.next_point = next_point_df
-                
-                # Update the plot
-                self.master.update_pool_plot()
-                
-                # Print strategy details
-                param_str = ""
-                if acq_func in ["ei", "pi"]:
-                    param_str = f", ξ={acq_func_kwargs['xi']:.3f}"
-                elif acq_func == "ucb":
-                    param_str = f", κ={acq_func_kwargs['kappa']:.2f}"
-                    
-                print(f"Strategy '{strategy}' ({'maximizing' if maximize else 'minimizing'}{param_str}) executed successfully.")
-                
-            elif backend == "botorch":
-                # Future implementation for BoTorch
-                strategy = self.acq_botorch_var.get()
-                print(f"BoTorch acquisition strategy '{strategy}' selected but not fully implemented yet.")
-                
-            elif backend == "ax":
-                # Future implementation for Ax
-                print("Ax backend selected but acquisition strategies not fully implemented yet.")
-                
-            else:
-                print(f"Unknown backend: {backend}")
-                
-        except Exception as e:
-            print(f"Error executing strategy: {e}")
-            traceback.print_exc()
-
-    # ==========================
     # MODEL TRAINING
     # ==========================
     def train_model_threaded(self):
@@ -506,146 +411,38 @@ class GaussianProcessPanel(ctk.CTkFrame):
 
         try:
             # ============================================================
-            # NEW: Session-based training path
+            # Session-based training path
             # ============================================================
-            if hasattr(self.main_app, 'use_session_api') and self.main_app.use_session_api:
-                print("Using Session API for model training...")
-                
-                # Ensure session has current data
-                self.main_app._sync_data_to_session()
-                
-                # Build kernel options
-                if backend == "scikit-learn":
-                    kernel = self.kernel_var.get()
-                    kernel_params = {}
-                    if kernel == "Matern":
-                        kernel_params['nu'] = float(self.nu_var.get())
-                    
-                    # Train using session API
-                    results = self.main_app.session.train_model(
-                        backend='sklearn',
-                        kernel=kernel,
-                        kernel_params=kernel_params,
-                        n_restarts_optimizer=n_restarts,
-                        optimizer=self.optimizer_var.get(),
-                        input_transform_type=self.sk_input_scale_var.get(),
-                        output_transform_type=self.sk_output_scale_var.get()
-                    )
-                    
-                elif backend == "botorch":
-                    kernel = self.bt_kernel_var.get()
-                    kernel_params = {}
-                    if kernel == "Matern":
-                        kernel_params['nu'] = float(self.bt_nu_var.get())
-                    
-                    # Get categorical dimensions
-                    categorical_variables = self.main_app.search_space_manager.get_categorical_variables()
-                    cat_dims = [
-                        list(self.main_app.exp_df.columns).index(var)
-                        for var in categorical_variables
-                        if var in self.main_app.exp_df.columns
-                    ]
-                    
-                    # Train using session API
-                    results = self.main_app.session.train_model(
-                        backend='botorch',
-                        kernel=kernel,
-                        kernel_params=kernel_params,
-                        cat_dims=cat_dims,
-                        training_iter=100,
-                        input_transform_type=self.bt_input_scale_var.get(),
-                        output_transform_type=self.bt_output_scale_var.get()
-                    )
-                else:
-                    raise ValueError(f"Unknown backend: {backend}")
-                
-                # Get the trained model from session
-                model = self.main_app.session.model
-                
-                # Store in main_app for compatibility
-                self.main_app.gpr_model = model
-                
-                # Get detailed per-fold CV metrics for visualization
-                # The session API only returns aggregated metrics, but we need per-fold for plots
-                cv_metrics = model.evaluate(
-                    self.main_app.session.experiment_manager,
-                    cv_splits=5,
-                    debug=debug,
-                    progress_callback=progress_callback
-                )
-                
-                # Store per-fold metrics in the main app for visualization
-                self.main_app.rmse_values = cv_metrics.get("RMSE", [])
-                self.main_app.mae_values = cv_metrics.get("MAE", [])
-                self.main_app.mape_values = cv_metrics.get("MAPE", [])
-                self.main_app.r2_values = cv_metrics.get("R²", [])
-                
-                # Store hyperparameters
-                self.main_app.learned_hyperparameters = results.get('hyperparameters', {})
-                
-                # Check for calibration warnings and show popup if needed
-                if hasattr(model, 'calibration_enabled') and model.calibration_enabled:
-                    from ui.notifications import show_calibration_warning
-                    show_calibration_warning(self, model.calibration_factor, backend)
-                
-                # Get aggregated metrics from session results for console output
-                session_metrics = results.get('metrics', {})
-                
-                # TODO (Branch 9): Consolidate logging - use logger for all output
-                # Currently mixing logger (core lib) and print (UI) statements
-                print(f"Session API: Model trained successfully with {backend} backend")
-                print(f"  R² = {session_metrics.get('r2', 'N/A'):.3f}")
-                print(f"  RMSE = {session_metrics.get('rmse', 'N/A'):.3f}")
-                print("Learned hyperparameters:", self.main_app.learned_hyperparameters)
-                
-                # Initialize visualizations
-                self.visualizations = Visualizations(
-                    parent=self,
-                    search_space=self.main_app.search_space,
-                    gpr_model=self.main_app.gpr_model,
-                    exp_df=self.main_app.exp_df,
-                    encoded_X=self.main_app.exp_df.drop(columns='Output'),
-                    encoded_y=self.main_app.exp_df['Output']
-                )
-                self.visualizations.rmse_values = self.main_app.rmse_values
-                self.visualizations.mae_values = self.main_app.mae_values
-                self.visualizations.mape_values = self.main_app.mape_values
-                self.visualizations.r2_values = self.main_app.r2_values
-                self.visualize_button.configure(state="normal")
-                
-                # Enable acquisition panel
-                if hasattr(self.main_app, 'acquisition_panel'):
-                    self.main_app.acquisition_panel.enable()
-                
-                return  # Exit early - session path complete
+            print("Training model using OptimizationSession API...")
             
-            # ============================================================
-            # LEGACY: Original direct logic path (default)
-            # ============================================================
+            # Ensure session has current data
+            self.main_app._sync_data_to_session()
             
-            # Initialize the appropriate model based on the selected backend
+            # Build kernel options
             if backend == "scikit-learn":
-                # Configure kernel options for scikit-learn
-                kernel_options = {"kernel_type": self.kernel_var.get()}
-                if self.kernel_var.get() == "Matern":
-                    kernel_options["matern_nu"] = float(self.nu_var.get())
+                kernel = self.kernel_var.get()
+                kernel_params = {}
+                if kernel == "Matern":
+                    kernel_params['nu'] = float(self.nu_var.get())
                 
-                model = SklearnModel(
-                    kernel_options=kernel_options,
+                # Train using session API
+                results = self.main_app.session.train_model(
+                    backend='sklearn',
+                    kernel=kernel,
+                    kernel_params=kernel_params,
                     n_restarts_optimizer=n_restarts,
-                    random_state=random_state,
                     optimizer=self.optimizer_var.get(),
                     input_transform_type=self.sk_input_scale_var.get(),
                     output_transform_type=self.sk_output_scale_var.get()
                 )
                 
             elif backend == "botorch":
-                bt_kernel = self.bt_kernel_var.get()
-                bt_kernel_options = {"cont_kernel_type": bt_kernel}
-                if bt_kernel == "Matern":
-                    bt_kernel_options["matern_nu"] = float(self.bt_nu_var.get())
-            
-                # Get categorical dimension indices
+                kernel = self.bt_kernel_var.get()
+                kernel_params = {}
+                if kernel == "Matern":
+                    kernel_params['nu'] = float(self.bt_nu_var.get())
+                
+                # Get categorical dimensions
                 categorical_variables = self.main_app.search_space_manager.get_categorical_variables()
                 cat_dims = [
                     list(self.main_app.exp_df.columns).index(var)
@@ -653,60 +450,54 @@ class GaussianProcessPanel(ctk.CTkFrame):
                     if var in self.main_app.exp_df.columns
                 ]
                 
-                model = BoTorchModel(
-                    kernel_options=bt_kernel_options,
+                # Train using session API
+                results = self.main_app.session.train_model(
+                    backend='botorch',
+                    kernel=kernel,
+                    kernel_params=kernel_params,
                     cat_dims=cat_dims,
                     training_iter=100,
-                    random_state=random_state,
                     input_transform_type=self.bt_input_scale_var.get(),
                     output_transform_type=self.bt_output_scale_var.get()
                 )
-            
-            # Removed the elif backend == "ax": block
-        
             else:
                 raise ValueError(f"Unknown backend: {backend}")
             
-            # Create an ExperimentManager instance with current data
-            experiment_manager = self.prepare_experiment_data()
+            # Get the trained model from session
+            model = self.main_app.session.model
             
-            # Get calibration setting based on backend
-            if backend == "scikit-learn":
-                calibrate_uncertainty = self.sk_calibrate_uncertainty_var.get()
-            elif backend == "botorch":
-                calibrate_uncertainty = self.bt_calibrate_uncertainty_var.get()
-            else:
-                calibrate_uncertainty = True  # Default
-            
-            # Train the model using the experiment manager
-            model.train(experiment_manager, calibrate_uncertainty=calibrate_uncertainty)
-            
-            # Check for calibration warnings and show popup if needed
-            if calibrate_uncertainty and hasattr(model, 'calibration_enabled') and model.calibration_enabled:
-                from ui.notifications import show_calibration_warning
-                show_calibration_warning(self, model.calibration_factor, backend)
-            
-            # Store the trained model in the main app
+            # Store in main_app for compatibility
             self.main_app.gpr_model = model
             
-            # Evaluate the model and store metrics
-            metrics = model.evaluate(
-                experiment_manager,
+            # Get detailed per-fold CV metrics for visualization
+            # The session API only returns aggregated metrics, but we need per-fold for plots
+            cv_metrics = model.evaluate(
+                self.main_app.session.experiment_manager,
                 cv_splits=5,
                 debug=debug,
                 progress_callback=progress_callback
             )
             
-            # Store metrics in the main app for visualization
-            self.main_app.rmse_values = metrics.get("RMSE", [])
-            self.main_app.mae_values = metrics.get("MAE", [])
-            self.main_app.mape_values = metrics.get("MAPE", [])
-            self.main_app.r2_values = metrics.get("R²", [])
+            # Store per-fold metrics in the main app for visualization
+            self.main_app.rmse_values = cv_metrics.get("RMSE", [])
+            self.main_app.mae_values = cv_metrics.get("MAE", [])
+            self.main_app.mape_values = cv_metrics.get("MAPE", [])
+            self.main_app.r2_values = cv_metrics.get("R²", [])
             
-            # Store learned hyperparameters
-            self.main_app.learned_hyperparameters = model.get_hyperparameters()
+            # Store hyperparameters
+            self.main_app.learned_hyperparameters = results.get('hyperparameters', {})
+            
+            # Check for calibration warnings and show popup if needed
+            if hasattr(model, 'calibration_enabled') and model.calibration_enabled:
+                from ui.notifications import show_calibration_warning
+                show_calibration_warning(self, model.calibration_factor, backend)
+            
+            # Get aggregated metrics from session results for console output
+            session_metrics = results.get('metrics', {})
             
             print(f"Model trained successfully with {backend} backend")
+            print(f"  R² = {session_metrics.get('r2', 'N/A'):.3f}")
+            print(f"  RMSE = {session_metrics.get('rmse', 'N/A'):.3f}")
             print("Learned hyperparameters:", self.main_app.learned_hyperparameters)
             
             # Initialize visualizations
@@ -724,24 +515,9 @@ class GaussianProcessPanel(ctk.CTkFrame):
             self.visualizations.r2_values = self.main_app.r2_values
             self.visualize_button.configure(state="normal")
             
-            # Enable acquisition panel if it exists
+            # Enable acquisition panel
             if hasattr(self.main_app, 'acquisition_panel'):
                 self.main_app.acquisition_panel.enable()
-            
-            # Log model training details
-            if hasattr(self.main_app, 'experiment_logger'):
-                model_data = {
-                    'backend': backend,
-                    'kernel': str(model.kernel if hasattr(model, 'kernel') else "N/A"),
-                    'hyperparameters': model.get_hyperparameters(),
-                    'metrics': {
-                        'RMSE': self.main_app.rmse_values,
-                        'MAE': self.main_app.mae_values,
-                        'MAPE': self.main_app.mape_values,
-                        'R²': self.main_app.r2_values
-                    }
-                }
-                self.main_app.experiment_logger.log_model_training(model_data)
         
         except Exception as e:
             print(f"Error training model: {e}")

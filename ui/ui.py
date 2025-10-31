@@ -103,9 +103,6 @@ class ALchemistApp(ctk.CTk):
         self.session.events.on('progress', self._on_session_progress)
         self.session.events.on('model_trained', self._on_session_model_trained)
         self.session.events.on('suggestions_ready', self._on_session_suggestions)
-        
-        # Flag to toggle between old and new code paths (for testing)
-        self.use_session_api = True  # Session API is now the default!
 
         # Build essential UI sections
         self._create_vertical_frame()
@@ -168,7 +165,7 @@ class ALchemistApp(ctk.CTk):
         pref_menu.add_command(label="Toggle Tabbed Layout", command=self.toggle_tabbed_layout)
         pref_menu.add_command(label="Toggle Noise Column", command=self.toggle_noise_column)
         pref_menu.add_separator()
-        pref_menu.add_command(label="Toggle Session API (Experimental)", command=self.toggle_session_api)
+    # Removed: Toggle Session API menu item (session API is now always enabled)
         menu_bar.add_cascade(label="Preferences", menu=pref_menu)
         self.config(menu=menu_bar)
 
@@ -203,8 +200,6 @@ class ALchemistApp(ctk.CTk):
     def _on_session_progress(self, event_data):
         """Handle progress events from the session."""
         message = event_data.get('message', '')
-        progress = event_data.get('progress', 0)
-        print(f"Session progress: {message} ({progress:.0%})")
         # UI components can listen to this for progress updates
     
     def _on_session_model_trained(self, event_data):
@@ -214,8 +209,7 @@ class ALchemistApp(ctk.CTk):
         print(f"  R² = {metrics.get('mean_R²', 'N/A'):.3f}")
         print(f"  RMSE = {metrics.get('mean_RMSE', 'N/A'):.3f}")
         # Sync session model to main_app.gpr_model for visualization compatibility
-        if self.use_session_api:
-            self.gpr_model = self.session.model
+        self.gpr_model = self.session.model
     
     def _on_session_suggestions(self, event_data):
         """Handle acquisition suggestions from session."""
@@ -223,8 +217,7 @@ class ALchemistApp(ctk.CTk):
         if suggestions is not None:
             print(f"Session: {len(suggestions)} new experiments suggested")
             # Sync to main_app.next_point for visualization compatibility
-            if self.use_session_api:
-                self.next_point = suggestions
+            self.next_point = suggestions
 
     def _create_vertical_frame(self):
         # LEFT COLUMN: Fixed-width frame for variable and experiment management.
@@ -1164,23 +1157,7 @@ class ALchemistApp(ctk.CTk):
         # No need to reset model since the actual data structure isn't changing
         print("Note: Toggle only affects display. Model training will use noise if present.")
     
-    def toggle_session_api(self):
-        """Toggle between legacy direct logic calls and new session API."""
-        self.use_session_api = not self.use_session_api
-        
-        status = "ENABLED" if self.use_session_api else "DISABLED"
-        tk.messagebox.showinfo(
-            "Session API Toggle", 
-            f"Session API is now {status}\n\n"
-            f"When enabled, model training and acquisition will use\n"
-            f"the new OptimizationSession API instead of direct logic calls.\n\n"
-            f"This is experimental - both code paths should produce identical results."
-        )
-        print(f"Session API toggled: {status}")
-        
-        # Sync current data to session if enabling
-        if self.use_session_api:
-            self._sync_data_to_session()
+    # Removed: toggle_session_api method (session API is always enabled)
     
     def _sync_data_to_session(self):
         """Synchronize current UI state (variables and experiments) to the session."""
