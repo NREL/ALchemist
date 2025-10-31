@@ -151,7 +151,8 @@ class Visualizations:
             control_frame_row1,
             values=["None", "1.0", "1.96", "2.0", "2.58", "3.0"],
             variable=self.sigma_multiplier_var,
-            width=80
+            width=80,
+            command=self._on_sigma_changed  # Auto-replot when sigma changes
         )
         self.sigma_multiplier_menu.pack(side="left", padx=5)
         
@@ -546,6 +547,12 @@ class Visualizations:
         self.canvas.draw()
 
         self.last_plot_method = self.plot_metrics
+    
+    def _on_sigma_changed(self, *args):
+        """Callback when sigma dropdown changes - auto-replot parity if it was the last plot."""
+        # Only auto-replot if parity plot was the last thing plotted
+        if hasattr(self, 'last_plot_method') and self.last_plot_method == self.plot_parity:
+            self.plot_parity()
 
     def plot_parity(self, debug=False):
         """Generate and display a parity plot of actual vs predicted values using cross-validation."""

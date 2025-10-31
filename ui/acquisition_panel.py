@@ -462,6 +462,186 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             backend = "scikit-learn"  # Default
         
         try:
+            # ============================================================
+            # NEW: Session-based acquisition path
+            # ============================================================
+            if hasattr(self.main_app, 'use_session_api') and self.main_app.use_session_api:
+                print("Using Session API for acquisition...")
+                
+                if backend == "scikit-learn":
+                    strategy = self.acq_sklearn_var.get()
+                    maximize = self.goal_var.get() == "Maximize"
+                    
+                    # Map UI strategy names to session API names
+                    strategy_map = {
+                        "Expected Improvement (EI)": "EI",
+                        "Upper Confidence Bound (UCB)": "UCB",
+                        "Probability of Improvement (PI)": "PI",
+                        "GP Hedge (Auto-balance)": "gp_hedge"
+                    }
+                    acq_strategy = strategy_map.get(strategy, "EI")
+                    
+                    # Prepare acquisition parameters
+                    acq_kwargs = {}
+                    if acq_strategy in ["EI", "PI"]:
+                        acq_kwargs['xi'] = float(self.xi_slider.get())
+                    elif acq_strategy == "UCB":
+                        acq_kwargs['kappa'] = float(self.kappa_slider.get())
+                    elif acq_strategy == "gp_hedge":
+                        acq_kwargs['xi'] = float(self.xi_slider.get())
+                        acq_kwargs['kappa'] = float(self.kappa_slider.get())
+                    
+                    # Use session API to get suggestions
+                    goal = 'maximize' if maximize else 'minimize'
+                    next_point_df = self.main_app.session.suggest_next(
+                        strategy=acq_strategy,
+                        goal=goal,
+                        n_suggestions=1,
+                        **acq_kwargs
+                    )
+                    
+                    # Get prediction
+                    pred_value, pred_std = None, None
+                    if hasattr(self.main_app.gpr_model, 'predict_with_std'):
+                        pred_values, pred_stds = self.main_app.gpr_model.predict_with_std(next_point_df)
+                        pred_value = pred_values[0]
+                        pred_std = pred_stds[0]
+                    else:
+                        pred_value = self.main_app.gpr_model.predict(next_point_df)[0]
+                    
+                    # Store and update plot
+                    self.main_app.next_point = next_point_df
+                    self.main_app.update_pool_plot()
+                    
+                    # Show notification
+                    result_data = {
+                        'point_df': next_point_df,
+                        'value': pred_value,
+                        'std': pred_std,
+                        'maximize': maximize,
+                        'strategy_type': f"Session API: {strategy}",
+                        'strategy_params': acq_kwargs,
+                        'strategy_description': f"Using OptimizationSession API with {acq_strategy}"
+                    }
+                    
+                    model_data = {
+                        'backend': 'sklearn (session)',
+                        'kernel': str(self.main_app.gpr_model.kernel) if hasattr(self.main_app.gpr_model, 'kernel') else 'Unknown',
+                        'hyperparameters': self.main_app.gpr_model.get_hyperparameters(),
+                        'metrics': {
+                            'RMSE': self.main_app.rmse_values[-1] if hasattr(self.main_app, 'rmse_values') and self.main_app.rmse_values else None,
+                            'R²': self.main_app.r2_values[-1] if hasattr(self.main_app, 'r2_values') and self.main_app.r2_values else None
+                        }
+                    }
+                    
+                    ResultNotificationWindow(self, result_data, model_data)
+                    print(f"Session API: {strategy} executed successfully")
+                    return  # Exit early - session path complete
+                
+                elif backend == "botorch":
+                    maximize = self.botorch_goal_var.get() == "Maximize"
+                    acq_type = self.botorch_acq_type_var.get()
+                    
+                    # Map BoTorch acquisition functions to session API
+                    if acq_type == "Regular":
+                        strategy = self.acq_botorch_var.get()
+                        strategy_map = {
+                            "Expected Improvement": "EI",
+                            "Log Expected Improvement": "logEI",
+                            "Probability of Improvement": "PI",
+                            "Log Probability of Improvement": "logPI",
+                            "Upper Confidence Bound": "UCB"
+                        }
+                        acq_strategy = strategy_map.get(strategy, "logEI")
+                        n_suggestions = 1
+                        acq_kwargs = {}
+                        if acq_strategy == "UCB":
+                            acq_kwargs['beta'] = 0.5
+                    
+                    elif acq_type == "Batch":
+                        strategy = self.acq_botorch_batch_var.get()
+                        strategy_map = {
+                            "q-Expected Improvement": "qEI",
+                            "q-Upper Confidence Bound": "qUCB"
+                        }
+                        acq_strategy = strategy_map.get(strategy, "qEI")
+                        n_suggestions = self.botorch_batch_size_var.get()
+                        acq_kwargs = {"mc_samples": 128}
+                        if acq_strategy == "qUCB":
+                            acq_kwargs['beta'] = float(self.botorch_beta_slider.get())
+                    
+                    elif acq_type == "Exploratory":
+                        acq_strategy = "qIPV"
+                        n_suggestions = 1
+                        acq_kwargs = {
+                            "n_mc_points": self.botorch_mc_points_var.get(),
+                            "mc_samples": 128
+                        }
+                    
+                    # Use session API
+                    goal = 'maximize' if maximize else 'minimize'
+                    next_point_df = self.main_app.session.suggest_next(
+                        strategy=acq_strategy,
+                        goal=goal,
+                        n_suggestions=n_suggestions,
+                        **acq_kwargs
+                    )
+                    
+                    # Get predictions
+                    if hasattr(self.main_app.gpr_model, 'predict_with_std'):
+                        pred_values, pred_stds = self.main_app.gpr_model.predict_with_std(next_point_df)
+                        if n_suggestions == 1:
+                            pred_value = pred_values[0]
+                            pred_std = pred_stds[0]
+                        else:
+                            pred_value = pred_values
+                            pred_std = pred_stds
+                    else:
+                        pred_value = self.main_app.gpr_model.predict(next_point_df)
+                        pred_std = None
+                    
+                    # Store and update plot
+                    self.main_app.next_point = next_point_df
+                    self.main_app.update_pool_plot()
+                    
+                    # Show notification
+                    display_strategy = f"Session API: {strategy}"
+                    if n_suggestions > 1:
+                        display_strategy += f" (q={n_suggestions})"
+                    
+                    result_data = {
+                        'point_df': next_point_df,
+                        'value': pred_value,
+                        'std': pred_std,
+                        'maximize': maximize,
+                        'strategy_type': display_strategy,
+                        'strategy_params': acq_kwargs,
+                        'strategy_description': f"Using OptimizationSession API with {acq_strategy}",
+                        'is_batch': n_suggestions > 1,
+                        'batch_size': n_suggestions
+                    }
+                    
+                    hyperparams = self.main_app.gpr_model.get_hyperparameters()
+                    kernel_display = hyperparams.get('kernel_type', 'Unknown')
+                    
+                    model_data = {
+                        'backend': 'botorch (session)',
+                        'kernel': kernel_display,
+                        'hyperparameters': hyperparams,
+                        'metrics': {
+                            'RMSE': self.main_app.rmse_values[-1] if hasattr(self.main_app, 'rmse_values') and self.main_app.rmse_values else None,
+                            'R²': self.main_app.r2_values[-1] if hasattr(self.main_app, 'r2_values') and self.main_app.r2_values else None
+                        }
+                    }
+                    
+                    ResultNotificationWindow(self, result_data, model_data)
+                    print(f"Session API: {strategy} executed successfully")
+                    return  # Exit early - session path complete
+            
+            # ============================================================
+            # LEGACY: Original direct logic path (default)
+            # ============================================================
+            
             # Strategy description mapping for scikit-learn
             sklearn_strategy_descriptions = {
                 "Expected Improvement (EI)": (

@@ -296,10 +296,16 @@ class OptimizationSession:
         elif self.model_backend == 'botorch':
             from logic.models.botorch_model import BoTorchModel
             
-            # Build kernel options
-            kernel_options = {'kernel_type': kernel}
+            # Build kernel options - BoTorch uses 'cont_kernel_type' not 'kernel_type'
+            kernel_options = {'cont_kernel_type': kernel}
             if kernel_params:
-                kernel_options.update(kernel_params)
+                # Add matern_nu if provided
+                if 'nu' in kernel_params:
+                    kernel_options['matern_nu'] = kernel_params['nu']
+                # Add any other kernel params
+                for k, v in kernel_params.items():
+                    if k != 'nu':  # Already handled above
+                        kernel_options[k] = v
             
             self.model = BoTorchModel(
                 kernel_options=kernel_options,

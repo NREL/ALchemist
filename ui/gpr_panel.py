@@ -505,6 +505,124 @@ class GaussianProcessPanel(ctk.CTkFrame):
         n_restarts = 30
 
         try:
+            # ============================================================
+            # NEW: Session-based training path
+            # ============================================================
+            if hasattr(self.main_app, 'use_session_api') and self.main_app.use_session_api:
+                print("Using Session API for model training...")
+                
+                # Ensure session has current data
+                self.main_app._sync_data_to_session()
+                
+                # Build kernel options
+                if backend == "scikit-learn":
+                    kernel = self.kernel_var.get()
+                    kernel_params = {}
+                    if kernel == "Matern":
+                        kernel_params['nu'] = float(self.nu_var.get())
+                    
+                    # Train using session API
+                    results = self.main_app.session.train_model(
+                        backend='sklearn',
+                        kernel=kernel,
+                        kernel_params=kernel_params,
+                        n_restarts_optimizer=n_restarts,
+                        optimizer=self.optimizer_var.get(),
+                        input_transform_type=self.sk_input_scale_var.get(),
+                        output_transform_type=self.sk_output_scale_var.get()
+                    )
+                    
+                elif backend == "botorch":
+                    kernel = self.bt_kernel_var.get()
+                    kernel_params = {}
+                    if kernel == "Matern":
+                        kernel_params['nu'] = float(self.bt_nu_var.get())
+                    
+                    # Get categorical dimensions
+                    categorical_variables = self.main_app.search_space_manager.get_categorical_variables()
+                    cat_dims = [
+                        list(self.main_app.exp_df.columns).index(var)
+                        for var in categorical_variables
+                        if var in self.main_app.exp_df.columns
+                    ]
+                    
+                    # Train using session API
+                    results = self.main_app.session.train_model(
+                        backend='botorch',
+                        kernel=kernel,
+                        kernel_params=kernel_params,
+                        cat_dims=cat_dims,
+                        training_iter=100,
+                        input_transform_type=self.bt_input_scale_var.get(),
+                        output_transform_type=self.bt_output_scale_var.get()
+                    )
+                else:
+                    raise ValueError(f"Unknown backend: {backend}")
+                
+                # Get the trained model from session
+                model = self.main_app.session.model
+                
+                # Store in main_app for compatibility
+                self.main_app.gpr_model = model
+                
+                # Get detailed per-fold CV metrics for visualization
+                # The session API only returns aggregated metrics, but we need per-fold for plots
+                cv_metrics = model.evaluate(
+                    self.main_app.session.experiment_manager,
+                    cv_splits=5,
+                    debug=debug,
+                    progress_callback=progress_callback
+                )
+                
+                # Store per-fold metrics in the main app for visualization
+                self.main_app.rmse_values = cv_metrics.get("RMSE", [])
+                self.main_app.mae_values = cv_metrics.get("MAE", [])
+                self.main_app.mape_values = cv_metrics.get("MAPE", [])
+                self.main_app.r2_values = cv_metrics.get("R²", [])
+                
+                # Store hyperparameters
+                self.main_app.learned_hyperparameters = results.get('hyperparameters', {})
+                
+                # Check for calibration warnings and show popup if needed
+                if hasattr(model, 'calibration_enabled') and model.calibration_enabled:
+                    from ui.notifications import show_calibration_warning
+                    show_calibration_warning(self, model.calibration_factor, backend)
+                
+                # Get aggregated metrics from session results for console output
+                session_metrics = results.get('metrics', {})
+                
+                # TODO (Branch 9): Consolidate logging - use logger for all output
+                # Currently mixing logger (core lib) and print (UI) statements
+                print(f"Session API: Model trained successfully with {backend} backend")
+                print(f"  R² = {session_metrics.get('r2', 'N/A'):.3f}")
+                print(f"  RMSE = {session_metrics.get('rmse', 'N/A'):.3f}")
+                print("Learned hyperparameters:", self.main_app.learned_hyperparameters)
+                
+                # Initialize visualizations
+                self.visualizations = Visualizations(
+                    parent=self,
+                    search_space=self.main_app.search_space,
+                    gpr_model=self.main_app.gpr_model,
+                    exp_df=self.main_app.exp_df,
+                    encoded_X=self.main_app.exp_df.drop(columns='Output'),
+                    encoded_y=self.main_app.exp_df['Output']
+                )
+                self.visualizations.rmse_values = self.main_app.rmse_values
+                self.visualizations.mae_values = self.main_app.mae_values
+                self.visualizations.mape_values = self.main_app.mape_values
+                self.visualizations.r2_values = self.main_app.r2_values
+                self.visualize_button.configure(state="normal")
+                
+                # Enable acquisition panel
+                if hasattr(self.main_app, 'acquisition_panel'):
+                    self.main_app.acquisition_panel.enable()
+                
+                return  # Exit early - session path complete
+            
+            # ============================================================
+            # LEGACY: Original direct logic path (default)
+            # ============================================================
+            
             # Initialize the appropriate model based on the selected backend
             if backend == "scikit-learn":
                 # Configure kernel options for scikit-learn

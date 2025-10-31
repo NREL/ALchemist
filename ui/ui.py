@@ -22,6 +22,10 @@ from logic.search_space import SearchSpace
 from logic.experiment_manager import ExperimentManager
 from logic.logging import ExperimentLogger
 
+# Import new session API
+from alchemist_core.session import OptimizationSession
+from alchemist_core.events import EventEmitter
+
 plt.rcParams['savefig.dpi'] = 600
 
 
@@ -90,6 +94,18 @@ class ALchemistApp(ctk.CTk):
         self.var_df = None
         self.exp_df = pd.DataFrame()
         self.search_space = None
+        
+        # NEW: Create OptimizationSession for session-based API
+        # This provides a parallel code path alongside the existing direct logic calls
+        self.session = OptimizationSession()
+        
+        # Connect session events to UI updates
+        self.session.events.on('progress', self._on_session_progress)
+        self.session.events.on('model_trained', self._on_session_model_trained)
+        self.session.events.on('suggestions_ready', self._on_session_suggestions)
+        
+        # Flag to toggle between old and new code paths (for testing)
+        self.use_session_api = True  # Session API is now the default!
 
         # Build essential UI sections
         self._create_vertical_frame()
@@ -151,6 +167,8 @@ class ALchemistApp(ctk.CTk):
         pref_menu.add_command(label="Settings", command=self.show_settings)
         pref_menu.add_command(label="Toggle Tabbed Layout", command=self.toggle_tabbed_layout)
         pref_menu.add_command(label="Toggle Noise Column", command=self.toggle_noise_column)
+        pref_menu.add_separator()
+        pref_menu.add_command(label="Toggle Session API (Experimental)", command=self.toggle_session_api)
         menu_bar.add_cascade(label="Preferences", menu=pref_menu)
         self.config(menu=menu_bar)
 
@@ -177,6 +195,36 @@ class ALchemistApp(ctk.CTk):
         # Now safely destroy the window
         self.quit()
         self.destroy()
+    
+    # ============================================================
+    # Session Event Handlers
+    # ============================================================
+    
+    def _on_session_progress(self, event_data):
+        """Handle progress events from the session."""
+        message = event_data.get('message', '')
+        progress = event_data.get('progress', 0)
+        print(f"Session progress: {message} ({progress:.0%})")
+        # UI components can listen to this for progress updates
+    
+    def _on_session_model_trained(self, event_data):
+        """Handle model training completion from session."""
+        metrics = event_data.get('metrics', {})
+        print(f"Session: Model trained successfully")
+        print(f"  R² = {metrics.get('mean_R²', 'N/A'):.3f}")
+        print(f"  RMSE = {metrics.get('mean_RMSE', 'N/A'):.3f}")
+        # Sync session model to main_app.gpr_model for visualization compatibility
+        if self.use_session_api:
+            self.gpr_model = self.session.model
+    
+    def _on_session_suggestions(self, event_data):
+        """Handle acquisition suggestions from session."""
+        suggestions = event_data.get('suggestions', None)
+        if suggestions is not None:
+            print(f"Session: {len(suggestions)} new experiments suggested")
+            # Sync to main_app.next_point for visualization compatibility
+            if self.use_session_api:
+                self.next_point = suggestions
 
     def _create_vertical_frame(self):
         # LEFT COLUMN: Fixed-width frame for variable and experiment management.
@@ -1115,3 +1163,67 @@ class ALchemistApp(ctk.CTk):
         
         # No need to reset model since the actual data structure isn't changing
         print("Note: Toggle only affects display. Model training will use noise if present.")
+    
+    def toggle_session_api(self):
+        """Toggle between legacy direct logic calls and new session API."""
+        self.use_session_api = not self.use_session_api
+        
+        status = "ENABLED" if self.use_session_api else "DISABLED"
+        tk.messagebox.showinfo(
+            "Session API Toggle", 
+            f"Session API is now {status}\n\n"
+            f"When enabled, model training and acquisition will use\n"
+            f"the new OptimizationSession API instead of direct logic calls.\n\n"
+            f"This is experimental - both code paths should produce identical results."
+        )
+        print(f"Session API toggled: {status}")
+        
+        # Sync current data to session if enabling
+        if self.use_session_api:
+            self._sync_data_to_session()
+    
+    def _sync_data_to_session(self):
+        """Synchronize current UI state (variables and experiments) to the session."""
+        try:
+            # Sync search space from search_space_manager
+            if hasattr(self, 'search_space_manager') and len(self.search_space_manager.variables) > 0:
+                # Import the core SearchSpace to avoid confusion
+                from alchemist_core.data.search_space import SearchSpace as CoreSearchSpace
+                
+                # Clear session search space and rebuild
+                self.session.search_space = CoreSearchSpace()
+                
+                # Variables is a LIST of dictionaries, not a dict
+                for var_dict in self.search_space_manager.variables:
+                    var_name = var_dict['name']
+                    var_type = var_dict['type']
+                    
+                    if var_type in ['real', 'integer']:
+                        self.session.add_variable(
+                            var_name, 
+                            var_type, 
+                            bounds=(var_dict['min'], var_dict['max'])
+                        )
+                    elif var_type == 'categorical':
+                        self.session.add_variable(
+                            var_name,
+                            var_type,
+                            categories=var_dict['values']
+                        )
+                print(f"Synced {len(self.session.search_space.variables)} variables to session")
+            
+            # Sync experiment data
+            if hasattr(self, 'exp_df') and len(self.exp_df) > 0:
+                # Copy experiment data to session's experiment manager
+                # IMPORTANT: ExperimentManager uses 'df' attribute, not 'experiments_df'
+                self.session.experiment_manager.df = self.exp_df.copy()
+                
+                # Set search space in experiment manager
+                self.session.experiment_manager.set_search_space(self.session.search_space)
+                
+                print(f"Synced {len(self.exp_df)} experiments to session")
+                
+        except Exception as e:
+            print(f"Error syncing data to session: {e}")
+            import traceback
+            traceback.print_exc()
