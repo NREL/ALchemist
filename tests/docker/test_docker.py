@@ -10,13 +10,42 @@ This will:
 3. Add variables and experiments
 4. Train a model
 5. Get suggestions
+
+Note: These tests require a running Docker container and will be skipped in CI.
 """
 
 import requests
 import json
 import time
+import pytest
+import socket
 
 BASE_URL = "http://localhost:8000/api/v1"
+
+def is_docker_running():
+    """Check if Docker container is running on localhost:8000"""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('localhost', 8000))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+# Skip all tests in this module if Docker is not running
+pytestmark = pytest.mark.skipif(
+    not is_docker_running(),
+    reason="Docker container not running (integration tests only)"
+)
+
+@pytest.fixture(scope="module")
+def session_id():
+    """Create a session for all tests in this module"""
+    response = requests.post(f"{BASE_URL}/sessions", json={"ttl_hours": 24})
+    if response.status_code != 201:
+        pytest.skip(f"Could not create session: {response.text}")
+    return response.json()["session_id"]
 
 def test_health():
     """Test if the server is running"""
