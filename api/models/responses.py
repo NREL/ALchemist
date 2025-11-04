@@ -124,9 +124,9 @@ class ExperimentsSummaryResponse(BaseModel):
     """Statistical summary of experimental data."""
     n_experiments: int
     has_data: bool
-    has_noise: bool
-    target_stats: Dict[str, float]
-    feature_names: List[str]
+    has_noise: Optional[bool] = None
+    target_stats: Optional[Dict[str, float]] = None
+    feature_names: Optional[List[str]] = None
     
     model_config = ConfigDict(
         json_schema_extra={

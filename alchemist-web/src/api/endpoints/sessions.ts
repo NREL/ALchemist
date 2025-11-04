@@ -1,0 +1,69 @@
+/**
+ * Session API endpoints
+ */
+import { apiClient } from '../client';
+import type { 
+  CreateSessionRequest, 
+  CreateSessionResponse, 
+  Session,
+  UpdateTTLRequest 
+} from '../types';
+
+/**
+ * Create a new optimization session
+ */
+export const createSession = async (data?: CreateSessionRequest): Promise<CreateSessionResponse> => {
+  const response = await apiClient.post<CreateSessionResponse>('/sessions', data || {});
+  return response.data;
+};
+
+/**
+ * Get session information
+ */
+export const getSession = async (sessionId: string): Promise<Session> => {
+  const response = await apiClient.get<Session>(`/sessions/${sessionId}`);
+  return response.data;
+};
+
+/**
+ * Update session TTL
+ */
+export const updateSessionTTL = async (
+  sessionId: string, 
+  data: UpdateTTLRequest
+): Promise<Session> => {
+  const response = await apiClient.patch<Session>(`/sessions/${sessionId}/ttl`, data);
+  return response.data;
+};
+
+/**
+ * Delete a session
+ */
+export const deleteSession = async (sessionId: string): Promise<void> => {
+  await apiClient.delete(`/sessions/${sessionId}`);
+};
+
+/**
+ * Export a session as a downloadable file
+ */
+export const exportSession = async (sessionId: string): Promise<Blob> => {
+  const response = await apiClient.get(`/sessions/${sessionId}/export`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+/**
+ * Import a session from a file
+ */
+export const importSession = async (file: File): Promise<CreateSessionResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await apiClient.post<CreateSessionResponse>('/sessions/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};

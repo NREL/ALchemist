@@ -16,6 +16,8 @@ class AddRealVariableRequest(BaseModel):
     type: Literal["real"] = Field(default="real", description="Variable type")
     min: float = Field(..., description="Minimum value")
     max: float = Field(..., description="Maximum value")
+    unit: Optional[str] = Field(None, description="Unit of measurement")
+    description: Optional[str] = Field(None, description="Variable description")
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -23,7 +25,9 @@ class AddRealVariableRequest(BaseModel):
                 "name": "temperature",
                 "type": "real",
                 "min": 300,
-                "max": 500
+                "max": 500,
+                "unit": "°C",
+                "description": "Reaction temperature"
             }
         }
     )
@@ -35,6 +39,8 @@ class AddIntegerVariableRequest(BaseModel):
     type: Literal["integer"] = Field(default="integer", description="Variable type")
     min: int = Field(..., description="Minimum value")
     max: int = Field(..., description="Maximum value")
+    unit: Optional[str] = Field(None, description="Unit of measurement")
+    description: Optional[str] = Field(None, description="Variable description")
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -42,7 +48,9 @@ class AddIntegerVariableRequest(BaseModel):
                 "name": "batch_size",
                 "type": "integer",
                 "min": 1,
-                "max": 10
+                "max": 10,
+                "unit": "batches",
+                "description": "Number of batches"
             }
         }
     )
@@ -53,13 +61,16 @@ class AddCategoricalVariableRequest(BaseModel):
     name: str = Field(..., description="Variable name")
     type: Literal["categorical"] = Field(default="categorical", description="Variable type")
     categories: List[str] = Field(..., description="List of category values")
+    unit: Optional[str] = Field(None, description="Unit of measurement")
+    description: Optional[str] = Field(None, description="Variable description")
     
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "name": "catalyst",
                 "type": "categorical",
-                "categories": ["A", "B", "C"]
+                "categories": ["A", "B", "C"],
+                "description": "Catalyst type"
             }
         }
     )

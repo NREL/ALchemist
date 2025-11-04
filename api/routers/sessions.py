@@ -2,7 +2,8 @@
 Sessions router - Session lifecycle management.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from fastapi.responses import Response
 from ..models.responses import SessionCreateResponse, SessionInfoResponse
 from ..services import session_store
 from ..dependencies import get_session
@@ -86,3 +87,60 @@ async def extend_session(session_id: str, hours: int = 24):
         "message": "Session TTL extended",
         "expires_at": info["expires_at"]
     }
+
+
+@router.get("/sessions/{session_id}/export")
+async def export_session(session_id: str):
+    """
+    Export a session for download.
+    
+    Downloads the complete session state as a .pkl file that can be
+    reimported later.
+    """
+    session_data = session_store.export_session(session_id)
+    if session_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found"
+        )
+    
+    return Response(
+        content=session_data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename=session_{session_id}.pkl"
+        }
+    )
+
+
+@router.post("/sessions/import", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
+async def import_session(file: UploadFile = File(...)):
+    """
+    Import a previously exported session.
+    
+    Uploads a .pkl session file and creates a new session with the imported data.
+    A new session ID will be generated.
+    """
+    try:
+        session_data = await file.read()
+        session_id = session_store.import_session(session_data)
+        
+        if session_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid session file or corrupted data"
+            )
+        
+        session_info = session_store.get_info(session_id)
+        return SessionCreateResponse(
+            session_id=session_id,
+            created_at=session_info["created_at"],
+            expires_at=session_info["expires_at"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to import session: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to import session: {str(e)}"
+        )

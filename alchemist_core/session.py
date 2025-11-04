@@ -135,17 +135,39 @@ class OptimizationSession:
         Returns:
             Dictionary with variable information
         """
+        variables = []
+        for var in self.search_space.variables:
+            var_summary = {
+                'name': var['name'],
+                'type': var['type']
+            }
+            
+            # Convert min/max to bounds for real/integer
+            if var['type'] in ['real', 'integer']:
+                if 'min' in var and 'max' in var:
+                    var_summary['bounds'] = [var['min'], var['max']]
+                else:
+                    var_summary['bounds'] = None
+            else:
+                var_summary['bounds'] = None
+            
+            # Convert values to categories for categorical
+            if var['type'] == 'categorical':
+                var_summary['categories'] = var.get('values')
+            else:
+                var_summary['categories'] = None
+            
+            # Include optional fields
+            if 'unit' in var:
+                var_summary['unit'] = var['unit']
+            if 'description' in var:
+                var_summary['description'] = var['description']
+            
+            variables.append(var_summary)
+        
         return {
             'n_variables': len(self.search_space.variables),
-            'variables': [
-                {
-                    'name': var['name'],
-                    'type': var['type'],
-                    'bounds': var.get('bounds'),
-                    'categories': var.get('categories')
-                }
-                for var in self.search_space.variables
-            ],
+            'variables': variables,
             'categorical_variables': self.search_space.get_categorical_variables()
         }
     
