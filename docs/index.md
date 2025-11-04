@@ -48,6 +48,38 @@ After installation, launch the graphical user interface by running:
 ```bash
 alchemist
 ```
+---
+
+## Docker Deployment (Advanced)
+
+ALchemist can be deployed as a Docker container for the REST API server.
+
+### Quick Start with Docker
+
+**Prerequisites**: [Docker Desktop](https://docs.docker.com/desktop/) installed and running
+
+**1. Build and start the container:**
+```bash
+docker-compose up -d
+```
+
+**2. Access the API:**
+- Interactive Docs: http://localhost:8000/api/docs
+- Health Check: http://localhost:8000/health
+
+**3. Stop the container:**
+```bash
+docker-compose down
+```
+
+For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
+
+### Testing the Deployment
+
+Run the test script to verify everything works:
+```bash
+python tests/test_docker.py
+```
 
 ---
 
