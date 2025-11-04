@@ -11,6 +11,8 @@ import {
 } from './hooks/api/useSessions';
 import { VariablesPanel } from './features/variables/VariablesPanel';
 import { ExperimentsPanel } from './features/experiments/ExperimentsPanel';
+import { GPRPanel } from './features/models/GPRPanel';
+import { AcquisitionPanel } from './features/acquisition/AcquisitionPanel';
 import './index.css';
 
 function AppContent() {
@@ -154,6 +156,12 @@ function AppContent() {
 
               {/* Experiments Panel */}
               <ExperimentsPanel sessionId={sessionId} />
+
+              {/* GPR Model Panel */}
+              <GPRPanel sessionId={sessionId} />
+
+              {/* Acquisition Panel */}
+              <AcquisitionPanel sessionId={sessionId} modelBackend={session?.model_trained ? (session as any).model_backend : null} />
             </>
           ) : (
             <div className="rounded-lg border bg-card p-6">

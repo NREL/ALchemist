@@ -220,6 +220,25 @@ class AcquisitionResponse(BaseModel):
     )
 
 
+class FindOptimumResponse(BaseModel):
+    """Response from find model optimum."""
+    optimum: Dict[str, Any] = Field(..., description="Optimal point found by model")
+    predicted_value: float = Field(..., description="Predicted value at optimum")
+    predicted_std: Optional[float] = Field(None, description="Standard deviation at optimum")
+    goal: str = Field(..., description="Optimization goal (maximize/minimize)")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "optimum": {"temperature": 425.7, "catalyst": "B"},
+                "predicted_value": 0.956,
+                "predicted_std": 0.023,
+                "goal": "maximize"
+            }
+        }
+    )
+
+
 # ============================================================
 # Prediction Models
 # ============================================================

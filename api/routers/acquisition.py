@@ -3,8 +3,8 @@ Acquisition router - Next experiment suggestions.
 """
 
 from fastapi import APIRouter, Depends
-from ..models.requests import AcquisitionRequest
-from ..models.responses import AcquisitionResponse
+from ..models.requests import AcquisitionRequest, FindOptimumRequest
+from ..models.responses import AcquisitionResponse, FindOptimumResponse
 from ..dependencies import get_session
 from ..middleware.error_handlers import NoModelError
 from alchemist_core.session import OptimizationSession
@@ -61,4 +61,101 @@ async def suggest_next_experiments(
     return AcquisitionResponse(
         suggestions=suggestions,
         n_suggestions=len(suggestions)
+    )
+
+
+@router.post("/{session_id}/acquisition/find-optimum", response_model=FindOptimumResponse)
+async def find_model_optimum(
+    session_id: str,
+    request: FindOptimumRequest,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Find the point where the model predicts the optimal value.
+    
+    This searches the input space to find where the model's predicted
+    mean is highest (for maximize) or lowest (for minimize), without
+    considering exploration. This is pure exploitation of the model.
+    
+    Warning: This relies entirely on the model's predictions and does
+    not use acquisition functions that balance exploration/exploitation.
+    Best used when you're confident in the model's accuracy.
+    """
+    # Check if model exists
+    if session.model is None:
+        raise NoModelError("No trained model available. Train a model first.")
+    
+    # Determine backend
+    backend = session.model_backend
+    
+    # Create appropriate acquisition function instance
+    if backend == 'sklearn':
+        from alchemist_core.acquisition.skopt_acquisition import SkoptAcquisition
+        
+        acquisition = SkoptAcquisition(
+            search_space=session.search_space,
+            model=session.model,
+            maximize=(request.goal == 'maximize'),
+            random_state=42
+        )
+        
+        result = acquisition.find_optimum(
+            model=session.model,
+            maximize=(request.goal == 'maximize'),
+            random_state=42
+        )
+        
+    elif backend == 'botorch':
+        from alchemist_core.acquisition.botorch_acquisition import BoTorchAcquisition
+        
+        acquisition = BoTorchAcquisition(
+            search_space=session.search_space,
+            model=session.model,
+            acq_func="ucb",  # Doesn't matter for find_optimum
+            maximize=(request.goal == 'maximize'),
+            random_state=42
+        )
+        
+        result = acquisition.find_optimum(
+            model=session.model,
+            maximize=(request.goal == 'maximize'),
+            random_state=42
+        )
+    else:
+        raise ValueError(f"Find optimum not supported for backend: {backend}")
+    
+    # Extract results
+    opt_point_df = result['x_opt']
+    opt_value = float(result['value'])
+    opt_std = float(result['std']) if result.get('std') is not None else None
+    
+    # Handle NaN/Inf values - convert to None for JSON serialization
+    import math
+    if opt_std is not None and (math.isnan(opt_std) or math.isinf(opt_std)):
+        opt_std = None
+    if math.isnan(opt_value) or math.isinf(opt_value):
+        logger.warning(f"Invalid optimum value (NaN/Inf) found, setting to 0.0")
+        opt_value = 0.0
+    
+    # Convert to dict and clean any NaN values in the optimum point
+    optimum_point = opt_point_df.to_dict('records')[0]
+    
+    # Clean NaN/Inf values in the optimum point dictionary
+    cleaned_optimum = {}
+    for key, value in optimum_point.items():
+        if isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                cleaned_optimum[key] = None
+            else:
+                cleaned_optimum[key] = value
+        else:
+            cleaned_optimum[key] = value
+    
+    logger.info(f"Found model optimum for session {session_id}: value={opt_value}")
+    
+    return FindOptimumResponse(
+        optimum=cleaned_optimum,
+        predicted_value=opt_value,
+        predicted_std=opt_std,
+        goal=request.goal
     )

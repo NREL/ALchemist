@@ -169,6 +169,19 @@ class AcquisitionRequest(BaseModel):
     )
 
 
+class FindOptimumRequest(BaseModel):
+    """Request to find model's predicted optimum."""
+    goal: Literal["maximize", "minimize"] = Field(default="maximize", description="Optimization goal")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "goal": "maximize"
+            }
+        }
+    )
+
+
 # ============================================================
 # Prediction Models
 # ============================================================

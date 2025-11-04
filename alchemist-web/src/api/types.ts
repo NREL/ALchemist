@@ -109,44 +109,69 @@ export interface ExperimentSummary {
 // ============================================================================
 
 export type ModelBackend = 'sklearn' | 'botorch';
-export type KernelType = 'rbf' | 'matern' | 'periodic' | 'rational_quadratic';
-export type TransformType = 'normalize' | 'standardize' | null;
+export type KernelType = 'RBF' | 'Matern' | 'RationalQuadratic';
+export type MaternNu = '0.5' | '1.5' | '2.5' | 'inf';
+
+// Sklearn-specific options
+export type SklearnInputTransform = 'none' | 'minmax' | 'standard' | 'robust';
+export type SklearnOutputTransform = 'none' | 'minmax' | 'standard' | 'robust';
+export type SklearnOptimizer = 'CG' | 'BFGS' | 'L-BFGS-B' | 'TNC';
+
+// BoTorch-specific options
+export type BoTorchInputTransform = 'none' | 'normalize' | 'standardize';
+export type BoTorchOutputTransform = 'none' | 'standardize';
 
 export interface TrainModelRequest {
   backend: ModelBackend;
-  kernel?: KernelType;
-  kernel_params?: Record<string, any>;
-  input_transform?: TransformType;
-  output_transform?: TransformType;
+  kernel: KernelType;
+  kernel_params?: {
+    nu?: number;  // For Matern kernel
+    [key: string]: any;
+  };
+  input_transform?: string;  // Transform type (backend-specific)
+  output_transform?: string;  // Transform type (backend-specific)
   calibration_enabled?: boolean;
 }
 
-export interface ModelInfo {
+export interface ModelMetrics {
+  rmse: number;
+  mae: number;
+  r2: number;
+  mape?: number;
+}
+
+export interface TrainModelResponse {
+  success: boolean;
   backend: ModelBackend;
-  kernel: string;
+  kernel: KernelType;
   hyperparameters: Record<string, any>;
-  cv_metrics: {
-    rmse: number;
-    mae: number;
-    mape: number;
-    r2: number;
-  };
-  calibration_factor?: number;
-  training_time: number;
+  metrics: ModelMetrics;
+  message: string;
 }
 
-export interface PredictionInput {
-  inputs: Record<string, number | string>[];
+export interface ModelInfo {
+  backend: ModelBackend | null;
+  hyperparameters: Record<string, any> | null;
+  metrics: ModelMetrics | null;
+  is_trained: boolean;
 }
 
-export interface Prediction {
+// ============================================================================
+// Prediction Types
+// ============================================================================
+
+export interface PredictionRequest {
+  inputs: Array<Record<string, number | string>>;
+}
+
+export interface PredictionResult {
   inputs: Record<string, number | string>;
   prediction: number;
   uncertainty: number;
 }
 
 export interface PredictionResponse {
-  predictions: Prediction[];
+  predictions: PredictionResult[];
   n_predictions: number;
 }
 
@@ -154,29 +179,35 @@ export interface PredictionResponse {
 // Acquisition Types
 // ============================================================================
 
-export type AcquisitionStrategy = 
-  | 'EI' | 'PI' | 'UCB' 
-  | 'qEI' | 'qPI' | 'qUCB' | 'qNIPV';
-
+export type AcquisitionStrategy = 'EI' | 'PI' | 'UCB' | 'qEI' | 'qUCB' | 'qNIPV';
 export type OptimizationGoal = 'maximize' | 'minimize';
 
-export interface SuggestRequest {
+export interface AcquisitionRequest {
   strategy: AcquisitionStrategy;
   goal: OptimizationGoal;
   n_suggestions?: number;
-  xi?: number;    // For EI/PI
-  kappa?: number; // For UCB
+  xi?: number;      // For EI/PI
+  kappa?: number;   // For UCB
 }
 
-export interface Suggestion {
-  inputs: Record<string, number | string>;
-  acquisition_value: number;
-}
-
-export interface SuggestResponse {
-  suggestions: Suggestion[];
-  strategy: AcquisitionStrategy;
+export interface AcquisitionResponse {
+  suggestions: Array<Record<string, any>>;
   n_suggestions: number;
+}
+
+// ============================================================================
+// Find Optimum Types
+// ============================================================================
+
+export interface FindOptimumRequest {
+  goal: OptimizationGoal;
+}
+
+export interface FindOptimumResponse {
+  optimum: Record<string, any>;
+  predicted_value: number;
+  predicted_std: number | null;
+  goal: string;
 }
 
 // ============================================================================
