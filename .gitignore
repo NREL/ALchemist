@@ -24,6 +24,9 @@ dist/
 build/
 site/
 .pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
 
 # User-specific files
 *.rsuser
