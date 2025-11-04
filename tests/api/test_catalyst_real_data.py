@@ -11,6 +11,7 @@ Tests the complete FastAPI workflow with actual experimental data:
 import sys
 from pathlib import Path
 import json
+import pytest
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -24,6 +25,12 @@ client = TestClient(app)
 TESTS_DIR = Path(__file__).parent.parent
 SEARCH_SPACE_FILE = TESTS_DIR / "catalyst_search_space.json"
 EXPERIMENTS_FILE = TESTS_DIR / "catalyst_experiments.csv"
+
+# Skip all tests in this module if data files are not available
+pytestmark = pytest.mark.skipif(
+    not (SEARCH_SPACE_FILE.exists() and EXPERIMENTS_FILE.exists()),
+    reason="Catalyst test data files not available (private data, not in repo)"
+)
 
 
 class TestCatalystRealData:
