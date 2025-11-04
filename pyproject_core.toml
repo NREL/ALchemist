@@ -10,7 +10,7 @@ name = "alchemist-core"
 version = "0.2.0"
 description = "Headless Bayesian optimization library - core functionality"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
 license = {text = "BSD-3-Clause"}
 

@@ -7,7 +7,7 @@ name = "alchemist"
 version = "0.2.0"
 description = "Active learning and optimization toolkit"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
 license = "BSD-3-Clause"
 dependencies = [
@@ -36,6 +36,22 @@ dependencies = [
 
 [project.scripts]
 alchemist = "main:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-anyio>=0.0.0",
+    "httpx>=0.25.0",  # Required for FastAPI TestClient
+    "requests>=2.31.0",  # Required for some tests
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-anyio>=0.0.0",
+    "httpx>=0.25.0",
+    "requests>=2.31.0",
+]
 
 [tool.setuptools]
 py-modules = ["main"]
