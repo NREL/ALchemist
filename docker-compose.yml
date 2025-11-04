@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  alchemist-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: alchemist:0.2.0
+    container_name: alchemist-api
+    ports:
+      - "8000:8000"  # Map port 8000 on your computer to port 8000 in container
+    volumes:
+      # Mount local directories so data persists when container restarts
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+    environment:
+      # Set any environment variables here
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
