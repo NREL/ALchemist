@@ -25,10 +25,16 @@ export function useContourData(
 ): UseQueryResult<ContourDataResponse> {
   return useQuery({
     queryKey: ['contour-data', sessionId, request],
-    queryFn: () => visualizationsApi.getContourData(sessionId!, request),
+    queryFn: () => {
+      console.log('useContourData queryFn executing with request:', request);
+      return visualizationsApi.getContourData(sessionId!, request);
+    },
     enabled: enabled && !!sessionId,
-    staleTime: 30000, // 30 seconds
+    staleTime: Infinity, // Never consider data stale
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 

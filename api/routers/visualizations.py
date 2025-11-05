@@ -166,9 +166,15 @@ async def get_contour_data(
     import pandas as pd
     grid_points = []
     
+    # CRITICAL: Filter out x and y variables from fixed_values in case frontend sent them
+    filtered_fixed_values = {
+        k: v for k, v in request.fixed_values.items() 
+        if k != request.x_var and k != request.y_var
+    }
+    
     for i in range(request.grid_resolution):
         for j in range(request.grid_resolution):
-            point = request.fixed_values.copy()
+            point = filtered_fixed_values.copy()
             point[request.x_var] = X_grid[i, j]
             point[request.y_var] = Y_grid[i, j]
             
@@ -185,7 +191,16 @@ async def get_contour_data(
     
     grid_df = pd.DataFrame(grid_points)
     
-    # Get predictions
+    # CRITICAL FIX: Reorder columns to match training data
+    # The model was trained with a specific column order, we must match it
+    train_data = session.experiment_manager.get_data()
+    train_columns = [col for col in train_data.columns if col != 'Output']
+    
+    # Reorder grid_df to match training column order
+    grid_df = grid_df[train_columns]
+    
+    # IMPORTANT: The model's predict() method handles preprocessing internally
+    # (including categorical encoding), so we can pass the raw DataFrame directly
     predictions, uncertainties = session.model.predict(grid_df, return_std=True)
     
     # Reshape to grid
@@ -194,7 +209,7 @@ async def get_contour_data(
     
     # Get experimental data if requested
     experiments_data = None
-    if request.include_experiments and session.experiment_manager.has_data():
+    if request.include_experiments and len(session.experiment_manager) > 0:
         exp_df = session.experiment_manager.get_data()
         if request.x_var in exp_df.columns and request.y_var in exp_df.columns and "Output" in exp_df.columns:
             experiments_data = {

@@ -8,7 +8,7 @@ import { ParityPlot } from './ParityPlot';
 import { MetricsPlot } from './MetricsPlot';
 import { QQPlot } from './QQPlot';
 import { CalibrationCurve } from './CalibrationCurve';
-import { ContourPlot } from './ContourPlotSimple';
+import { ContourPlot } from './ContourPlot';
 import { HyperparametersDisplay } from './HyperparametersDisplay';
 
 interface VisualizationsPanelProps {
@@ -24,8 +24,7 @@ type MetricType = 'RMSE' | 'MAE' | 'MAPE' | 'R2';
 export function VisualizationsPanel({ 
   sessionId, 
   isOpen, 
-  onClose,
-  modelBackend 
+  onClose 
 }: VisualizationsPanelProps) {
   const [activePlot, setActivePlot] = useState<PlotType>('parity');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('RMSE');
@@ -183,12 +182,10 @@ export function VisualizationsPanel({
               useCalibrated={useCalibrated}
             />
           )}
-          {activePlot === 'contour' && (
-            <ContourPlot
-              sessionId={sessionId}
-              modelBackend={modelBackend}
-            />
-          )}
+          {/* ContourPlot always mounted but hidden to preserve state */}
+          <div className={activePlot === 'contour' ? 'block' : 'hidden'}>
+            <ContourPlot sessionId={sessionId} />
+          </div>
         </div>
 
         {/* Footer - Hyperparameters */}

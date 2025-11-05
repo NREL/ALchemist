@@ -6,5 +6,5 @@ export { ParityPlot } from './ParityPlot';
 export { MetricsPlot } from './MetricsPlot';
 export { QQPlot } from './QQPlot';
 export { CalibrationCurve } from './CalibrationCurve';
-export { ContourPlot } from './ContourPlotSimple';
+export { ContourPlot } from './ContourPlot';
 export { HyperparametersDisplay } from './HyperparametersDisplay';
