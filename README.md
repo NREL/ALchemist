@@ -22,13 +22,50 @@ ALchemist accelerates discovery and optimization by combining:
 - **Flexible variable space definition:** Real, integer, and categorical variables with bounds or discrete values.
 - **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-optimize backends.
 - **Advanced acquisition strategies:** Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.
-- **Intuitive GUI workflow:** No coding required—define variables, generate initial experiments, load data, train models, and suggest new experiments.
+- **Modern web interface:** React-based UI with FastAPI backend for seamless active learning workflows.
 - **Experiment tracking:** CSV logging, reproducible random seeds, and error tracking.
 - **Extensibility:** Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.
 
 ---
 
-## 🧭 Getting Started
+## 🧭 Quick Start
+
+### Web Application (Recommended)
+
+**Development Mode:**
+```bash
+# Option 1: Manual start
+python run_api.py              # Terminal 1: Backend (port 8000)
+cd alchemist-web && npm run dev  # Terminal 2: Frontend (port 5173)
+
+# Option 2: Automated start
+scripts\dev_start.bat    # Windows
+./scripts/dev_start.sh   # Linux/Mac
+```
+
+**Production Mode:**
+```bash
+# Build and run
+scripts\build_production.bat    # Windows
+./scripts/build_production.sh   # Linux/Mac
+
+# Start production server
+python run_api.py --production
+
+# Access at: http://localhost:8000
+```
+
+**Docker Deployment:**
+```bash
+# Build frontend first
+cd alchemist-web && npm run build && cd ..
+
+# Run with Docker Compose
+cd docker
+docker-compose up --build
+```
+
+### Python Package Installation
 
 Requirements: Python 3.9 or higher
 
@@ -56,19 +93,24 @@ python -m pip install -e .
 
 All dependencies are specified in `pyproject.toml` and will be installed automatically.
 
-**3. Launch the graphical user interface:**
-```bash
-alchemist
-```
-
-From the GUI, you can:
-
-- Define optimization variables and constraints
-- Generate initial experiments or load existing data
-- Train surrogate models and evaluate acquisition functions
-- Visualize model predictions and export logs
-
 For step-by-step instructions, see the [Getting Started](https://nrel.github.io/ALchemist/) section of the documentation.
+
+---
+
+## 📁 Project Structure
+
+```
+ALchemist/
+├── alchemist_core/       # Core Python library
+├── alchemist-web/        # React frontend application
+├── api/                  # FastAPI backend
+├── docker/               # Docker configuration files
+├── scripts/              # Build and development scripts
+├── tests/                # Test suite
+├── docs/                 # Documentation (MkDocs)
+├── memory/               # Development notes and references
+└── run_api.py           # API server entry point
+```
 
 ---
 

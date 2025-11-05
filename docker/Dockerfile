@@ -34,6 +34,10 @@ COPY main.py ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e .
 
+# Copy built frontend static files (if they exist)
+# Run 'npm run build' in alchemist-web/ before building Docker image
+COPY alchemist-web/dist ./api/static
+
 # Create directories for logs and cache
 RUN mkdir -p /app/logs /app/cache
 

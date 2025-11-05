@@ -5,7 +5,7 @@ import { apiClient } from '../client';
 import type { 
   TrainModelRequest, 
   ModelInfo, 
-  PredictionInput,
+  PredictionRequest,
   PredictionResponse
 } from '../types';
 
@@ -36,7 +36,7 @@ export const getModelInfo = async (sessionId: string): Promise<ModelInfo> => {
  */
 export const predictWithModel = async (
   sessionId: string,
-  inputs: PredictionInput
+  inputs: PredictionRequest
 ): Promise<PredictionResponse> => {
   const response = await apiClient.post<PredictionResponse>(
     `/sessions/${sessionId}/model/predict`,

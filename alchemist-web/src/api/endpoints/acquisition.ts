@@ -2,16 +2,16 @@
  * Acquisition API endpoints
  */
 import { apiClient } from '../client';
-import type { SuggestRequest, SuggestResponse } from '../types';
+import type { AcquisitionRequest, AcquisitionResponse } from '../types';
 
 /**
  * Get next experiment suggestions using acquisition function
  */
 export const getSuggestions = async (
   sessionId: string,
-  request: SuggestRequest
-): Promise<SuggestResponse> => {
-  const response = await apiClient.post<SuggestResponse>(
+  request: AcquisitionRequest
+): Promise<AcquisitionResponse> => {
+  const response = await apiClient.post<AcquisitionResponse>(
     `/sessions/${sessionId}/acquisition/suggest`,
     request
   );

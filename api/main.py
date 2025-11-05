@@ -6,6 +6,7 @@ Designed for React frontend but framework-agnostic.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -13,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from .routers import sessions, variables, experiments, models, acquisition, visualizations
 from .middleware.error_handlers import add_exception_handlers
 import logging
@@ -35,15 +38,12 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# CORS configuration for React frontend
+# CORS configuration - allows frontend in both dev and production
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React dev server
-        "http://localhost:5173",  # Vite dev server
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,6 +79,31 @@ async def health_check():
         "status": "healthy",
         "service": "alchemist-api"
     }
+
+
+# Mount static files for production (if they exist)
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+    
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve React SPA for all non-API routes."""
+        # Don't intercept API routes
+        if full_path.startswith("api/"):
+            return {"detail": "Not Found"}
+        
+        # Try to serve the requested file
+        file_path = static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        
+        # For all other routes, serve index.html (SPA routing)
+        index_path = static_dir / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        
+        return {"detail": "Not Found"}
 
 
 if __name__ == "__main__":
