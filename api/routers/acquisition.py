@@ -53,6 +53,9 @@ async def suggest_next_experiments(
         **acq_kwargs
     )
     
+    # Store suggestions in session for visualization access
+    session.last_suggestions = suggestions_df.to_dict('records')
+    
     # Convert to list of dicts
     suggestions = suggestions_df.to_dict('records')
     

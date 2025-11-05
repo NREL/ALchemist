@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useModelInfo, useTrainModel } from '../../hooks/api/useModels';
 import { useExperimentsSummary } from '../../hooks/api/useExperiments';
+import { VisualizationsPanel } from '../../components/visualizations';
 import type { 
   ModelBackend, 
   KernelType, 
@@ -16,7 +17,7 @@ import type {
   BoTorchOutputTransform,
   TrainModelRequest 
 } from '../../api/types';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, LineChart } from 'lucide-react';
 
 interface GPRPanelProps {
   sessionId: string;
@@ -26,6 +27,9 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
   // State for backend selection
   const [backend, setBackend] = useState<ModelBackend>('sklearn');
   const [advancedEnabled, setAdvancedEnabled] = useState(false);
+  
+  // Visualizations panel state
+  const [showVisualizations, setShowVisualizations] = useState(false);
   
   // Sklearn-specific state
   const [skKernel, setSkKernel] = useState<KernelType>('RBF');
@@ -411,13 +415,23 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
         </div>
       )}
       
-      {/* Visualization Button - Disabled for now */}
+      {/* Visualization Button */}
       <button
-        disabled={true}
-        className="w-full mt-4 border border-input px-4 py-2 rounded-md text-sm opacity-50 cursor-not-allowed"
+        onClick={() => setShowVisualizations(true)}
+        disabled={!modelInfo?.is_trained}
+        className="w-full mt-4 border border-primary text-primary hover:bg-primary hover:text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-primary flex items-center justify-center gap-2"
       >
-        Show Analysis Plots (Coming Soon)
+        <LineChart className="w-4 h-4" />
+        Show Model Visualizations
       </button>
+      
+      {/* Visualizations Modal */}
+      <VisualizationsPanel
+        sessionId={sessionId}
+        isOpen={showVisualizations}
+        onClose={() => setShowVisualizations(false)}
+        modelBackend={modelInfo?.backend || undefined}
+      />
     </div>
   );
 }

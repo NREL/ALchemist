@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import sessions, variables, experiments, models, acquisition
+from .routers import sessions, variables, experiments, models, acquisition, visualizations
 from .middleware.error_handlers import add_exception_handlers
 import logging
 
@@ -58,6 +58,7 @@ app.include_router(variables.router, prefix="/api/v1/sessions", tags=["Variables
 app.include_router(experiments.router, prefix="/api/v1/sessions", tags=["Experiments"])
 app.include_router(models.router, prefix="/api/v1/sessions", tags=["Models"])
 app.include_router(acquisition.router, prefix="/api/v1/sessions", tags=["Acquisition"])
+app.include_router(visualizations.router, prefix="/api/v1/sessions", tags=["Visualizations"])
 
 
 @app.get("/")

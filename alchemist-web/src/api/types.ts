@@ -217,3 +217,91 @@ export interface FindOptimumResponse {
 export interface APIError {
   detail: string;
 }
+
+// ============================================================================
+// Visualization Types
+// ============================================================================
+
+export interface ContourDataRequest {
+  x_var: string;
+  y_var: string;
+  fixed_values?: Record<string, any>;
+  grid_resolution?: number;
+  include_experiments?: boolean;
+  include_suggestions?: boolean;
+}
+
+export interface ContourDataResponse {
+  x_var: string;
+  y_var: string;
+  x_grid: number[][];
+  y_grid: number[][];
+  predictions: number[][];
+  uncertainties: number[][];
+  experiments?: {
+    x: number[];
+    y: number[];
+    output: number[];
+  } | null;
+  suggestions?: {
+    x: number[];
+    y: number[];
+  } | null;
+  x_bounds: [number, number];
+  y_bounds: [number, number];
+  colorbar_bounds: [number, number];
+}
+
+export interface ParityDataResponse {
+  y_true: number[];
+  y_pred: number[];
+  y_std: number[];
+  metrics: {
+    rmse: number;
+    mae: number;
+    r2: number;
+    mape: number;
+  };
+  bounds: [number, number];
+  calibrated: boolean;
+}
+
+export interface MetricsDataResponse {
+  training_sizes: number[];
+  rmse: (number | null)[];  // null for NaN/Inf values
+  mae: (number | null)[];
+  r2: (number | null)[];
+  mape: (number | null)[];
+}
+
+export interface QQPlotDataResponse {
+  theoretical_quantiles: number[];
+  sample_quantiles: number[];
+  z_mean: number;
+  z_std: number;
+  n_samples: number;
+  bounds: [number, number];
+  calibrated: boolean;
+  results_type: string;  // 'calibrated' or 'uncalibrated'
+}
+
+export interface CalibrationCurveDataResponse {
+  nominal_coverage: number[];
+  empirical_coverage: number[];
+  confidence_levels: string[];  // e.g., ['±1.0σ (68%)', '±1.96σ (95%)', ...]
+  nominal_probabilities: number[];  // Same as nominal_coverage
+  empirical_probabilities: number[];  // Same as empirical_coverage
+  n_samples: number;
+  calibrated: boolean;
+  results_type: string;  // 'calibrated' or 'uncalibrated'
+}
+
+export interface HyperparametersResponse {
+  hyperparameters: Record<string, any>;
+  backend: string;
+  kernel: string;
+  input_transform: string | null;
+  output_transform: string | null;
+  calibration_enabled: boolean;
+  calibration_factor: number | null;
+}
