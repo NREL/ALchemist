@@ -100,10 +100,36 @@ export function ContourPlot({ sessionId }: ContourPlotProps) {
   }, [xAxis, yAxis, fixedValues, gridResolution]);
 
   const {
-    data: contourData,
+    data: contourApiData,
     isLoading,
     error,
   } = useContourData(sessionId, contourRequest!);
+
+  // Transform API response to canvas-compatible format
+  const contourData = useMemo(() => {
+    if (!contourApiData) return null;
+
+    // Extract 1D arrays from 2D meshgrid
+    // x_grid is constant along columns, y_grid is constant along rows
+    const xValues = contourApiData.x_grid[0]; // First row contains all unique x values
+    const yValues = contourApiData.y_grid.map(row => row[0]); // First column contains all unique y values
+
+    return {
+      x: xValues,
+      y: yValues,
+      z: contourApiData.predictions,
+      experiments: contourApiData.experiments ? 
+        contourApiData.experiments.x.map((x, i) => ({
+          x,
+          y: contourApiData.experiments!.y[i]
+        })) : undefined,
+      next_point: contourApiData.suggestions && contourApiData.suggestions.x.length > 0 ?
+        {
+          x: contourApiData.suggestions.x[0],
+          y: contourApiData.suggestions.y[0]
+        } : undefined,
+    };
+  }, [contourApiData]);
 
   if (realVariables.length < 2) {
     return (

@@ -4,7 +4,6 @@
  */
 import { useMemo } from 'react';
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,

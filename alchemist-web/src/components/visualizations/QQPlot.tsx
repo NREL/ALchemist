@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Line,
   ComposedChart,
-  ReferenceArea,
+  Area,
 } from 'recharts';
 import { useQQPlotData } from '../../hooks/api/useVisualizations';
 import { Loader2 } from 'lucide-react';
@@ -48,18 +48,17 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
     ];
   }, [data]);
 
-  // Confidence band for small samples
+  // Confidence band for small samples (±1.96/sqrt(n) around perfect line)
   const confidenceBandData = useMemo(() => {
     if (!data || data.n_samples >= 100) return [];
 
     const se = 1.96 / Math.sqrt(data.n_samples);
-    const minVal = Math.min(...data.theoretical_quantiles);
-    const maxVal = Math.max(...data.theoretical_quantiles);
-
-    return [
-      { theoretical: minVal, lower: minVal - se, upper: minVal + se },
-      { theoretical: maxVal, lower: maxVal - se, upper: maxVal + se },
-    ];
+    
+    // Create points along the perfect calibration line with upper/lower bounds
+    return data.theoretical_quantiles.map(theoretical => ({
+      theoretical,
+      bounds: [theoretical - se, theoretical + se], // Store as tuple for Area component
+    }));
   }, [data]);
 
   if (isLoading) {
@@ -152,16 +151,16 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
             />
             <Legend verticalAlign="top" height={36} />
 
-            {/* Confidence band (if small sample) */}
+            {/* Confidence band (if small sample) - rendered as shaded area */}
             {confidenceBandData.length > 0 && (
-              <ReferenceArea
-                x1={confidenceBandData[0].theoretical}
-                x2={confidenceBandData[1].theoretical}
-                y1={confidenceBandData[0].lower}
-                y2={confidenceBandData[1].upper}
-                fill="#ef4444"
-                fillOpacity={0.2}
-                label="Approximate 95% CI"
+              <Area
+                data={confidenceBandData}
+                dataKey="bounds"
+                stroke="none"
+                fill="#fecaca"
+                fillOpacity={0.5}
+                name="Approximate 95% CI"
+                isAnimationActive={false}
               />
             )}
 
@@ -177,7 +176,7 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
               isAnimationActive={false}
             />
 
-            {/* Scatter points */}
+            {/* Scatter points - rendered last so they're on top */}
             <Scatter
               data={chartData}
               dataKey="sample"
