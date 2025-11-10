@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alchemist"
-version = "0.2.0"
+version = "0.2.1"
 description = "Active learning and optimization toolkit for chemical and materials research"
 readme = "README.md"
 requires-python = ">=3.11"
