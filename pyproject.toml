@@ -5,11 +5,23 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "alchemist"
 version = "0.2.0"
-description = "Active learning and optimization toolkit"
+description = "Active learning and optimization toolkit for chemical and materials research"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "Caleb Coatney", email = "caleb.coatney@nrel.gov"}]
-license = "BSD-3-Clause"
+license = {text = "BSD-3-Clause"}
+keywords = ["active learning", "bayesian optimization", "gaussian processes", "materials science", "chemistry"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
 dependencies = [
     "numpy",
     "pandas",
@@ -61,7 +73,10 @@ include = ["ui*", "alchemist_core*", "api*"]
 
 [project.urls]
 "Homepage" = "https://github.com/NREL/ALchemist"
+"Documentation" = "https://nrel.github.io/ALchemist/"
 "Source" = "https://github.com/NREL/ALchemist"
+"Bug Tracker" = "https://github.com/NREL/ALchemist/issues"
+"Changelog" = "https://github.com/NREL/ALchemist/releases"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
