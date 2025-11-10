@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "alchemist"
+name = "alchemist-nrel"
 version = "0.2.1"
 description = "Active learning and optimization toolkit for chemical and materials research"
 readme = "README.md"
