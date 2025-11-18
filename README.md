@@ -23,8 +23,16 @@ ALchemist accelerates discovery and optimization by combining:
 - **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-optimize backends.
 - **Advanced acquisition strategies:** Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.
 - **Modern web interface:** React-based UI with FastAPI backend for seamless active learning workflows.
+- **Autonomous optimization:** Human-out-of-the-loop optimization for real-time process control.
 - **Experiment tracking:** CSV logging, reproducible random seeds, and error tracking.
 - **Extensibility:** Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.
+
+### Use Cases
+
+- **Interactive Optimization**: Desktop GUI or web UI for manual experiment design
+- **Programmatic Workflows**: Python Session API for scripts and notebooks
+- **Autonomous Operation**: REST API for real-time process control (reactors, synthesis, etc.)
+- **Remote Collaboration**: Web-based interface accessible from any device
 
 ---
 

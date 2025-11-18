@@ -305,3 +305,31 @@ export interface HyperparametersResponse {
   calibration_enabled: boolean;
   calibration_factor: number | null;
 }
+
+// ============================================================================
+// Autonomous Optimization Types
+// ============================================================================
+
+export type DoEMethod = 'random' | 'lhs' | 'sobol' | 'halton' | 'hammersly';
+export type LHSCriterion = 'maximin' | 'correlation' | 'ratio';
+
+export interface InitialDesignRequest {
+  method: DoEMethod;
+  n_points: number;
+  random_seed?: number | null;
+  lhs_criterion?: LHSCriterion;
+}
+
+export interface InitialDesignResponse {
+  points: Array<Record<string, any>>;
+  method: string;
+  n_points: number;
+}
+
+export interface SessionStateResponse {
+  session_id: string;
+  n_variables: number;
+  n_experiments: number;
+  model_trained: boolean;
+  last_suggestion: Record<string, any> | null;
+}

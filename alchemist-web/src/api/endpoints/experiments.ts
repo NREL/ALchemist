@@ -4,7 +4,9 @@
 import { apiClient } from '../client';
 import type { 
   Experiment,
-  ExperimentSummary 
+  ExperimentSummary,
+  InitialDesignRequest,
+  InitialDesignResponse 
 } from '../types';
 
 /**
@@ -75,6 +77,20 @@ export const getExperimentSummary = async (
 ): Promise<ExperimentSummary> => {
   const response = await apiClient.get<ExperimentSummary>(
     `/sessions/${sessionId}/experiments/summary`
+  );
+  return response.data;
+};
+
+/**
+ * Generate initial experimental design (DoE)
+ */
+export const generateInitialDesign = async (
+  sessionId: string,
+  request: InitialDesignRequest
+): Promise<InitialDesignResponse> => {
+  const response = await apiClient.post<InitialDesignResponse>(
+    `/sessions/${sessionId}/initial-design`,
+    request
   );
   return response.data;
 };

@@ -17,6 +17,18 @@ export function useSession(sessionId: string | null) {
 }
 
 /**
+ * Hook to get session state for monitoring
+ */
+export function useSessionState(sessionId: string | null, refetchInterval?: number) {
+  return useQuery({
+    queryKey: ['session-state', sessionId],
+    queryFn: () => sessionAPI.getSessionState(sessionId!),
+    enabled: !!sessionId,
+    refetchInterval: refetchInterval, // Enable polling for monitoring mode
+  });
+}
+
+/**
  * Hook to create a new session
  */
 export function useCreateSession() {

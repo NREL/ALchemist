@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as experimentsAPI from '../../api/endpoints/experiments';
-import type { Experiment } from '../../api/types';
+import type { Experiment, InitialDesignRequest } from '../../api/types';
 import { toast } from 'sonner';
 
 /**
@@ -66,6 +66,22 @@ export function useUploadExperiments(sessionId: string) {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to upload experiments');
+    },
+  });
+}
+
+/**
+ * Hook to generate initial experimental design (DoE)
+ */
+export function useGenerateInitialDesign(sessionId: string) {
+  return useMutation({
+    mutationFn: (request: InitialDesignRequest) => 
+      experimentsAPI.generateInitialDesign(sessionId, request),
+    onSuccess: (data) => {
+      toast.success(`Generated ${data.n_points} initial design points using ${data.method}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to generate initial design');
     },
   });
 }

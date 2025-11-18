@@ -6,6 +6,7 @@ import type {
   CreateSessionRequest, 
   CreateSessionResponse, 
   Session,
+  SessionStateResponse,
   UpdateTTLRequest 
 } from '../types';
 
@@ -22,6 +23,14 @@ export const createSession = async (data?: CreateSessionRequest): Promise<Create
  */
 export const getSession = async (sessionId: string): Promise<Session> => {
   const response = await apiClient.get<Session>(`/sessions/${sessionId}`);
+  return response.data;
+};
+
+/**
+ * Get session state for monitoring
+ */
+export const getSessionState = async (sessionId: string): Promise<SessionStateResponse> => {
+  const response = await apiClient.get<SessionStateResponse>(`/sessions/${sessionId}/state`);
   return response.data;
 };
 

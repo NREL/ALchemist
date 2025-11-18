@@ -12,6 +12,7 @@ api/static/
 
 # User's private project data (not for public repo)
 tests/catalyst_experiments.csv
+tests/test_autonomous_api.py
 tests/catalyst_search_space.json
 tests/test_catalyst_workflow.py
 test_core.ipynb

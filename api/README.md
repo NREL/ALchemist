@@ -356,6 +356,268 @@ docker run -p 8000:8000 alchemist-api
 - Add rate limiting for public APIs
 - Use HTTPS with reverse proxy (nginx, caddy)
 
+---
+
+## Autonomous Optimization Workflow
+
+ALchemist supports **fully autonomous, human-out-of-the-loop optimization** for real-time process control. This section describes the autonomous workflow using the API.
+
+### Overview
+
+The autonomous workflow enables:
+1. **Initial Experimental Design (DoE)** - Generate space-filling initial points
+2. **Auto-Training** - Automatically retrain models as new data arrives
+3. **Continuous Suggestions** - Get next experiment suggestions without manual intervention
+4. **Progress Monitoring** - Query session state for dashboard/logging
+
+### Workflow Steps
+
+#### 1. Create Session and Define Search Space
+
+```python
+import requests
+
+BASE_URL = "http://localhost:8000/api/v1"
+
+# Create session
+response = requests.post(f"{BASE_URL}/sessions")
+session_id = response.json()["session_id"]
+
+# Define variables
+variables = [
+    {"name": "temperature", "type": "real", "min": 300, "max": 500},
+    {"name": "flow_rate", "type": "real", "min": 1, "max": 10},
+    {"name": "catalyst", "type": "categorical", "categories": ["A", "B", "C"]}
+]
+
+for var in variables:
+    requests.post(f"{BASE_URL}/sessions/{session_id}/variables", json=var)
+```
+
+#### 2. Generate Initial Experimental Design
+
+```python
+# Generate 10 LHS points for initial exploration
+response = requests.post(
+    f"{BASE_URL}/sessions/{session_id}/initial-design",
+    json={
+        "method": "lhs",           # Latin Hypercube Sampling
+        "n_points": 10,
+        "random_seed": 42,         # For reproducibility
+        "lhs_criterion": "maximin" # Space-filling criterion
+    }
+)
+
+initial_points = response.json()["points"]
+# Returns: [{"temperature": 350.2, "flow_rate": 4.5, "catalyst": "A"}, ...]
+```
+
+**Available DoE Methods**:
+- `lhs` - Latin Hypercube Sampling (recommended for most cases)
+- `sobol` - Sobol quasi-random sequences
+- `halton` - Halton sequences
+- `hammersly` - Hammersly sequences
+- `random` - Uniform random sampling
+
+#### 3. Run Initial Experiments and Upload Data
+
+```python
+# Autonomous controller runs initial experiments
+# (hardware interaction happens here)
+
+# Upload results with auto-training enabled
+for point in initial_points:
+    output = run_physical_experiment(**point)  # Your hardware interface
+    
+    response = requests.post(
+        f"{BASE_URL}/sessions/{session_id}/experiments",
+        json={"inputs": point, "output": output},
+        params={
+            "auto_train": True,           # NEW: Auto-train after adding data
+            "training_backend": "sklearn",
+            "training_kernel": "rbf"
+        }
+    )
+    
+    # Check if model was trained
+    if response.json().get("model_trained"):
+        print(f"Model trained! RMSE: {response.json()['training_metrics']['rmse']:.3f}")
+```
+
+**Auto-Training**:
+- Model retrains automatically after each data point (if `auto_train=True`)
+- Only trains if ≥5 experiments exist
+- Returns training metrics in response
+- Falls back gracefully if training fails
+
+#### 4. Autonomous Optimization Loop
+
+```python
+# Continuous optimization loop
+while not convergence_criteria_met():
+    # Get next suggestion
+    response = requests.post(
+        f"{BASE_URL}/sessions/{session_id}/acquisition/suggest",
+        json={
+            "strategy": "qEI",
+            "goal": "maximize",
+            "n_suggestions": 1
+        }
+    )
+    
+    next_point = response.json()["suggestions"][0]
+    
+    # Run experiment
+    output = run_physical_experiment(**next_point)
+    
+    # Add data and auto-train
+    response = requests.post(
+        f"{BASE_URL}/sessions/{session_id}/experiments",
+        json={"inputs": next_point, "output": output},
+        params={"auto_train": True}
+    )
+    
+    # Check progress
+    state = requests.get(f"{BASE_URL}/sessions/{session_id}/state").json()
+    print(f"Experiments: {state['n_experiments']}, Model trained: {state['model_trained']}")
+```
+
+#### 5. Monitor Progress
+
+```python
+# Query session state for monitoring dashboard
+response = requests.get(f"{BASE_URL}/sessions/{session_id}/state")
+state = response.json()
+
+print(f"Session: {state['session_id']}")
+print(f"Variables: {state['n_variables']}")
+print(f"Experiments: {state['n_experiments']}")
+print(f"Model trained: {state['model_trained']}")
+if state['last_suggestion']:
+    print(f"Last suggestion: {state['last_suggestion']}")
+```
+
+### Web-Based Monitoring
+
+**Normal Mode** (full interface):
+```
+http://localhost:5174
+```
+
+**Monitoring Mode** (read-only, auto-refresh):
+```
+http://localhost:5174?mode=monitor
+```
+
+The monitoring dashboard:
+- Auto-refreshes every 90 seconds
+- Displays real-time session metrics
+- Shows last suggested experiment
+- All controls disabled (read-only)
+- Suitable for wall displays or remote observation
+
+### Example: Complete Autonomous Script
+
+```python
+#!/usr/bin/env python3
+"""
+Autonomous reactor optimization controller.
+Connects ALchemist to hardware via MQTT.
+"""
+import requests
+import time
+
+BASE_URL = "http://localhost:8000/api/v1"
+
+# 1. Setup
+response = requests.post(f"{BASE_URL}/sessions")
+session_id = response.json()["session_id"]
+
+# Define reactor variables
+requests.post(f"{BASE_URL}/sessions/{session_id}/variables", 
+              json={"name": "temperature", "type": "real", "min": 300, "max": 500})
+requests.post(f"{BASE_URL}/sessions/{session_id}/variables",
+              json={"name": "flow_rate", "type": "real", "min": 1, "max": 10})
+
+# 2. Initial design
+response = requests.post(f"{BASE_URL}/sessions/{session_id}/initial-design",
+                        json={"method": "lhs", "n_points": 8, "random_seed": 42})
+initial_points = response.json()["points"]
+
+# 3. Run initial experiments
+for i, point in enumerate(initial_points):
+    print(f"Initial experiment {i+1}/{len(initial_points)}")
+    
+    # Set hardware via MQTT/HMI
+    set_reactor_conditions(**point)
+    wait_for_steady_state()
+    
+    # Measure output
+    output = measure_spectral_feature()
+    
+    # Upload with auto-train (trains after 5th point)
+    requests.post(f"{BASE_URL}/sessions/{session_id}/experiments",
+                 json={"inputs": point, "output": output},
+                 params={"auto_train": True, "training_backend": "sklearn"})
+
+# 4. Optimization loop
+for iteration in range(50):  # Maximum 50 iterations
+    print(f"\n=== Optimization Iteration {iteration+1} ===")
+    
+    # Get suggestion
+    response = requests.post(f"{BASE_URL}/sessions/{session_id}/acquisition/suggest",
+                            json={"strategy": "qEI", "goal": "maximize", "n_suggestions": 1})
+    next_point = response.json()["suggestions"][0]
+    
+    # Apply to hardware
+    set_reactor_conditions(**next_point)
+    wait_for_steady_state()
+    output = measure_spectral_feature()
+    
+    # Update model
+    response = requests.post(f"{BASE_URL}/sessions/{session_id}/experiments",
+                            json={"inputs": next_point, "output": output},
+                            params={"auto_train": True})
+    
+    # Log progress
+    state = requests.get(f"{BASE_URL}/sessions/{session_id}/state").json()
+    print(f"Total experiments: {state['n_experiments']}")
+    print(f"Current output: {output:.3f}")
+    
+    # Check convergence (example)
+    if iteration > 10 and abs(output - previous_output) < 0.01:
+        print("Converged!")
+        break
+    
+    previous_output = output
+    time.sleep(300)  # 5 min between experiments
+
+print(f"\nOptimization complete! View results at: http://localhost:5174?mode=monitor")
+```
+
+### Best Practices
+
+1. **Start with DoE**: Always generate initial design points for good space coverage
+2. **Use Auto-Train**: Enable `auto_train=True` to keep model updated
+3. **Monitor State**: Poll `/state` endpoint for progress tracking
+4. **Error Handling**: Wrap API calls in try/except for robustness
+5. **Steady-State Detection**: Only upload data when process is stable
+6. **Safety Validation**: Validate suggestions before applying to hardware
+7. **Session Persistence**: Export session periodically for backup
+
+### API Endpoints Summary
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/sessions/{id}/initial-design` | POST | Generate DoE points |
+| `/sessions/{id}/experiments?auto_train=true` | POST | Add data + train |
+| `/sessions/{id}/state` | GET | Query progress |
+| `/sessions/{id}/acquisition/suggest` | POST | Get next point |
+
+See complete API documentation: http://localhost:8000/api/docs
+
+---
+
 ## Development
 
 ### Project Structure
