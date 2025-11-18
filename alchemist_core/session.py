@@ -272,6 +272,73 @@ class OptimizationSession:
             'feature_names': list(X.columns)
         }
     
+    def generate_initial_design(
+        self,
+        method: str = "lhs",
+        n_points: int = 10,
+        random_seed: Optional[int] = None,
+        **kwargs
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate initial experimental design (Design of Experiments).
+        
+        Creates a set of experimental conditions to evaluate before starting
+        Bayesian optimization. This does NOT add the experiments to the session -
+        you must evaluate them and add the results using add_experiment().
+        
+        Supported methods:
+        - 'random': Uniform random sampling
+        - 'lhs': Latin Hypercube Sampling (recommended, good space-filling properties)
+        - 'sobol': Sobol quasi-random sequences (low discrepancy)
+        - 'halton': Halton sequences
+        - 'hammersly': Hammersly sequences (low discrepancy)
+        
+        Args:
+            method: Sampling strategy to use
+            n_points: Number of points to generate
+            random_seed: Random seed for reproducibility
+            **kwargs: Additional method-specific parameters:
+                - lhs_criterion: For LHS method ("maximin", "correlation", "ratio")
+        
+        Returns:
+            List of dictionaries with variable names and values (no outputs)
+        
+        Example:
+            >>> # Generate initial design
+            >>> points = session.generate_initial_design('lhs', n_points=10)
+            >>> 
+            >>> # Run experiments and add results
+            >>> for point in points:
+            >>>     output = run_experiment(**point)  # Your experiment function
+            >>>     session.add_experiment(point, output=output)
+            >>> 
+            >>> # Now ready to train model
+            >>> session.train_model()
+        """
+        if len(self.search_space.variables) == 0:
+            raise ValueError(
+                "No variables defined in search space. "
+                "Use add_variable() to define variables before generating initial design."
+            )
+        
+        from alchemist_core.utils.doe import generate_initial_design
+        
+        points = generate_initial_design(
+            search_space=self.search_space,
+            method=method,
+            n_points=n_points,
+            random_seed=random_seed,
+            **kwargs
+        )
+        
+        logger.info(f"Generated {len(points)} initial design points using {method} method")
+        self.events.emit('initial_design_generated', {
+            'method': method,
+            'n_points': len(points)
+        })
+        
+        return points
+    
     # ============================================================
     # Model Training
     # ============================================================
