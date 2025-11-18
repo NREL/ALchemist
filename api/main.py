@@ -39,7 +39,7 @@ app = FastAPI(
 )
 
 # CORS configuration - allows frontend in both dev and production
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5174").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,7 +82,8 @@ async def health_check():
 
 
 # Mount static files for production (if they exist)
-static_dir = Path(__file__).parent / "static"
+# Look for built React app in alchemist-web/dist
+static_dir = Path(__file__).parent.parent / "alchemist-web" / "dist"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
     

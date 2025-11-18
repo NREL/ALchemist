@@ -545,7 +545,8 @@ class OptimizationSession:
                 model=self.model,  # Pass the full SklearnModel wrapper, not just .model
                 acq_func=strategy.lower(),
                 maximize=(goal.lower() == 'maximize'),
-                random_state=self.config['random_state']
+                random_state=self.config['random_state'],
+                acq_func_kwargs=kwargs  # Pass xi, kappa, etc. to acquisition function
             )
             
             # Update acquisition with existing experimental data (un-encoded)
