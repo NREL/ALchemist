@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useGenerateInitialDesign } from '../../hooks/api/useExperiments';
 import { useVariables } from '../../hooks/api/useVariables';
 import type { DoEMethod, LHSCriterion } from '../../api/types';
-import { Download, Sparkles } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 interface InitialDesignPanelProps {
   sessionId: string;
@@ -23,7 +23,6 @@ export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
   const generateDesign = useGenerateInitialDesign(sessionId);
 
   const hasVariables = variablesData && variablesData.variables.length > 0;
-  const variables = variablesData?.variables || [];
 
   const handleGenerate = async () => {
     const request = {
@@ -64,69 +63,66 @@ export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
   };
 
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Sparkles className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold">Initial Experimental Design</h2>
-      </div>
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b pb-2">
+        Initial Design (DoE)
+      </h3>
 
       {!hasVariables ? (
-        <div className="border border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-          <p className="text-muted-foreground">
-            Define variables in the search space before generating initial design points.
-          </p>
+        <div className="border border-dashed border-muted-foreground/20 rounded p-4 text-center">
+          <p className="text-xs text-muted-foreground">Define variables first</p>
         </div>
       ) : (
         <>
-          {/* Configuration Form */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {/* Method Selection */}
+          {/* Compact Config Form */}
+          <div className="space-y-2">
             <div>
-              <label className="block text-sm font-medium mb-2">Sampling Method</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Method</label>
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value as DoEMethod)}
-                className="w-full px-3 py-2 border rounded-md bg-background"
+                className="w-full px-2 py-1.5 text-sm border rounded bg-background"
               >
-                <option value="lhs">Latin Hypercube Sampling (LHS)</option>
-                <option value="sobol">Sobol Sequence</option>
-                <option value="halton">Halton Sequence</option>
-                <option value="hammersly">Hammersly Sequence</option>
-                <option value="random">Random Sampling</option>
+                <option value="lhs">LHS</option>
+                <option value="sobol">Sobol</option>
+                <option value="halton">Halton</option>
+                <option value="hammersly">Hammersly</option>
+                <option value="random">Random</option>
               </select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {method === 'lhs' && 'Space-filling design with maximin criterion'}
-                {method === 'sobol' && 'Quasi-random low-discrepancy sequence'}
-                {method === 'halton' && 'Deterministic quasi-random sequence'}
-                {method === 'hammersly' && 'Hybrid quasi-random sequence'}
-                {method === 'random' && 'Uniform random sampling'}
-              </p>
             </div>
 
-            {/* Number of Points */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Number of Points</label>
-              <input
-                type="number"
-                min={1}
-                max={1000}
-                value={nPoints}
-                onChange={(e) => setNPoints(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Recommended: 5-20 × number of variables ({variables.length} vars)
-              </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Points</label>
+                <input
+                  type="number"
+                  value={nPoints}
+                  onChange={(e) => setNPoints(parseInt(e.target.value) || 10)}
+                  min={5}
+                  max={100}
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-background"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Seed (opt)</label>
+                <input
+                  type="number"
+                  value={randomSeed}
+                  onChange={(e) => setRandomSeed(e.target.value)}
+                  placeholder="Auto"
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-background"
+                />
+              </div>
             </div>
 
-            {/* LHS Criterion (only for LHS) */}
             {method === 'lhs' && (
               <div>
-                <label className="block text-sm font-medium mb-2">LHS Criterion</label>
+                <label className="text-xs text-muted-foreground mb-1 block">LHS Criterion</label>
                 <select
                   value={lhsCriterion}
                   onChange={(e) => setLhsCriterion(e.target.value as LHSCriterion)}
-                  className="w-full px-3 py-2 border rounded-md bg-background"
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-background"
                 >
                   <option value="maximin">Maximin</option>
                   <option value="correlation">Correlation</option>
@@ -134,82 +130,57 @@ export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
                 </select>
               </div>
             )}
-
-            {/* Random Seed */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Random Seed (Optional)</label>
-              <input
-                type="text"
-                value={randomSeed}
-                onChange={(e) => setRandomSeed(e.target.value)}
-                placeholder="e.g., 42"
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                For reproducible designs
-              </p>
-            </div>
           </div>
 
-          {/* Generate Button */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={handleGenerate}
-              disabled={generateDesign.isPending}
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generateDesign.isPending ? 'Generating...' : 'Generate Design'}
-            </button>
+          <button
+            onClick={handleGenerate}
+            disabled={generateDesign.isPending || !hasVariables}
+            className="w-full bg-primary text-primary-foreground px-3 py-2 rounded text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          >
+            {generateDesign.isPending ? 'Generating...' : 'Generate Design'}
+          </button>
 
-            {generatedPoints && generatedPoints.length > 0 && (
-              <button
-                onClick={handleDownloadCSV}
-                className="bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/90 flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Download CSV
-              </button>
-            )}
-          </div>
-
-          {/* Generated Points Table */}
+          {/* Results - Compact */}
           {generatedPoints && generatedPoints.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-muted/50 px-4 py-2 border-b">
-                <h3 className="font-semibold">
-                  Generated {generatedPoints.length} Design Points
-                </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  {generatedPoints.length} points generated
+                </span>
+                <button
+                  onClick={handleDownloadCSV}
+                  className="flex items-center gap-1 text-xs border px-2 py-1 rounded hover:bg-accent"
+                >
+                  <Download className="h-3 w-3" />
+                  CSV
+                </button>
               </div>
-              <div className="overflow-x-auto max-h-96">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 border-b sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">#</th>
-                      {Object.keys(generatedPoints[0]).map((col) => (
-                        <th key={col} className="px-3 py-2 text-left font-medium">
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {generatedPoints.map((point, idx) => (
-                      <tr key={idx} className="hover:bg-accent/50">
-                        <td className="px-3 py-2 text-muted-foreground">{idx + 1}</td>
-                        {Object.entries(point).map(([key, value]) => (
-                          <td key={key} className="px-3 py-2">
-                            {typeof value === 'number' 
-                              ? value.toFixed(3) 
-                              : value}
-                          </td>
+              
+              <div className="border rounded overflow-hidden">
+                <div className="overflow-x-auto max-h-48">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 border-b sticky top-0">
+                      <tr>
+                        {Object.keys(generatedPoints[0]).map((key) => (
+                          <th key={key} className="px-2 py-1 text-left font-medium">
+                            {key}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="bg-muted/30 border-t px-4 py-2 text-sm text-muted-foreground">
-                💡 Download this as CSV and evaluate these experiments, then upload the results
+                    </thead>
+                    <tbody className="divide-y">
+                      {generatedPoints.map((point, idx) => (
+                        <tr key={idx} className="hover:bg-accent/50">
+                          {Object.values(point).map((val, i) => (
+                            <td key={i} className="px-2 py-1 tabular-nums">
+                              {typeof val === 'number' ? val.toFixed(3) : val}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

@@ -3,19 +3,15 @@
  * Mimics desktop UI visualizations.py window structure
  */
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { ParityPlot } from './ParityPlot';
 import { MetricsPlot } from './MetricsPlot';
 import { QQPlot } from './QQPlot';
 import { CalibrationCurve } from './CalibrationCurve';
 import { ContourPlot } from './ContourPlot';
-import { HyperparametersDisplay } from './HyperparametersDisplay';
 
 interface VisualizationsPanelProps {
   sessionId: string;
-  isOpen: boolean;
-  onClose: () => void;
-  modelBackend?: string;
+  embedded?: boolean; // NEW: if true, render without modal wrapper
 }
 
 type PlotType = 'parity' | 'metrics' | 'qq' | 'calibration' | 'contour';
@@ -23,37 +19,22 @@ type MetricType = 'RMSE' | 'MAE' | 'MAPE' | 'R2';
 
 export function VisualizationsPanel({ 
   sessionId, 
-  isOpen, 
-  onClose 
+  embedded = false 
 }: VisualizationsPanelProps) {
   const [activePlot, setActivePlot] = useState<PlotType>('parity');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('RMSE');
   const [sigmaMultiplier, setSigmaMultiplier] = useState<string>('1.96');
   const [useCalibrated, setUseCalibrated] = useState(false);
 
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-2xl font-bold">Model Visualizations</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-accent rounded-md transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Controls Row 1 - Plot Selection */}
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="flex flex-wrap gap-2">
+  const content = (
+    <>
+      {/* Controls Row 1 - Plot Selection */}
+      <div className="p-3 border-b border-border bg-muted/30">
+        <div className="flex flex-wrap gap-1.5">
             {/* Plot Type Buttons */}
             <button
               onClick={() => setActivePlot('parity')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activePlot === 'parity'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -63,7 +44,7 @@ export function VisualizationsPanel({
             </button>
             <button
               onClick={() => setActivePlot('metrics')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activePlot === 'metrics'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -73,7 +54,7 @@ export function VisualizationsPanel({
             </button>
             <button
               onClick={() => setActivePlot('qq')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activePlot === 'qq'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -83,7 +64,7 @@ export function VisualizationsPanel({
             </button>
             <button
               onClick={() => setActivePlot('calibration')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activePlot === 'calibration'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -93,7 +74,7 @@ export function VisualizationsPanel({
             </button>
             <button
               onClick={() => setActivePlot('contour')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activePlot === 'contour'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted hover:bg-muted/80'
@@ -107,7 +88,7 @@ export function VisualizationsPanel({
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value as MetricType)}
-                className="px-3 py-2 bg-background border border-input rounded-md text-sm"
+                className="px-2.5 py-1.5 bg-background border border-input rounded-md text-xs"
               >
                 <option value="RMSE">RMSE</option>
                 <option value="MAE">MAE</option>
@@ -119,13 +100,13 @@ export function VisualizationsPanel({
             {/* Sigma Multiplier (for parity plot) */}
             {activePlot === 'parity' && (
               <>
-                <span className="flex items-center text-sm text-muted-foreground ml-4">
+                <span className="flex items-center text-xs text-muted-foreground ml-2">
                   Error bars:
                 </span>
                 <select
                   value={sigmaMultiplier}
                   onChange={(e) => setSigmaMultiplier(e.target.value)}
-                  className="px-3 py-2 bg-background border border-input rounded-md text-sm"
+                  className="px-2.5 py-1.5 bg-background border border-input rounded-md text-xs"
                 >
                   <option value="None">None</option>
                   <option value="1.0">1.0σ (68%)</option>
@@ -141,13 +122,13 @@ export function VisualizationsPanel({
 
         {/* Controls Row 2 - Calibration Toggle */}
         {(activePlot === 'parity' || activePlot === 'qq' || activePlot === 'calibration') && (
-          <div className="px-4 py-2 border-b border-border bg-muted/20">
-            <label className="flex items-center gap-2 text-sm">
+          <div className="px-3 py-1.5 border-b border-border bg-muted/20">
+            <label className="flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
                 checked={useCalibrated}
                 onChange={(e) => setUseCalibrated(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300"
+                className="w-3.5 h-3.5 rounded border-gray-300"
               />
               <span>Use Calibrated Results</span>
             </label>
@@ -155,7 +136,7 @@ export function VisualizationsPanel({
         )}
 
         {/* Main Content Area - Plot Display */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4">
           {activePlot === 'parity' && (
             <ParityPlot
               sessionId={sessionId}
@@ -183,16 +164,27 @@ export function VisualizationsPanel({
             />
           )}
           {/* ContourPlot always mounted but hidden to preserve state */}
-          <div className={activePlot === 'contour' ? 'block' : 'hidden'}>
+          <div className={activePlot === 'contour' ? 'block h-full' : 'hidden'}>
             <ContourPlot sessionId={sessionId} />
           </div>
         </div>
 
-        {/* Footer - Hyperparameters */}
-        <div className="border-t border-border">
-          <HyperparametersDisplay sessionId={sessionId} />
-        </div>
-      </div>
-    </div>
+        {/* Footer - Plot Customizations (only for contour plot) */}
+        {activePlot === 'contour' && (
+          <div className="border-t border-border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground text-center">
+              Use the panel on the right to customize contour plot options
+            </div>
+          </div>
+        )}
+    </>
   );
+
+  // Embedded mode - render without modal wrapper
+  if (embedded) {
+    return <div className="h-full flex flex-col bg-card">{content}</div>;
+  }
+
+  // No modal mode supported anymore - visualizations are always embedded
+  return null;
 }

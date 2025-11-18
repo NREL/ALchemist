@@ -16,6 +16,7 @@ tests/test_autonomous_api.py
 tests/catalyst_search_space.json
 tests/test_catalyst_workflow.py
 test_core.ipynb
+logo-development.pptx
 
 # Python-related
 __pycache__/

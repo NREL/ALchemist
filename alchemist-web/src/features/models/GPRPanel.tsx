@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useModelInfo, useTrainModel } from '../../hooks/api/useModels';
 import { useExperimentsSummary } from '../../hooks/api/useExperiments';
-import { VisualizationsPanel } from '../../components/visualizations';
+import { useVisualization } from '../../providers/VisualizationProvider';
 import type { 
   ModelBackend, 
   KernelType, 
@@ -28,9 +28,6 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
   const [backend, setBackend] = useState<ModelBackend>('sklearn');
   const [advancedEnabled, setAdvancedEnabled] = useState(false);
   
-  // Visualizations panel state
-  const [showVisualizations, setShowVisualizations] = useState(false);
-  
   // Sklearn-specific state
   const [skKernel, setSkKernel] = useState<KernelType>('RBF');
   const [skMaternNu, setSkMaternNu] = useState<MaternNu>('1.5');
@@ -50,6 +47,7 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
   const { data: modelInfo } = useModelInfo(sessionId);
   const { data: experimentsSummary } = useExperimentsSummary(sessionId);
   const trainModel = useTrainModel(sessionId);
+  const { openVisualization } = useVisualization();
   
   // Check if enough data exists
   const hasEnoughData = experimentsSummary?.has_data && 
@@ -94,12 +92,12 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
   };
   
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <h2 className="text-2xl font-bold mb-6">Gaussian Process Model</h2>
+    <div className="rounded-lg border bg-card p-4">
+      <h2 className="text-sm font-semibold mb-4 uppercase tracking-wide text-muted-foreground border-b pb-2">Gaussian Process Model</h2>
       
       {/* Backend Selection */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">Backend</label>
+      <div className="mb-3">
+        <label className="block text-xs font-medium mb-1.5">Backend</label>
         <div className="flex gap-2">
           <button
             onClick={() => setBackend('sklearn')}
@@ -119,7 +117,7 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            botorch
+            BoTorch
           </button>
         </div>
       </div>
@@ -138,16 +136,16 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
         
         {/* Scikit-learn Options */}
         {backend === 'sklearn' && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-3 space-y-2.5">
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Kernel Selection
               </label>
               <select
                 value={skKernel}
                 onChange={(e) => setSkKernel(e.target.value as KernelType)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="RBF">RBF</option>
                 <option value="Matern">Matern</option>
@@ -157,14 +155,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             
             {skKernel === 'Matern' && (
               <div>
-                <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+                <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                   Matern nu
                 </label>
                 <select
                   value={skMaternNu}
                   onChange={(e) => setSkMaternNu(e.target.value as MaternNu)}
                   disabled={!advancedEnabled}
-                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                  className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
                 >
                   <option value="0.5">0.5</option>
                   <option value="1.5">1.5</option>
@@ -179,14 +177,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             </div>
             
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Optimizer
               </label>
               <select
                 value={skOptimizer}
                 onChange={(e) => setSkOptimizer(e.target.value as SklearnOptimizer)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="CG">CG</option>
                 <option value="BFGS">BFGS</option>
@@ -196,14 +194,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             </div>
             
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Input Scaling
               </label>
               <select
                 value={skInputTransform}
                 onChange={(e) => setSkInputTransform(e.target.value as SklearnInputTransform)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="none">none</option>
                 <option value="minmax">minmax</option>
@@ -213,14 +211,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             </div>
             
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Output Scaling
               </label>
               <select
                 value={skOutputTransform}
                 onChange={(e) => setSkOutputTransform(e.target.value as SklearnOutputTransform)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="none">none</option>
                 <option value="minmax">minmax</option>
@@ -235,9 +233,9 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
                 checked={skCalibrateUncertainty}
                 onChange={(e) => setSkCalibrateUncertainty(e.target.checked)}
                 disabled={!advancedEnabled}
-                className="w-4 h-4 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-3.5 h-3.5 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <span className={`text-sm ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <span className={`text-xs ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Calibrate Uncertainty
               </span>
             </label>
@@ -246,16 +244,16 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
         
         {/* BoTorch Options */}
         {backend === 'botorch' && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-3 space-y-2.5">
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Continuous Kernel
               </label>
               <select
                 value={btKernel}
                 onChange={(e) => setBtKernel(e.target.value as KernelType)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="RBF">RBF</option>
                 <option value="Matern">Matern</option>
@@ -264,14 +262,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             
             {btKernel === 'Matern' && (
               <div>
-                <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+                <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                   Matern nu
                 </label>
                 <select
                   value={btMaternNu}
                   onChange={(e) => setBtMaternNu(e.target.value as MaternNu)}
                   disabled={!advancedEnabled}
-                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                  className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
                 >
                   <option value="0.5">0.5</option>
                   <option value="1.5">1.5</option>
@@ -285,14 +283,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             </div>
             
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Input Scaling
               </label>
               <select
                 value={btInputTransform}
                 onChange={(e) => setBtInputTransform(e.target.value as BoTorchInputTransform)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="none">none</option>
                 <option value="normalize">normalize</option>
@@ -301,14 +299,14 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
             </div>
             
             <div>
-              <label className={`block text-sm mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <label className={`block text-xs mb-1 ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Output Scaling
               </label>
               <select
                 value={btOutputTransform}
                 onChange={(e) => setBtOutputTransform(e.target.value as BoTorchOutputTransform)}
                 disabled={!advancedEnabled}
-                className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
               >
                 <option value="none">none</option>
                 <option value="standardize">standardize</option>
@@ -321,9 +319,9 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
                 checked={btCalibrateUncertainty}
                 onChange={(e) => setBtCalibrateUncertainty(e.target.checked)}
                 disabled={!advancedEnabled}
-                className="w-4 h-4 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-3.5 h-3.5 rounded border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <span className={`text-sm ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
+              <span className={`text-xs ${!advancedEnabled ? 'text-muted-foreground' : ''}`}>
                 Calibrate Uncertainty
               </span>
             </label>
@@ -335,17 +333,17 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
       <button
         onClick={handleTrainModel}
         disabled={!hasEnoughData || trainModel.isPending}
-        className="w-full bg-primary text-primary-foreground px-4 py-3 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+        className="w-full bg-primary text-primary-foreground px-3 py-2 rounded-md text-xs hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
       >
-        {trainModel.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+        {trainModel.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
         {trainModel.isPending ? 'Training Model...' : 'Train Model'}
       </button>
       
       {/* Data validation message */}
       {!hasEnoughData && (
-        <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-700 dark:text-amber-500">
+        <div className="mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-start gap-2">
+          <AlertCircle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-500">
             {experimentsSummary?.n_experiments
               ? `Need at least 5 experiments (currently ${experimentsSummary.n_experiments})`
               : 'No experimental data loaded. Please load experiments first.'}
@@ -355,9 +353,9 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
       
       {/* Training Success Message */}
       {trainModel.isSuccess && trainModel.data && (
-        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-md flex items-start gap-2">
-          <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
+        <div className="mt-3 p-2.5 bg-green-500/10 border border-green-500/20 rounded-md flex items-start gap-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div className="text-xs">
             <p className="font-medium text-green-700 dark:text-green-500">
               {trainModel.data.message}
             </p>
@@ -367,10 +365,10 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
       
       {/* Model Info Display */}
       {modelInfo?.is_trained && (
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg space-y-3">
-          <h3 className="font-semibold text-sm">Trained Model Info</h3>
+        <div className="mt-4 p-3 bg-muted/50 rounded-lg space-y-2.5">
+          <h3 className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Trained Model Info</h3>
           
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
             <div>
               <span className="text-muted-foreground">Backend:</span>{' '}
               <span className="font-medium">{modelInfo.backend}</span>
@@ -379,8 +377,8 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
           
           {modelInfo.metrics && (
             <div>
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Cross-Validation Metrics</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Cross-Validation Metrics</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-muted-foreground">RMSE:</span>{' '}
                   <span className="font-medium">{modelInfo.metrics.rmse.toFixed(4)}</span>
@@ -404,7 +402,7 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
           )}
           
           {/* Hyperparameters - collapsed by default */}
-          <details className="text-sm">
+          <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium">
               View Hyperparameters
             </summary>
@@ -416,22 +414,15 @@ export function GPRPanel({ sessionId }: GPRPanelProps) {
       )}
       
       {/* Visualization Button */}
-      <button
-        onClick={() => setShowVisualizations(true)}
-        disabled={!modelInfo?.is_trained}
-        className="w-full mt-4 border border-primary text-primary hover:bg-primary hover:text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-primary flex items-center justify-center gap-2"
-      >
-        <LineChart className="w-4 h-4" />
-        Show Model Visualizations
-      </button>
-      
-      {/* Visualizations Modal */}
-      <VisualizationsPanel
-        sessionId={sessionId}
-        isOpen={showVisualizations}
-        onClose={() => setShowVisualizations(false)}
-        modelBackend={modelInfo?.backend || undefined}
-      />
+      {modelInfo?.is_trained && modelInfo.backend && (
+        <button
+          onClick={() => openVisualization(sessionId, modelInfo.backend!)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+        >
+          <LineChart className="h-3.5 w-3.5" />
+          Show Visualizations
+        </button>
+      )}
     </div>
   );
 }

@@ -140,19 +140,19 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
   };
   
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <h2 className="text-2xl font-bold mb-6">Acquisition Functions</h2>
+    <div className="rounded-lg border bg-card p-4">
+      <h2 className="text-sm font-semibold mb-4 uppercase tracking-wide text-muted-foreground border-b pb-2">Acquisition Functions</h2>
       
       {/* Scikit-learn Options */}
       {activeBackend === 'sklearn' && (
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           <div>
-            <label className="block text-sm font-medium mb-2">Acquisition Strategy</label>
+            <label className="block text-xs font-medium mb-1.5">Acquisition Strategy</label>
             <select
               value={skStrategy}
               onChange={(e) => setSkStrategy(e.target.value)}
               disabled={!modelTrained}
-              className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+              className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
             >
               <option value="EI">Expected Improvement (EI)</option>
               <option value="UCB">Upper Confidence Bound (UCB)</option>
@@ -162,12 +162,12 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-2">Optimization Goal</label>
-            <div className="flex gap-2">
+            <label className="block text-xs font-medium mb-1.5">Optimization Goal</label>
+            <div className="flex gap-1.5">
               <button
                 onClick={() => setSkGoal('maximize')}
                 disabled={!modelTrained}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   skGoal === 'maximize'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -178,7 +178,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               <button
                 onClick={() => setSkGoal('minimize')}
                 disabled={!modelTrained}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   skGoal === 'minimize'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -189,15 +189,15 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
             </div>
           </div>
           
-          <div className="border-t pt-4">
-            <label className="block text-sm font-medium mb-3">Acquisition Parameters</label>
+          <div className="border-t pt-3">
+            <label className="block text-xs font-medium mb-2">Acquisition Parameters</label>
             
             {/* Xi parameter (for EI, PI, GP Hedge) */}
             {(skStrategy === 'EI' || skStrategy === 'PI' || skStrategy === 'gp_hedge') && (
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm">ξ (xi):</span>
-                  <span className="text-sm font-medium">{skXi.toFixed(4)}</span>
+              <div className="mb-3">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-xs">ξ (xi):</span>
+                  <span className="text-xs font-medium">{skXi.toFixed(4)}</span>
                 </div>
                 <input
                   type="range"
@@ -217,10 +217,10 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
             
             {/* Kappa parameter (for UCB, GP Hedge) */}
             {(skStrategy === 'UCB' || skStrategy === 'gp_hedge') && (
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm">κ (kappa):</span>
-                  <span className="text-sm font-medium">{skKappa.toFixed(2)}</span>
+              <div className="mb-3">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-xs">κ (kappa):</span>
+                  <span className="text-xs font-medium">{skKappa.toFixed(2)}</span>
                 </div>
                 <input
                   type="range"
@@ -243,9 +243,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
       
       {/* BoTorch Options */}
       {activeBackend === 'botorch' && (
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           <div>
-            <label className="block text-sm font-medium mb-2">Acquisition Type</label>
+            <label className="block text-xs font-medium mb-1.5">Acquisition Type</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setBtAcqType('regular')}
@@ -287,12 +287,12 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
           {btAcqType === 'regular' && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-2">Acquisition Function</label>
+                <label className="block text-xs font-medium mb-1.5">Acquisition Function</label>
                 <select
                   value={btRegularStrategy}
                   onChange={(e) => setBtRegularStrategy(e.target.value)}
                   disabled={!modelTrained}
-                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                  className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
                 >
                   <option value="EI">Expected Improvement</option>
                   <option value="logEI">Log Expected Improvement</option>
@@ -303,7 +303,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Optimization Goal</label>
+                <label className="block text-xs font-medium mb-1.5">Optimization Goal</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setBtGoal('maximize')}
@@ -336,12 +336,12 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
           {btAcqType === 'batch' && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-2">Batch Acquisition Function</label>
+                <label className="block text-xs font-medium mb-1.5">Batch Acquisition Function</label>
                 <select
                   value={btBatchStrategy}
                   onChange={(e) => setBtBatchStrategy(e.target.value)}
                   disabled={!modelTrained}
-                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                  className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
                 >
                   <option value="qEI">q-Expected Improvement</option>
                   <option value="qUCB">q-Upper Confidence Bound</option>
@@ -349,12 +349,12 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Batch Size (q)</label>
+                <label className="block text-xs font-medium mb-1.5">Batch Size (q)</label>
                 <select
                   value={btBatchSize}
                   onChange={(e) => setBtBatchSize(parseInt(e.target.value))}
                   disabled={!modelTrained}
-                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
+                  className="w-full px-2.5 py-1.5 text-xs border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-background"
                 >
                   {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((size) => (
                     <option key={size} value={size}>{size}</option>
@@ -364,9 +364,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               
               {btBatchStrategy === 'qUCB' && (
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm">β (beta):</span>
-                    <span className="text-sm font-medium">{btBeta.toFixed(2)}</span>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-xs">β (beta):</span>
+                    <span className="text-xs font-medium">{btBeta.toFixed(2)}</span>
                   </div>
                   <input
                     type="range"
@@ -382,7 +382,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               )}
               
               <div>
-                <label className="block text-sm font-medium mb-2">Optimization Goal</label>
+                <label className="block text-xs font-medium mb-1.5">Optimization Goal</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setBtGoal('maximize')}
@@ -413,9 +413,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
           
           {/* Exploratory Acquisition */}
           {btAcqType === 'exploratory' && (
-            <div className="p-4 bg-muted/30 rounded-lg">
-              <h3 className="font-semibold mb-2">Integrated Posterior Variance</h3>
-              <p className="text-sm text-muted-foreground">
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <h3 className="font-semibold text-xs mb-1.5">Integrated Posterior Variance</h3>
+              <p className="text-xs text-muted-foreground">
                 This purely exploratory acquisition function selects points to reduce model uncertainty, 
                 without considering optimization goals.
               </p>
@@ -423,10 +423,10 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
           )}
           
           {/* Strategy Description */}
-          <div className="p-3 bg-muted/20 rounded-lg border border-muted">
+          <div className="p-2.5 bg-muted/20 rounded-lg border border-muted">
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {strategyDescriptions[getCurrentStrategy()]}
               </p>
             </div>
@@ -438,9 +438,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
       <button
         onClick={handleRunStrategy}
         disabled={!modelTrained || suggestNext.isPending}
-        className="w-full mt-6 bg-primary text-primary-foreground px-4 py-3 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+        className="w-full mt-4 bg-primary text-primary-foreground px-3 py-2 rounded-md text-xs hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
       >
-        <Play className="w-4 h-4" />
+        <Play className="w-3.5 h-3.5" />
         {suggestNext.isPending ? 'Generating Suggestions...' : 'Run Acquisition Strategy'}
       </button>
       
@@ -454,10 +454,10 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
       {/* Display suggestions */}
       {suggestNext.isSuccess && suggestNext.data && (
         <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-          <h3 className="font-semibold text-sm mb-3">Suggested Experiments</h3>
+          <h3 className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-2">Suggested Experiments</h3>
           <div className="space-y-2">
             {suggestNext.data.suggestions.map((suggestion, idx) => (
-              <div key={idx} className="p-3 bg-background rounded border text-sm">
+              <div key={idx} className="p-2.5 bg-background rounded border text-xs">
                 <div className="font-medium mb-1">Suggestion {idx + 1}:</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {Object.entries(suggestion).map(([key, value]) => (
@@ -479,15 +479,15 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
       <div className="my-8 border-t border-border" />
       
       {/* Model Optimum Section */}
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         <h3 className="text-lg font-semibold">Model Prediction Optimum</h3>
         
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Find the point where the model predicts the optimal value.
         </p>
         
         <div>
-          <label className="block text-sm font-medium mb-2">Optimization Goal</label>
+          <label className="block text-xs font-medium mb-1.5">Optimization Goal</label>
           <div className="flex gap-2">
             <button
               onClick={() => setOptimumGoal('maximize')}
@@ -517,9 +517,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
         <button
           onClick={handleFindOptimum}
           disabled={!modelTrained || findOptimum.isPending}
-          className="w-full bg-secondary text-secondary-foreground px-4 py-3 rounded-md hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+          className="w-full bg-secondary text-secondary-foreground px-3 py-2 rounded-md text-xs hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
         >
-          <Target className="w-4 h-4" />
+          <Target className="w-3.5 h-3.5" />
           {findOptimum.isPending ? 'Finding Optimum...' : 'Find Model Optimum'}
         </button>
         
@@ -537,7 +537,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
               Model Optimum Found
             </h4>
             <div className="space-y-2">
-              <div className="p-3 bg-background rounded border text-sm">
+              <div className="p-2.5 bg-background rounded border text-xs">
                 <div className="font-medium mb-1">Optimal Point:</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {Object.entries(findOptimum.data.optimum).map(([key, value]) => (

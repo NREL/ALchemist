@@ -98,12 +98,12 @@ export function MetricsPlot({ sessionId, selectedMetric, cvSplits }: MetricsPlot
   return (
     <div className="w-full h-full flex flex-col">
       {/* Title */}
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-semibold">{metricTitles[selectedMetric]}</h3>
+      <div className="text-center mb-3">
+        <h3 className="text-sm font-medium">{metricTitles[selectedMetric]}</h3>
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-[500px]">
+      <div className="flex-1 min-h-0 max-h-[450px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 20, right: 30, bottom: 50, left: 50 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -131,7 +131,7 @@ export function MetricsPlot({ sessionId, selectedMetric, cvSplits }: MetricsPlot
               dataKey="value"
               stroke="#3b82f6"
               strokeWidth={2}
-              dot={{ r: 4 }}
+              dot={{ r: 4, fill: 'white', stroke: '#3b82f6', strokeWidth: 2 }}
               name={metricLabels[selectedMetric]}
             />
           </LineChart>

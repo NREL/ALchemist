@@ -38,76 +38,65 @@ export function ExperimentsPanel({ sessionId }: ExperimentsPanelProps) {
   const columns = hasExperiments ? Object.keys(experiments[0]) : [];
 
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <h2 className="text-2xl font-bold mb-6">Experiment Data</h2>
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b pb-2">
+        Experiment Data
+      </h3>
       
-      {/* Controls */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={handleLoadFromFile}
-          disabled={uploadExperiments.isPending}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {uploadExperiments.isPending ? 'Loading...' : 'Load from CSV'}
-        </button>
-        
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={handleFileSelected}
-          className="hidden"
-        />
-      </div>
+      {/* Controls - Compact */}
+      <button
+        onClick={handleLoadFromFile}
+        disabled={uploadExperiments.isPending}
+        className="w-full bg-primary text-primary-foreground px-3 py-2 rounded text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+      >
+        {uploadExperiments.isPending ? 'Loading...' : 'Load CSV'}
+      </button>
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleFileSelected}
+        className="hidden"
+      />
 
-      {/* Summary Stats */}
+      {/* Summary Stats - Compact */}
       {summaryData && summaryData.has_data && (
-        <div className="mb-4 p-4 bg-muted/50 rounded-lg">
-          <h3 className="font-semibold mb-2">Summary Statistics</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="text-muted-foreground">Experiments:</span>{' '}
-              <span className="font-medium">{summaryData.n_experiments}</span>
-            </div>
-            {summaryData.target_stats && (
-              <>
-                <div>
-                  <span className="text-muted-foreground">Mean Output:</span>{' '}
-                  <span className="font-medium">{summaryData.target_stats.mean?.toFixed(3)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Std Dev:</span>{' '}
-                  <span className="font-medium">{summaryData.target_stats.std?.toFixed(3)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Range:</span>{' '}
-                  <span className="font-medium">
-                    {summaryData.target_stats.min?.toFixed(3)} - {summaryData.target_stats.max?.toFixed(3)}
-                  </span>
-                </div>
-              </>
-            )}
-            {summaryData.has_noise && (
-              <div className="col-span-2">
-                <span className="text-muted-foreground">✓ Noise data included</span>
-              </div>
-            )}
+        <div className="p-3 bg-muted/30 rounded text-xs space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Experiments:</span>
+            <span className="font-medium tabular-nums">{summaryData.n_experiments}</span>
           </div>
+          {summaryData.target_stats && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Range:</span>
+                <span className="font-medium tabular-nums">
+                  {summaryData.target_stats.min?.toFixed(2)} - {summaryData.target_stats.max?.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Mean ± Std:</span>
+                <span className="font-medium tabular-nums">
+                  {summaryData.target_stats.mean?.toFixed(2)} ± {summaryData.target_stats.std?.toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {/* Experiments Table */}
+      {/* Experiments Table - Compact */}
       {isLoadingExperiments ? (
-        <div className="text-muted-foreground">Loading experiments...</div>
+        <div className="text-xs text-muted-foreground">Loading...</div>
       ) : hasExperiments ? (
-        <div className="border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto max-h-96">
-            <table className="w-full text-sm">
+        <div className="border rounded overflow-hidden">
+          <div className="overflow-x-auto max-h-64">
+            <table className="w-full text-xs">
               <thead className="bg-muted/50 border-b sticky top-0">
                 <tr>
                   {columns.map((col) => (
-                    <th key={col} className="px-3 py-2 text-left font-medium">
+                    <th key={col} className="px-2 py-1.5 text-left font-medium text-xs">
                       {col}
                     </th>
                   ))}
@@ -117,7 +106,7 @@ export function ExperimentsPanel({ sessionId }: ExperimentsPanelProps) {
                 {experiments.map((exp, idx) => (
                   <tr key={idx} className="hover:bg-accent/50">
                     {columns.map((col) => (
-                      <td key={col} className="px-3 py-2">
+                      <td key={col} className="px-2 py-1.5 tabular-nums">
                         {typeof exp[col] === 'number' 
                           ? exp[col].toFixed(3) 
                           : exp[col] ?? '-'}
@@ -129,17 +118,13 @@ export function ExperimentsPanel({ sessionId }: ExperimentsPanelProps) {
             </table>
           </div>
           
-          {/* Footer */}
-          <div className="bg-muted/30 border-t px-4 py-2 text-sm text-muted-foreground">
-            {experiments.length} experiment{experiments.length !== 1 ? 's' : ''} loaded
+          <div className="bg-muted/30 border-t px-2 py-1 text-xs text-muted-foreground">
+            {experiments.length} row{experiments.length !== 1 ? 's' : ''}
           </div>
         </div>
       ) : (
-        <div className="border border-dashed border-muted-foreground/25 rounded-lg p-12 text-center">
-          <p className="text-muted-foreground mb-2">No experiments loaded yet</p>
-          <p className="text-sm text-muted-foreground">
-            Click "Load from CSV" to import experimental data
-          </p>
+        <div className="border border-dashed border-muted-foreground/20 rounded p-6 text-center">
+          <p className="text-xs text-muted-foreground">No data loaded</p>
         </div>
       )}
     </div>

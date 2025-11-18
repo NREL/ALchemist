@@ -99,10 +99,10 @@ export function CalibrationCurve({ sessionId, useCalibrated }: CalibrationCurveP
   return (
     <div className="w-full h-full flex flex-col">
       {/* Title */}
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-semibold whitespace-pre-line">{title}</h3>
+      <div className="text-center mb-3">
+        <h3 className="text-sm font-medium whitespace-pre-line leading-tight">{title}</h3>
         {data.n_samples < 30 && (
-          <p className="text-sm text-yellow-600 mt-2">
+          <p className="text-xs text-yellow-600 mt-1.5">
             ⚠ WARNING: Small sample size (N &lt; 30). Coverage estimates may be noisy.
           </p>
         )}
@@ -111,7 +111,7 @@ export function CalibrationCurve({ sessionId, useCalibrated }: CalibrationCurveP
       {/* Chart and Metrics Side by Side */}
       <div className="flex-1 flex gap-6">
         {/* Chart */}
-        <div className="flex-1 min-h-[500px]">
+        <div className="flex-1 min-h-0 max-h-[450px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 20, right: 30, bottom: 50, left: 50 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -156,7 +156,7 @@ export function CalibrationCurve({ sessionId, useCalibrated }: CalibrationCurveP
                 dataKey="empirical"
                 stroke="#3b82f6"
                 strokeWidth={2}
-                dot={{ r: 4 }}
+                dot={{ r: 4, fill: 'white', stroke: '#3b82f6', strokeWidth: 2 }}
                 name="Empirical coverage"
               />
 
@@ -168,8 +168,8 @@ export function CalibrationCurve({ sessionId, useCalibrated }: CalibrationCurveP
         </div>
 
         {/* Metrics Table */}
-        <div className="w-80 bg-muted/30 rounded-lg p-4 overflow-auto">
-          <h4 className="font-semibold mb-3">Coverage Metrics</h4>
+        <div className="w-80 bg-muted/30 rounded-lg p-3 overflow-auto">
+          <h4 className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-2">Coverage Metrics</h4>
           <div className="text-xs">
             <table className="w-full">
               <thead className="border-b border-border">

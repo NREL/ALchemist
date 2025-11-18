@@ -26,7 +26,7 @@ export function HyperparametersDisplay({ sessionId }: HyperparametersDisplayProp
 
   return (
     <div className="p-4">
-      <h3 className="text-lg font-semibold mb-2">Learned Hyperparameters</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Learned Hyperparameters</h3>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
         {Object.entries(data.hyperparameters).map(([key, value]) => (
           <div key={key} className="flex flex-col">

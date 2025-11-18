@@ -52,71 +52,64 @@ export function VariablesPanel({ sessionId }: VariablesPanelProps) {
   };
 
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <h2 className="text-2xl font-bold mb-6">Search Space Setup</h2>
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b pb-2">
+        Variable Management
+      </h3>
       
-      {/* Main layout: left panel (variables) + right panel (controls) */}
-      <div className="flex gap-6">
-        {/* Left Panel - Variable Display */}
-        <div className="flex-1 space-y-4">
-          {isLoading ? (
-            <div className="text-muted-foreground">Loading variables...</div>
-          ) : variablesData && variablesData.n_variables > 0 ? (
-            <VariableList 
-              variables={variablesData.variables} 
-              sessionId={sessionId}
-              onEdit={handleEditVariable}
-            />
-          ) : (
-            <div className="border border-dashed border-muted-foreground/25 rounded-lg p-12 text-center">
-              <p className="text-muted-foreground mb-2">No variables defined yet</p>
-              <p className="text-sm text-muted-foreground">
-                Click "Add Variable" to define your search space
-              </p>
-            </div>
-          )}
+      {/* Variable Display */}
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      ) : variablesData && variablesData.n_variables > 0 ? (
+        <VariableList 
+          variables={variablesData.variables} 
+          sessionId={sessionId}
+          onEdit={handleEditVariable}
+        />
+      ) : (
+        <div className="border border-dashed border-muted-foreground/20 rounded p-6 text-center">
+          <p className="text-xs text-muted-foreground">No variables defined</p>
         </div>
+      )}
 
-        {/* Right Panel - Control Buttons (matches desktop UI) */}
-        <div className="w-40 space-y-2 flex-shrink-0">
+      {/* Control Buttons - Compact */}
+      <div className="flex flex-col gap-1.5">
+        <button
+          onClick={handleAddVariable}
+          className="w-full bg-primary text-primary-foreground px-3 py-2 rounded text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          Add Variable
+        </button>
+        
+        <div className="flex gap-1.5">
           <button
-            onClick={handleAddVariable}
-            className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 text-sm"
+            onClick={handleLoadFromFile}
+            disabled={loadFromFile.isPending}
+            className="flex-1 border border-input px-3 py-1.5 rounded text-xs hover:bg-accent disabled:opacity-50"
           >
-            Add Variable
+            Load File
           </button>
           
-          <div className="pt-4 border-t border-border space-y-2">
-            <p className="text-xs text-muted-foreground px-1 mb-2">File Operations</p>
-            <button
-              onClick={handleLoadFromFile}
-              disabled={loadFromFile.isPending}
-              className="w-full border border-input px-4 py-2 rounded-md hover:bg-accent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loadFromFile.isPending ? 'Loading...' : 'Load from File'}
-            </button>
-            
-            <button
-              onClick={handleExportToFile}
-              disabled={exportToFile.isPending || !variablesData || variablesData.n_variables === 0}
-              className="w-full border border-input px-4 py-2 rounded-md hover:bg-accent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {exportToFile.isPending ? 'Exporting...' : 'Save to File'}
-            </button>
-          </div>
-          
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileSelected}
-            className="hidden"
-          />
+          <button
+            onClick={handleExportToFile}
+            disabled={exportToFile.isPending || !variablesData || variablesData.n_variables === 0}
+            className="flex-1 border border-input px-3 py-1.5 rounded text-xs hover:bg-accent disabled:opacity-50"
+          >
+            Save File
+          </button>
         </div>
       </div>
+      
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleFileSelected}
+        className="hidden"
+      />
 
-      {/* Variable Form Modal/Dialog */}
+      {/* Variable Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-background rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto shadow-xl border">

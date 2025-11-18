@@ -4,48 +4,54 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* Light mode - high contrast for better readability */
+    --background: 0 0% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    /* Brighter primary for better visibility in light mode */
+    --primary: 217 91% 50%;  /* More saturated blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 88%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --muted: 210 40% 93%;
+    --muted-foreground: 215.4 16.3% 40%;  /* Darker for better contrast */
+    --accent: 210 40% 93%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --destructive: 0 84.2% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 85%;
+    --input: 214.3 31.8% 85%;
+    --ring: 217 91% 50%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Darker background matching CustomTkinter dark mode */
+    --background: 220 13% 13%;  /* #1e2228 - darker than default */
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 220 13% 16%;  /* #282e38 - slightly lighter than background */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 220 13% 16%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    /* Brighter blue primary for better plot visibility */
+    --primary: 211 100% 65%;  /* #4da3e3 - lighter/brighter than before for better contrast */
+    --primary-foreground: 220 13% 13%;
+    --secondary: 217.2 32.6% 20%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    /* Muted backgrounds for inputs/disabled states */
+    --muted: 220 13% 20%;
+    --muted-foreground: 215 15% 65%;  /* Slightly brighter for better readability */
+    --accent: 220 13% 20%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 55%;  /* Slightly brighter red for better visibility */
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    /* Subtle borders */
+    --border: 220 13% 24%;
+    --input: 220 13% 24%;
+    --ring: 211 100% 65%;
   }
 }
 
@@ -57,5 +63,59 @@
     @apply bg-background text-foreground;
     margin: 0;
     min-height: 100vh;
+    /* Better font rendering for technical UI */
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+  
+  /* Monospace for code/numbers */
+  code, .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+}
+
+/* Compact styling utilities for desktop-like density */
+@layer utilities {
+  .compact-panel {
+    @apply space-y-3;
+  }
+  
+  .compact-label {
+    @apply text-xs font-medium tracking-wide uppercase text-muted-foreground;
+  }
+  
+  .compact-input {
+    @apply px-2 py-1.5 text-sm;
+  }
+  
+  .compact-button {
+    @apply px-3 py-1.5 text-sm;
+  }
+}
+
+/* Custom scrollbar styling - minimal and theme-aware */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
 }

@@ -99,12 +99,12 @@ export function ParityPlot({ sessionId, useCalibrated, sigmaMultiplier }: Parity
   return (
     <div className="w-full h-full flex flex-col">
       {/* Title */}
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-semibold whitespace-pre-line">{title}</h3>
+      <div className="text-center mb-3">
+        <h3 className="text-sm font-medium whitespace-pre-line leading-tight">{title}</h3>
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-[500px]">
+      <div className="flex-1 min-h-0 max-h-[450px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={{ top: 20, right: 30, bottom: 50, left: 50 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -141,8 +141,10 @@ export function ParityPlot({ sessionId, useCalibrated, sigmaMultiplier }: Parity
             <Scatter
               data={chartData}
               dataKey="predicted"
-              fill="#3b82f6"
-              fillOpacity={0.7}
+              fill="white"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
               name="Predictions"
             >
               {showErrorBars && (

@@ -61,6 +61,31 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
     }));
   }, [data]);
 
+  // Calculate axis limits based on perfect calibration ± 1.96 standard errors
+  const axisLimits = useMemo(() => {
+    if (!data) return { xMin: -3, xMax: 3, yMin: -3, yMax: 3, ticks: [-3, -2, -1, 0, 1, 2, 3] };
+    
+    const se = 1.96 / Math.sqrt(data.n_samples);
+    
+    // X-axis: use the theoretical quantiles range (perfect calibration)
+    const xMin = Math.min(...data.theoretical_quantiles);
+    const xMax = Math.max(...data.theoretical_quantiles);
+    
+    // Y-axis: use sample quantiles range ± 1.96*se
+    const yMin = Math.min(...data.sample_quantiles) - se;
+    const yMax = Math.max(...data.sample_quantiles) + se;
+    
+    // Calculate ticks based on perfect calibration line range
+    const tickMin = Math.ceil(xMin);
+    const tickMax = Math.floor(xMax);
+    const ticks = Array.from(
+      { length: tickMax - tickMin + 1 },
+      (_, i) => tickMin + i
+    );
+    
+    return { xMin, xMax, yMin, yMax, ticks };
+  }, [data]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -111,24 +136,25 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
   return (
     <div className="w-full h-full flex flex-col">
       {/* Title */}
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-semibold whitespace-pre-line">{title}</h3>
+      <div className="text-center mb-3">
+        <h3 className="text-sm font-medium whitespace-pre-line leading-tight">{title}</h3>
         {calibrationMessage && (
-          <p className={`text-sm mt-2 ${isWellCalibrated ? 'text-green-600' : 'text-yellow-600'}`}>
+          <p className={`text-xs mt-1.5 ${isWellCalibrated ? 'text-green-600' : 'text-yellow-600'}`}>
             {calibrationMessage}
           </p>
         )}
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-[500px]">
+      <div className="flex-1 min-h-0 max-h-[450px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={{ top: 20, right: 30, bottom: 50, left: 50 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
               dataKey="theoretical"
               type="number"
-              domain={['auto', 'auto']}
+              domain={[axisLimits.xMin, axisLimits.xMax]}
+              ticks={axisLimits.ticks}
               label={{
                 value: 'Theoretical Quantiles (Standard Normal)',
                 position: 'bottom',
@@ -137,7 +163,8 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
             />
             <YAxis
               type="number"
-              domain={['auto', 'auto']}
+              domain={[axisLimits.yMin, axisLimits.yMax]}
+              ticks={axisLimits.ticks}
               label={{
                 value: 'Observed Quantiles (Standardized Residuals)',
                 angle: -90,
@@ -146,8 +173,8 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
               }}
             />
             <Tooltip
-              formatter={(value: number) => value.toFixed(3)}
-              labelFormatter={(value: number) => `Theoretical: ${value.toFixed(3)}`}
+              formatter={(value: any) => typeof value === 'number' ? value.toFixed(3) : value}
+              labelFormatter={(value: any) => typeof value === 'number' ? `Theoretical: ${value.toFixed(3)}` : value}
             />
             <Legend verticalAlign="top" height={36} />
 
@@ -180,10 +207,10 @@ export function QQPlot({ sessionId, useCalibrated }: QQPlotProps) {
             <Scatter
               data={chartData}
               dataKey="sample"
-              fill="#3b82f6"
-              fillOpacity={0.7}
-              stroke="#1e40af"
-              strokeWidth={0.5}
+              fill="white"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
               name="Observations"
             />
           </ComposedChart>

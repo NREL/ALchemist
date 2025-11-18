@@ -5,7 +5,7 @@ repo_name: ALchemist
 
 theme:
   name: material
-  favicon: assets/icon.ico
+  favicon: assets/NEW_ICON.ico
   font:
     text: Inter
     code: JetBrains Mono
