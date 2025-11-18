@@ -183,6 +183,36 @@ class FindOptimumRequest(BaseModel):
 
 
 # ============================================================
+# Initial Design (DoE) Models
+# ============================================================
+
+class InitialDesignRequest(BaseModel):
+    """Request for generating initial experimental design."""
+    method: Literal["random", "lhs", "sobol", "halton", "hammersly"] = Field(
+        default="lhs",
+        description="Sampling method"
+    )
+    n_points: int = Field(default=10, ge=1, le=1000, description="Number of points to generate")
+    random_seed: Optional[int] = Field(None, description="Random seed for reproducibility")
+    lhs_criterion: str = Field(
+        default="maximin",
+        pattern="^(maximin|correlation|ratio)$",
+        description="Criterion for LHS method"
+    )
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "method": "lhs",
+                "n_points": 10,
+                "random_seed": 42,
+                "lhs_criterion": "maximin"
+            }
+        }
+    )
+
+
+# ============================================================
 # Prediction Models
 # ============================================================
 
@@ -200,3 +230,4 @@ class PredictionRequest(BaseModel):
             }
         }
     )
+

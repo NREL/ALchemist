@@ -2,11 +2,12 @@
 Sessions router - Session lifecycle management.
 """
 
-from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Depends
 from fastapi.responses import Response
-from ..models.responses import SessionCreateResponse, SessionInfoResponse
+from ..models.responses import SessionCreateResponse, SessionInfoResponse, SessionStateResponse
 from ..services import session_store
 from ..dependencies import get_session
+from alchemist_core.session import OptimizationSession
 from datetime import datetime
 import logging
 
@@ -48,6 +49,36 @@ async def get_session_info(session_id: str):
         )
     
     return SessionInfoResponse(**info)
+
+
+@router.get("/sessions/{session_id}/state", response_model=SessionStateResponse)
+async def get_session_state(
+    session_id: str,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Get current session state for monitoring autonomous optimization.
+    
+    Returns key metrics for dashboard displays or autonomous controllers
+    to monitor optimization progress without retrieving full session data.
+    """
+    # Get session metrics
+    n_variables = len(session.search_space.variables)
+    n_experiments = len(session.experiment_manager.df)
+    model_trained = session.model is not None
+    
+    # Get last suggestion if available
+    last_suggestion = None
+    if hasattr(session, '_last_suggestion') and session._last_suggestion:
+        last_suggestion = session._last_suggestion
+    
+    return SessionStateResponse(
+        session_id=session_id,
+        n_variables=n_variables,
+        n_experiments=n_experiments,
+        model_trained=model_trained,
+        last_suggestion=last_suggestion
+    )
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -88,6 +88,31 @@ class SessionInfoResponse(BaseModel):
     )
 
 
+class SessionStateResponse(BaseModel):
+    """Current state of an optimization session for monitoring."""
+    session_id: str
+    n_variables: int
+    n_experiments: int
+    model_trained: bool
+    model_backend: Optional[str] = None
+    last_suggestion: Optional[Dict[str, Any]] = None
+    last_acquisition_value: Optional[float] = None
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                "n_variables": 2,
+                "n_experiments": 15,
+                "model_trained": True,
+                "model_backend": "botorch",
+                "last_suggestion": {"temperature": 385.2, "flow_rate": 4.3},
+                "last_acquisition_value": 0.025
+            }
+        }
+    )
+
+
 # ============================================================
 # Variable Models
 # ============================================================
@@ -112,6 +137,11 @@ class ExperimentResponse(BaseModel):
     """Response when adding an experiment."""
     message: str = "Experiment added successfully"
     n_experiments: int
+    model_trained: bool = Field(default=False, description="Whether model was auto-trained")
+    training_metrics: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Training metrics if auto-train was enabled"
+    )
 
 
 class ExperimentsListResponse(BaseModel):
@@ -141,6 +171,30 @@ class ExperimentsSummaryResponse(BaseModel):
                     "std": 0.12
                 },
                 "feature_names": ["temperature", "pressure"]
+            }
+        }
+    )
+
+
+# ============================================================
+# Initial Design (DoE) Models
+# ============================================================
+
+class InitialDesignResponse(BaseModel):
+    """Response containing generated initial design points."""
+    points: List[Dict[str, Any]] = Field(..., description="Generated experimental points")
+    method: str = Field(..., description="Sampling method used")
+    n_points: int = Field(..., description="Number of points generated")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "points": [
+                    {"temperature": 350.2, "flow_rate": 2.47},
+                    {"temperature": 421.8, "flow_rate": 7.92}
+                ],
+                "method": "lhs",
+                "n_points": 2
             }
         }
     )

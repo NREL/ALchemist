@@ -2,9 +2,14 @@
 Experiments router - Experimental data management.
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File
-from ..models.requests import AddExperimentRequest, AddExperimentsBatchRequest
-from ..models.responses import ExperimentResponse, ExperimentsListResponse, ExperimentsSummaryResponse
+from fastapi import APIRouter, Depends, UploadFile, File, Query
+from ..models.requests import AddExperimentRequest, AddExperimentsBatchRequest, InitialDesignRequest
+from ..models.responses import (
+    ExperimentResponse, 
+    ExperimentsListResponse, 
+    ExperimentsSummaryResponse,
+    InitialDesignResponse
+)
 from ..dependencies import get_session
 from ..middleware.error_handlers import NoVariablesError
 from alchemist_core.session import OptimizationSession
@@ -12,6 +17,7 @@ import logging
 import pandas as pd
 import tempfile
 import os
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +28,9 @@ router = APIRouter()
 async def add_experiment(
     session_id: str,
     experiment: AddExperimentRequest,
+    auto_train: bool = Query(False, description="Auto-train model after adding data"),
+    training_backend: Optional[str] = Query(None, description="Model backend (sklearn/botorch)"),
+    training_kernel: Optional[str] = Query(None, description="Kernel type (rbf/matern)"),
     session: OptimizationSession = Depends(get_session)
 ):
     """
@@ -29,6 +38,11 @@ async def add_experiment(
     
     The experiment must include values for all defined variables.
     Output value is optional for candidate experiments.
+    
+    Args:
+        auto_train: If True, retrain model after adding data
+        training_backend: Model backend (uses last if None)
+        training_kernel: Kernel type (uses last or 'rbf' if None)
     """
     # Check if variables are defined
     if len(session.search_space.variables) == 0:
@@ -43,9 +57,34 @@ async def add_experiment(
     n_experiments = len(session.experiment_manager.df)
     logger.info(f"Added experiment to session {session_id}. Total: {n_experiments}")
     
+    # Auto-train if requested
+    model_trained = False
+    training_metrics = None
+    
+    if auto_train and n_experiments >= 5:  # Minimum data for training
+        try:
+            # Use previous config or provided config
+            backend = training_backend or (session.model_backend if session.model else "sklearn")
+            kernel = training_kernel or "rbf"
+            
+            result = session.train_model(backend=backend, kernel=kernel)
+            model_trained = True
+            metrics = result.get("metrics", {})
+            training_metrics = {
+                "rmse": metrics.get("rmse"),
+                "r2": metrics.get("r2"),
+                "backend": backend
+            }
+            logger.info(f"Auto-trained model for session {session_id}: {training_metrics}")
+        except Exception as e:
+            logger.error(f"Auto-train failed for session {session_id}: {e}")
+            # Don't fail the whole request, just log it
+    
     return ExperimentResponse(
         message="Experiment added successfully",
-        n_experiments=n_experiments
+        n_experiments=n_experiments,
+        model_trained=model_trained,
+        training_metrics=training_metrics
     )
 
 
@@ -53,12 +92,20 @@ async def add_experiment(
 async def add_experiments_batch(
     session_id: str,
     batch: AddExperimentsBatchRequest,
+    auto_train: bool = Query(False, description="Auto-train model after adding data"),
+    training_backend: Optional[str] = Query(None, description="Model backend (sklearn/botorch)"),
+    training_kernel: Optional[str] = Query(None, description="Kernel type (rbf/matern)"),
     session: OptimizationSession = Depends(get_session)
 ):
     """
     Add multiple experiments at once.
     
     Useful for bulk data import or initialization.
+    
+    Args:
+        auto_train: If True, retrain model after adding data
+        training_backend: Model backend (uses last if None)
+        training_kernel: Kernel type (uses last or 'rbf' if None)
     """
     # Check if variables are defined
     if len(session.search_space.variables) == 0:
@@ -74,9 +121,74 @@ async def add_experiments_batch(
     n_experiments = len(session.experiment_manager.df)
     logger.info(f"Added {len(batch.experiments)} experiments to session {session_id}. Total: {n_experiments}")
     
+    # Auto-train if requested
+    model_trained = False
+    training_metrics = None
+    
+    if auto_train and n_experiments >= 5:  # Minimum data for training
+        try:
+            backend = training_backend or (session.model_backend if session.model else "sklearn")
+            kernel = training_kernel or "rbf"
+            
+            result = session.train_model(backend=backend, kernel=kernel)
+            model_trained = True
+            metrics = result.get("metrics", {})
+            training_metrics = {
+                "rmse": metrics.get("rmse"),
+                "r2": metrics.get("r2"),
+                "backend": backend
+            }
+            logger.info(f"Auto-trained model for session {session_id}: {training_metrics}")
+        except Exception as e:
+            logger.error(f"Auto-train failed for session {session_id}: {e}")
+    
     return ExperimentResponse(
         message=f"Added {len(batch.experiments)} experiments successfully",
-        n_experiments=n_experiments
+        n_experiments=n_experiments,
+        model_trained=model_trained,
+        training_metrics=training_metrics
+    )
+
+
+@router.post("/{session_id}/initial-design", response_model=InitialDesignResponse)
+async def generate_initial_design(
+    session_id: str,
+    request: InitialDesignRequest,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Generate initial experimental design (DoE) for autonomous operation.
+    
+    Generates space-filling experimental designs before Bayesian optimization begins.
+    Useful for autonomous controllers to get initial points to evaluate.
+    
+    Methods:
+    - random: Random sampling
+    - lhs: Latin Hypercube Sampling (space-filling)
+    - sobol: Sobol sequence (quasi-random)
+    - halton: Halton sequence (quasi-random)
+    - hammersly: Hammersly sequence (quasi-random)
+    
+    Returns list of experiments (input combinations) to evaluate.
+    """
+    # Check if variables are defined
+    if len(session.search_space.variables) == 0:
+        raise NoVariablesError("No variables defined. Add variables to search space first.")
+    
+    # Generate design
+    design_points = session.generate_initial_design(
+        method=request.method,
+        n_points=request.n_points,
+        random_seed=request.random_seed,
+        lhs_criterion=request.lhs_criterion
+    )
+    
+    logger.info(f"Generated {len(design_points)} initial design points using {request.method} for session {session_id}")
+    
+    return InitialDesignResponse(
+        points=design_points,
+        method=request.method,
+        n_points=len(design_points)
     )
 
 
