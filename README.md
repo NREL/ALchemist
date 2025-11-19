@@ -1,4 +1,4 @@
-<img src="docs/assets/NEW_LOGO.png" alt="ALchemist" width="50%" />
+<img src="docs/assets/NEW_LOGO_LIGHT.png" alt="ALchemist" width="50%" />
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
@@ -38,68 +38,76 @@ ALchemist accelerates discovery and optimization by combining:
 
 ## 🧭 Quick Start
 
-### Web Application (Recommended)
+### Installation
 
-**Development Mode:**
-```bash
-# Option 1: Manual start
-python run_api.py              # Terminal 1: Backend (port 8000)
-cd alchemist-web && npm run dev  # Terminal 2: Frontend (port 5173)
-
-# Option 2: Automated start
-scripts\dev_start.bat    # Windows
-./scripts/dev_start.sh   # Linux/Mac
-```
-
-**Production Mode:**
-```bash
-# Build and run
-scripts\build_production.bat    # Windows
-./scripts/build_production.sh   # Linux/Mac
-
-# Start production server
-python run_api.py --production
-
-# Access at: http://localhost:8000
-```
-
-**Docker Deployment:**
-```bash
-# Build frontend first
-cd alchemist-web && npm run build && cd ..
-
-# Run with Docker Compose
-cd docker
-docker-compose up --build
-```
-
-### Python Package Installation
-
-Requirements: Python 3.9 or higher
+**Requirements:** Python 3.11 or higher
 
 We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage your Python environments.
 
 **1. Create a new environment:**
 ```bash
-conda create -n alchemist-env python=3.12
+conda create -n alchemist-env python=3.11
 conda activate alchemist-env
 ```
 
 **2. Install ALchemist:**
 
-*Option A: Install directly from GitHub:*
+*Option A: From PyPI (recommended):*
 ```bash
-python -m pip install git+https://github.com/NREL/ALchemist.git
+pip install alchemist-nrel
 ```
 
-*Option B: Clone and install (recommended for development):*
+*Option B: From GitHub:*
+```bash
+pip install git+https://github.com/NREL/ALchemist.git
+```
+
+*Option C: Development install (for contributors):*
 ```bash
 git clone https://github.com/NREL/ALchemist.git
 cd ALchemist
-python -m pip install -e .
+pip install -e .
 ```
 
 All dependencies are specified in `pyproject.toml` and will be installed automatically.
+
+**Note:** The web UI is pre-built and included in the package. You do **not** need Node.js/npm to use ALchemist unless you're developing the frontend.
+
+### Running ALchemist
+
+**Web Application (Recommended):**
+```bash
+alchemist-web
+# Opens at http://localhost:8000
+```
+
+**Desktop Application:**
+```bash
+alchemist
+# Launches CustomTkinter GUI
+```
+
+**Development Mode (Frontend Developers):**
+```bash
+# Terminal 1: Backend with hot-reload
+python run_api.py
+
+# Terminal 2: Frontend with hot-reload
+cd alchemist-web
+npm install  # First time only
+npm run dev
+# Opens at http://localhost:5173
+```
+
+**Docker Deployment:**
+```bash
+docker pull ghcr.io/nrel/alchemist:latest
+docker run -p 8000:8000 ghcr.io/nrel/alchemist:latest
+
+# Or build from source:
+cd docker
+docker-compose up --build
+```
 
 For step-by-step instructions, see the [Getting Started](https://nrel.github.io/ALchemist/) section of the documentation.
 

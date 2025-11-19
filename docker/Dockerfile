@@ -1,42 +1,44 @@
 # ALchemist Docker Image for FastAPI Server
-# This builds a container that runs the ALchemist REST API
+# This builds a container that runs the ALchemist REST API with pre-built web UI
 
-# Start from official Python 3.11 image (smaller than 3.12, still well-supported)
+# Start from official Python 3.11 image
 FROM python:3.11-slim
 
 # Set metadata labels
 LABEL maintainer="caleb.coatney@nrel.gov"
 LABEL description="ALchemist Active Learning Toolkit - REST API Server"
-LABEL version="0.2.0"
+LABEL version="0.3.0"
 
 # Set working directory inside the container
 WORKDIR /app
 
 # Install system dependencies
 # - gcc, g++, make: Required for compiling some Python packages (numpy, scipy, torch)
+# - nodejs, npm: Required to build React frontend during installation
 # - git: Needed if any dependencies come from git repos
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     make \
     git \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only the files needed for installation first
-# This helps Docker cache the dependency layer
-COPY pyproject.toml README.md LICENSE ./
-COPY alchemist_core/ ./alchemist_core/
-COPY api/ ./api/
-COPY main.py ./
+# Copy the entire project
+COPY . .
 
-# Install ALchemist and all dependencies
-# Using --no-cache-dir to keep image size smaller
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .
+# Build and install ALchemist
+# The build_hooks.py will automatically build the React frontend
+RUN pip install --no-cache-dir --upgrade pip build && \
+    python -m build && \
+    pip install --no-cache-dir dist/*.whl
 
-# Copy built frontend static files (if they exist)
-# Run 'npm run build' in alchemist-web/ before building Docker image
-COPY alchemist-web/dist ./api/static
+# Verify the frontend was built
+RUN test -f api/static/index.html || (echo "ERROR: Frontend not built!" && exit 1)
+
+# Clean up build artifacts to reduce image size
+RUN rm -rf /app/dist /app/build /app/alchemist-web/node_modules /app/alchemist-web/dist
 
 # Create directories for logs and cache
 RUN mkdir -p /app/logs /app/cache
@@ -55,4 +57,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Run the FastAPI server when container starts
 # --host 0.0.0.0 allows external connections
 # --port 8000 is the standard port
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use alchemist-web entry point (installed from wheel)
+CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

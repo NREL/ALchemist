@@ -45,6 +45,13 @@ jobs:
         with:
           python-version: '3.11'
       
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: alchemist-web/package-lock.json
+      
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
@@ -64,6 +71,13 @@ jobs:
       
       - name: Build package
         run: python -m build
+      
+      - name: Verify React UI is bundled
+        run: |
+          unzip -l dist/*.whl | grep "api/static/index.html" || {
+            echo "ERROR: React UI not found in wheel!"
+            exit 1
+          }
       
       - name: Check package
         run: twine check dist/*

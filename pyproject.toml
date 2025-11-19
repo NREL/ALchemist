@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -49,6 +49,7 @@ dependencies = [
 
 [project.scripts]
 alchemist = "main:main"
+alchemist-web = "run_api:main"
 
 [project.optional-dependencies]
 test = [
@@ -67,10 +68,13 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["main"]
+py-modules = ["main", "run_api"]
 
 [tool.setuptools.packages.find]
 include = ["ui*", "alchemist_core*", "api*"]
+
+[tool.setuptools.package-data]
+api = ["static/**/*"]
 
 [project.urls]
 "Homepage" = "https://github.com/NREL/ALchemist"

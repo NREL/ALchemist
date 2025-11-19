@@ -1,0 +1,35 @@
+# MANIFEST.in - Include additional files in source distribution (sdist)
+
+# Include documentation
+include README.md
+include LICENSE
+include RELEASE_BUILD_GUIDE.md
+include RELEASE_NOTES_*.md
+
+# Include build hook
+include build_hooks.py
+
+# Include frontend source (for building from sdist)
+recursive-include alchemist-web *.json *.ts *.tsx *.html *.css *.js
+recursive-include alchemist-web/src *
+recursive-include alchemist-web/public *
+include alchemist-web/.gitignore
+include alchemist-web/tsconfig.json
+include alchemist-web/tsconfig.*.json
+include alchemist-web/vite.config.ts
+include alchemist-web/tailwind.config.js
+include alchemist-web/postcss.config.js
+include alchemist-web/eslint.config.js
+
+# Include run scripts
+include run_api.py
+include main.py
+
+# Exclude unnecessary files from sdist
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+recursive-exclude tests *
+recursive-exclude docs *
+recursive-exclude memory *
+recursive-exclude .github *

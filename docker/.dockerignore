@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.egg-info/
 
 # Virtual environments
 venv/
@@ -31,22 +32,30 @@ memory/
 
 # Test files (not needed in production container)
 tests/
-*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Local data and logs (container should use volumes)
+# Build artifacts (will be regenerated during Docker build)
+dist/
+build/
+api/static/
+alchemist-web/dist/
+alchemist-web/node_modules/
+
+# Local data and logs (container should use volumes instead)
 logs/
 cache/
 *.log
 
-# UI files (not needed for API-only container)
+# Desktop UI files (not needed for web deployment)
 ui/
 
-# Development files
+# Development scripts and notes
+scripts/
 *.md
 !README.md
-.pytest_cache/
-.coverage
-htmlcov/
+!LICENSE
 
 # OS files
 Thumbs.db
