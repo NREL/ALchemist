@@ -39,16 +39,23 @@ class ResultNotificationWindow:
         # Fill strategy info tab
         self._create_strategy_info_tab(result_data)
         
-        # Add export and close buttons
+        # Add action buttons
         button_frame = ctk.CTkFrame(self.window)
         button_frame.pack(fill="x", padx=10, pady=10)
         
-        export_button = ctk.CTkButton(
+        # Store references for logging
+        self.result_data = result_data
+        self.model_data = model_data
+        self.parent = parent
+        
+        log_button = ctk.CTkButton(
             button_frame, 
-            text="Export to CSV", 
-            command=lambda: self._export_to_csv(result_data, model_data)
+            text="📝 Log to Audit Trail", 
+            command=self._log_to_audit_trail,
+            fg_color="green",
+            hover_color="darkgreen"
         )
-        export_button.pack(side="left", padx=10, pady=5)
+        log_button.pack(side="left", padx=10, pady=5)
         
         close_button = ctk.CTkButton(
             button_frame, 
@@ -479,6 +486,61 @@ class ResultNotificationWindow:
             
         except Exception as e:
             print(f"Error exporting results: {e}")
+    
+    def _log_to_audit_trail(self):
+        """Log the complete optimization decision (data + model + acquisition) to audit trail."""
+        # Get the main app from parent chain
+        main_app = self._get_main_app()
+        if main_app is None:
+            print("Error: Could not find main app to log audit trail")
+            return
+        
+        # Get next point from result data
+        next_point_df = self.result_data.get('point_df')
+        
+        # Create strategy info dict
+        strategy_info = {
+            'type': self.result_data.get('strategy_type'),
+            'params': self.result_data.get('strategy_params'),
+            'maximize': self.result_data.get('maximize'),
+            'description': self.result_data.get('strategy_description')
+        }
+        
+        # Call the main app's logging function
+        success = main_app.log_optimization_to_audit(next_point_df, strategy_info)
+        
+        if success:
+            print("✓ Complete optimization decision logged to audit trail")
+            # Show brief success message and close window
+            import tkinter as tk
+            tk.messagebox.showinfo("Logged to Audit Trail", 
+                "Optimization decision logged successfully!\n\n"
+                "• Data snapshot recorded\n"
+                "• Model parameters recorded\n"
+                "• Acquisition strategy recorded",
+                parent=self.window)
+            self.window.destroy()
+        else:
+            import tkinter as tk
+            tk.messagebox.showerror("Logging Failed", 
+                "Failed to log optimization decision to audit trail.\n"
+                "Check the console for details.",
+                parent=self.window)
+    
+    def _get_main_app(self):
+        """Walk up the widget tree to find the main app."""
+        widget = self.parent
+        while widget is not None:
+            if hasattr(widget, 'log_optimization_to_audit'):
+                return widget
+            # Try to get parent for CustomTkinter widgets
+            if hasattr(widget, 'master'):
+                widget = widget.master
+            elif hasattr(widget, 'main_app'):
+                widget = widget.main_app
+            else:
+                break
+        return None
 
 
 class CalibrationWarningDialog:

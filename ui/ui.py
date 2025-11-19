@@ -116,6 +116,19 @@ class ALchemistApp(ctk.CTk):
 
     def _create_menu_bar(self):
         menu_bar = tk.Menu(self)
+        
+        # File menu - NEW: Session management
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        file_menu.add_command(label="New Session", command=self.new_session)
+        file_menu.add_command(label="Open Session...", command=self.open_session)
+        file_menu.add_command(label="Save Session", command=self.save_session_cmd, accelerator="Cmd+S")
+        file_menu.add_command(label="Save Session As...", command=self.save_session_as)
+        file_menu.add_separator()
+        file_menu.add_command(label="Export Audit Log...", command=self.export_audit_log)
+        file_menu.add_separator()
+        file_menu.add_command(label="Session Metadata...", command=self.edit_session_metadata)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+        
         # Help menu
         help_menu = tk.Menu(menu_bar, tearoff=0)
         help_menu.add_command(label="Help", command=self.show_help)
@@ -134,6 +147,10 @@ class ALchemistApp(ctk.CTk):
         pref_menu.add_separator()
     # Removed: Toggle Session API menu item (session API is now always enabled)
         menu_bar.add_cascade(label="Preferences", menu=pref_menu)
+        
+        # Bind keyboard shortcuts
+        self.bind_all("<Command-s>", lambda e: self.save_session_cmd())
+        
         self.config(menu=menu_bar)
 
     def show_help(self):
@@ -525,6 +542,61 @@ class ALchemistApp(ctk.CTk):
                     print('Error saving experiments:', e)
         else:
             print('No experimental data to save.')
+    
+    # ============================================================
+    # Lock-in Methods (Audit Trail)
+    # ============================================================
+    
+    def log_optimization_to_audit(self, next_point_df=None, strategy_info=None):
+        """Log complete optimization decision (data + model + acquisition) to audit trail.
+        
+        Args:
+            next_point_df: DataFrame with suggested points
+            strategy_info: Dict with strategy details (name, params, etc.)
+        """
+        try:
+            # Ensure data is synced to session
+            self._sync_data_to_session()
+            
+            # Log data
+            data_entry = self.session.lock_data()
+            print(f"Data logged to audit trail: {data_entry.hash}...")
+            
+            # Log model
+            if hasattr(self, 'gpr_model') and self.gpr_model is not None:
+                self.session.model = self.gpr_model
+                model_entry = self.session.lock_model()
+                print(f"Model logged to audit trail: {model_entry.hash}...")
+            
+            # Log acquisition
+            if next_point_df is not None and strategy_info is not None:
+                # Convert DataFrame to list of dicts
+                suggestions = next_point_df.to_dict('records')
+                
+                # Extract strategy information
+                strategy_type = strategy_info.get('type', 'Unknown')
+                parameters = strategy_info.get('params', {})
+                
+                # Add goal to parameters
+                if 'maximize' in strategy_info:
+                    parameters['goal'] = 'maximize' if strategy_info['maximize'] else 'minimize'
+                
+                acq_entry = self.session.lock_acquisition(
+                    strategy=strategy_type,
+                    parameters=parameters,
+                    suggestions=suggestions,
+                    notes=strategy_info.get('description', '')
+                )
+                print(f"Acquisition logged to audit trail: {acq_entry.hash}...")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error logging to audit trail: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
 
     def generate_template(self):
         '''Generates a blank template with 10 starter points based on loaded variables.'''
@@ -1190,3 +1262,279 @@ class ALchemistApp(ctk.CTk):
             print(f"Error syncing data to session: {e}")
             import traceback
             traceback.print_exc()
+    
+    # ============================================================
+    # Session Management Methods
+    # ============================================================
+    
+    def new_session(self):
+        """Create a new session."""
+        # Ask if user wants to save current session
+        if hasattr(self.session, 'audit_log') and len(self.session.audit_log.entries) > 0:
+            response = tk.messagebox.askyesnocancel("Save Current Session?", 
+                "Would you like to save the current session before creating a new one?")
+            if response is None:  # Cancel
+                return
+            elif response:  # Yes
+                self.save_session_cmd()
+        
+        # Reset session
+        self.session = OptimizationSession()
+        self.session.events.on('progress', self._on_session_progress)
+        self.session.events.on('model_trained', self._on_session_model_trained)
+        self.session.events.on('suggestions_ready', self._on_session_suggestions)
+        
+        # Clear UI
+        self.search_space_manager = SearchSpace()
+        self.experiment_manager = ExperimentManager()
+        self.exp_df = pd.DataFrame()
+        self.var_sheet.set_sheet_data([])
+        self.exp_sheet.set_sheet_data([])
+        
+        print("New session created")
+        tk.messagebox.showinfo("New Session", "New session created successfully.")
+    
+    def open_session(self):
+        """Open a session from a JSON file."""
+        filepath = filedialog.askopenfilename(
+            title="Open Session",
+            filetypes=[("JSON Session Files", "*.json"), ("All Files", "*.*")],
+            defaultextension=".json"
+        )
+        
+        if not filepath:
+            return
+        
+        try:
+            # Load session from file
+            self.session = OptimizationSession.load_session(filepath)
+            
+            # Reconnect event handlers
+            self.session.events.on('progress', self._on_session_progress)
+            self.session.events.on('model_trained', self._on_session_model_trained)
+            self.session.events.on('suggestions_ready', self._on_session_suggestions)
+            
+            # Sync session data to UI
+            self._sync_session_to_ui()
+            
+            # Store the current filepath for "Save" command
+            self.current_session_file = filepath
+            
+            print(f"Session loaded from {filepath}")
+            tk.messagebox.showinfo("Session Loaded", 
+                f"Session '{self.session.metadata.name}' loaded successfully.")
+            
+        except Exception as e:
+            tk.messagebox.showerror("Error Loading Session", 
+                f"Failed to load session:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def save_session_cmd(self):
+        """Save the current session (use existing file or prompt for new)."""
+        # Sync current UI state to session
+        self._sync_data_to_session()
+        
+        if hasattr(self, 'current_session_file') and self.current_session_file:
+            # Use existing file
+            try:
+                self.session.save_session(self.current_session_file)
+                print(f"Session saved to {self.current_session_file}")
+                tk.messagebox.showinfo("Session Saved", 
+                    f"Session saved successfully.")
+            except Exception as e:
+                tk.messagebox.showerror("Error Saving Session", 
+                    f"Failed to save session:\n{str(e)}")
+        else:
+            # No existing file, prompt for new one
+            self.save_session_as()
+    
+    def save_session_as(self):
+        """Save the current session to a new file."""
+        # Sync current UI state to session
+        self._sync_data_to_session()
+        
+        # Suggest filename from session metadata
+        default_name = self.session.metadata.name or "alchemist_session"
+        # Sanitize filename
+        import re
+        default_name = re.sub(r'[^\w\s-]', '', default_name).strip().replace(' ', '_')
+        default_name = f"{default_name}.json"
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Save Session As",
+            filetypes=[("JSON Session Files", "*.json"), ("All Files", "*.*")],
+            defaultextension=".json",
+            initialfile=default_name
+        )
+        
+        if not filepath:
+            return
+        
+        try:
+            self.session.save_session(filepath)
+            self.current_session_file = filepath
+            print(f"Session saved to {filepath}")
+            tk.messagebox.showinfo("Session Saved", 
+                f"Session saved successfully to:\n{filepath}")
+        except Exception as e:
+            tk.messagebox.showerror("Error Saving Session", 
+                f"Failed to save session:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_audit_log(self):
+        """Export the audit log to a markdown file."""
+        if not hasattr(self.session, 'audit_log') or len(self.session.audit_log.entries) == 0:
+            tk.messagebox.showwarning("No Audit Log", 
+                "No audit log entries to export.")
+            return
+        
+        # Suggest filename
+        default_name = f"audit_log_{self.session.metadata.session_id[:8]}.md"
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Export Audit Log",
+            filetypes=[("Markdown Files", "*.md"), ("All Files", "*.*")],
+            defaultextension=".md",
+            initialfile=default_name
+        )
+        
+        if not filepath:
+            return
+        
+        try:
+            markdown = self.session.audit_log.to_markdown()
+            with open(filepath, 'w') as f:
+                f.write(markdown)
+            print(f"Audit log exported to {filepath}")
+            tk.messagebox.showinfo("Audit Log Exported", 
+                f"Audit log exported successfully to:\n{filepath}")
+        except Exception as e:
+            tk.messagebox.showerror("Error Exporting Audit Log", 
+                f"Failed to export audit log:\n{str(e)}")
+    
+    def edit_session_metadata(self):
+        """Open a dialog to edit session metadata."""
+        dialog = SessionMetadataDialog(self, self.session)
+        dialog.grab_set()  # Make modal
+        self.wait_window(dialog)
+    
+    def _sync_session_to_ui(self):
+        """Sync session data to UI components."""
+        try:
+            # Sync search space
+            if self.session.search_space and len(self.session.search_space.variables) > 0:
+                self.search_space_manager = self.session.search_space
+                self.search_space = self.session.search_space.to_skopt()
+                
+                # Update variable sheet
+                var_data = []
+                for var_dict in self.session.search_space.variables:
+                    if var_dict['type'] in ['real', 'integer']:
+                        var_data.append([
+                            var_dict['name'],
+                            var_dict['type'],
+                            var_dict['min'],
+                            var_dict['max'],
+                            ''
+                        ])
+                    else:  # categorical
+                        var_data.append([
+                            var_dict['name'],
+                            var_dict['type'],
+                            '',
+                            '',
+                            ', '.join(map(str, var_dict['values']))
+                        ])
+                
+                self.var_sheet.set_sheet_data(var_data)
+                self.var_sheet.set_all_column_widths()
+            
+            # Sync experiment data
+            if hasattr(self.session.experiment_manager, 'df') and len(self.session.experiment_manager.df) > 0:
+                self.experiment_manager = self.session.experiment_manager
+                self.exp_df = self.session.experiment_manager.df.copy()
+                
+                # Update experiment sheet
+                self.exp_sheet.set_sheet_data(self.exp_df.values.tolist())
+                self.exp_sheet.set_header_data(self.exp_df.columns.tolist())
+                self.exp_sheet.set_all_column_widths()
+            
+            # Update UI state
+            self._update_ui_state()
+            
+        except Exception as e:
+            print(f"Error syncing session to UI: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+# ============================================================
+# Session Metadata Dialog
+# ============================================================
+
+class SessionMetadataDialog(ctk.CTkToplevel):
+    """Dialog for editing session metadata."""
+    
+    def __init__(self, parent, session):
+        super().__init__(parent)
+        self.session = session
+        self.title("Session Metadata")
+        self.geometry("500x400")
+        
+        # Name field
+        ctk.CTkLabel(self, text="Session Name:", font=('Arial', 12)).pack(pady=(10, 0))
+        self.name_entry = ctk.CTkEntry(self, width=400)
+        self.name_entry.pack(pady=5)
+        self.name_entry.insert(0, session.metadata.name or "")
+        
+        # Description field
+        ctk.CTkLabel(self, text="Description:", font=('Arial', 12)).pack(pady=(10, 0))
+        self.desc_text = ctk.CTkTextbox(self, width=400, height=100)
+        self.desc_text.pack(pady=5)
+        self.desc_text.insert("1.0", session.metadata.description or "")
+        
+        # Tags field
+        ctk.CTkLabel(self, text="Tags (comma-separated):", font=('Arial', 12)).pack(pady=(10, 0))
+        self.tags_entry = ctk.CTkEntry(self, width=400)
+        self.tags_entry.pack(pady=5)
+        if session.metadata.tags:
+            self.tags_entry.insert(0, ", ".join(session.metadata.tags))
+        
+        # Author field (read-only)
+        ctk.CTkLabel(self, text="Author:", font=('Arial', 12)).pack(pady=(10, 0))
+        author_label = ctk.CTkLabel(self, text=session.metadata.author or "Unknown")
+        author_label.pack(pady=5)
+        
+        # Session ID (read-only)
+        ctk.CTkLabel(self, text="Session ID:", font=('Arial', 12)).pack(pady=(10, 0))
+        id_label = ctk.CTkLabel(self, text=session.session_id[:16] + "...")
+        id_label.pack(pady=5)
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(self)
+        button_frame.pack(pady=20)
+        
+        save_btn = ctk.CTkButton(button_frame, text="Save", command=self.save_metadata)
+        save_btn.pack(side='left', padx=5)
+        
+        cancel_btn = ctk.CTkButton(button_frame, text="Cancel", command=self.destroy)
+        cancel_btn.pack(side='left', padx=5)
+    
+    def save_metadata(self):
+        """Save the metadata changes."""
+        name = self.name_entry.get().strip()
+        description = self.desc_text.get("1.0", "end-1c").strip()
+        tags_str = self.tags_entry.get().strip()
+        tags = [t.strip() for t in tags_str.split(',') if t.strip()]
+        
+        # Update session metadata
+        self.session.update_metadata(
+            name=name if name else None,
+            description=description if description else None,
+            tags=tags if tags else None
+        )
+        
+        print(f"Session metadata updated: {name}")
+        self.destroy()

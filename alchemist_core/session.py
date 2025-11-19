@@ -7,10 +7,14 @@ This module provides the main entry point for using ALchemist as a headless libr
 from typing import Optional, Dict, Any, List, Tuple, Callable
 import pandas as pd
 import numpy as np
+import json
+import hashlib
+from pathlib import Path
 from alchemist_core.data.search_space import SearchSpace
 from alchemist_core.data.experiment_manager import ExperimentManager
 from alchemist_core.events import EventEmitter
 from alchemist_core.config import get_logger
+from alchemist_core.audit_log import AuditLog, SessionMetadata, AuditEntry
 
 logger = get_logger(__name__)
 
@@ -48,7 +52,8 @@ class OptimizationSession:
     
     def __init__(self, search_space: Optional[SearchSpace] = None, 
                  experiment_manager: Optional[ExperimentManager] = None,
-                 event_emitter: Optional[EventEmitter] = None):
+                 event_emitter: Optional[EventEmitter] = None,
+                 session_metadata: Optional[SessionMetadata] = None):
         """
         Initialize optimization session.
         
@@ -56,10 +61,15 @@ class OptimizationSession:
             search_space: Pre-configured SearchSpace object (optional)
             experiment_manager: Pre-configured ExperimentManager (optional)
             event_emitter: EventEmitter for progress notifications (optional)
+            session_metadata: Pre-configured session metadata (optional)
         """
         self.search_space = search_space if search_space is not None else SearchSpace()
         self.experiment_manager = experiment_manager if experiment_manager is not None else ExperimentManager()
         self.events = event_emitter if event_emitter is not None else EventEmitter()
+        
+        # Session metadata and audit log
+        self.metadata = session_metadata if session_metadata is not None else SessionMetadata.create()
+        self.audit_log = AuditLog()
         
         # Link search_space to experiment_manager
         self.experiment_manager.set_search_space(self.search_space)
@@ -75,7 +85,7 @@ class OptimizationSession:
             'verbose': True
         }
         
-        logger.info("OptimizationSession initialized")
+        logger.info(f"OptimizationSession initialized: {self.metadata.session_id}")
     
     # ============================================================
     # Search Space Management
@@ -662,10 +672,335 @@ class OptimizationSession:
         Update session configuration.
         
         Args:
-            **kwargs: Configuration parameters (random_state, verbose, etc.)
+            **kwargs: Configuration parameters to update
         
         Example:
             >>> session.set_config(random_state=123, verbose=False)
         """
         self.config.update(kwargs)
-        logger.info(f"Updated configuration: {kwargs}")
+        logger.info(f"Updated config: {kwargs}")
+    
+    # ============================================================
+    # Audit Log & Session Management
+    # ============================================================
+    
+    def lock_data(self, notes: str = "") -> AuditEntry:
+        """
+        Lock in current experimental data configuration.
+        
+        Creates an immutable audit log entry capturing the current data state.
+        This should be called when you're satisfied with your experimental dataset
+        and ready to proceed with modeling.
+        
+        Args:
+            notes: Optional user notes about this data configuration
+            
+        Returns:
+            Created AuditEntry
+            
+        Example:
+            >>> session.add_experiment({'temp': 100, 'pressure': 5}, output=85.2)
+            >>> session.lock_data(notes="Initial screening dataset")
+        """
+        # Get current data state
+        n_experiments = len(self.experiment_manager.df)
+        variables = [v for v in self.search_space.variables]
+        
+        # Create hash of experimental data for verification
+        df = self.experiment_manager.get_data()
+        data_str = df.to_json(orient='records')
+        data_hash = hashlib.sha256(data_str.encode()).hexdigest()[:16]
+        
+        entry = self.audit_log.lock_data(
+            n_experiments=n_experiments,
+            variables=variables,
+            data_hash=data_hash,
+            notes=notes
+        )
+        
+        self.metadata.update_modified()
+        logger.info(f"Locked data: {n_experiments} experiments, hash={data_hash}")
+        self.events.emit('data_locked', {'entry': entry.to_dict()})
+        
+        return entry
+    
+    def lock_model(self, notes: str = "") -> AuditEntry:
+        """
+        Lock in current trained model configuration.
+        
+        Creates an immutable audit log entry capturing the trained model state.
+        This should be called when you're satisfied with your model performance
+        and ready to use it for acquisition.
+        
+        Args:
+            notes: Optional user notes about this model
+            
+        Returns:
+            Created AuditEntry
+            
+        Raises:
+            ValueError: If no model has been trained
+            
+        Example:
+            >>> session.train_model(backend='sklearn', kernel='matern')
+            >>> session.lock_model(notes="Best cross-validation performance")
+        """
+        if self.model is None:
+            raise ValueError("No trained model available. Use train_model() first.")
+        
+        # Get model info
+        model_info = self.get_model_summary()
+        
+        # Extract hyperparameters
+        hyperparameters = model_info.get('hyperparameters', {})
+        
+        # Get CV metrics if available
+        cv_metrics = None
+        if hasattr(self.model, 'cv_cached_results') and self.model.cv_cached_results:
+            cv_metrics = {
+                'rmse': float(self.model.cv_cached_results.get('rmse', 0)),
+                'r2': float(self.model.cv_cached_results.get('r2', 0)),
+                'mae': float(self.model.cv_cached_results.get('mae', 0))
+            }
+        
+        entry = self.audit_log.lock_model(
+            backend=self.model_backend,
+            kernel=model_info.get('kernel', 'unknown'),
+            hyperparameters=hyperparameters,
+            cv_metrics=cv_metrics,
+            notes=notes
+        )
+        
+        self.metadata.update_modified()
+        logger.info(f"Locked model: {self.model_backend}/{model_info.get('kernel')}")
+        self.events.emit('model_locked', {'entry': entry.to_dict()})
+        
+        return entry
+    
+    def lock_acquisition(self, strategy: str, parameters: Dict[str, Any],
+                        suggestions: List[Dict[str, Any]], notes: str = "") -> AuditEntry:
+        """
+        Lock in acquisition function decision and suggested experiments.
+        
+        Creates an immutable audit log entry capturing the acquisition decision.
+        This should be called when you've reviewed the suggestions and are ready
+        to run the recommended experiments.
+        
+        Args:
+            strategy: Acquisition strategy name ('EI', 'PI', 'UCB', etc.)
+            parameters: Acquisition function parameters (xi, kappa, etc.)
+            suggestions: List of suggested experiment dictionaries
+            notes: Optional user notes about this decision
+            
+        Returns:
+            Created AuditEntry
+            
+        Example:
+            >>> suggestions = session.suggest_next(strategy='EI', n_suggestions=3)
+            >>> session.lock_acquisition(
+            ...     strategy='EI',
+            ...     parameters={'xi': 0.01, 'goal': 'maximize'},
+            ...     suggestions=suggestions,
+            ...     notes="Top 3 candidates for next batch"
+            ... )
+        """
+        entry = self.audit_log.lock_acquisition(
+            strategy=strategy,
+            parameters=parameters,
+            suggestions=suggestions,
+            notes=notes
+        )
+        
+        self.metadata.update_modified()
+        logger.info(f"Locked acquisition: {strategy}, {len(suggestions)} suggestions")
+        self.events.emit('acquisition_locked', {'entry': entry.to_dict()})
+        
+        return entry
+    
+    def get_audit_log(self) -> List[Dict[str, Any]]:
+        """
+        Get complete audit log as list of dictionaries.
+        
+        Returns:
+            List of audit entry dictionaries
+        """
+        return self.audit_log.to_dict()
+    
+    def export_audit_markdown(self) -> str:
+        """
+        Export audit log as markdown for publications.
+        
+        Returns:
+            Markdown-formatted audit trail
+        """
+        return self.audit_log.to_markdown()
+    
+    def save_session(self, filepath: str):
+        """
+        Save complete session state to JSON file.
+        
+        Saves all session data including:
+        - Session metadata (name, description, tags)
+        - Search space definition
+        - Experimental data
+        - Trained model state (if available)
+        - Complete audit log
+        
+        Args:
+            filepath: Path to save session file (.json extension recommended)
+            
+        Example:
+            >>> session.save_session("~/ALchemist_Sessions/catalyst_study_nov2025.json")
+        """
+        filepath = Path(filepath)
+        
+        # Prepare session data
+        session_data = {
+            'version': '1.0.0',
+            'metadata': self.metadata.to_dict(),
+            'audit_log': self.audit_log.to_dict(),
+            'search_space': {
+                'variables': self.search_space.variables
+            },
+            'experiments': {
+                'data': self.experiment_manager.get_data().to_dict(orient='records'),
+                'n_total': len(self.experiment_manager.df)
+            },
+            'config': self.config
+        }
+        
+        # Add model state if available
+        if self.model is not None:
+            model_info = self.get_model_summary()
+            session_data['model_state'] = {
+                'backend': self.model_backend,
+                'trained': model_info.get('trained', False),
+                'kernel': model_info.get('kernel'),
+                'hyperparameters': model_info.get('hyperparameters', {})
+                # Note: Full model serialization would require pickle/joblib
+                # For now, we store configuration. Model can be retrained from data.
+            }
+        
+        # Create directory if needed
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write JSON
+        with open(filepath, 'w') as f:
+            json.dump(session_data, f, indent=2, default=str)
+        
+        self.metadata.update_modified()
+        logger.info(f"Saved session to {filepath}")
+        self.events.emit('session_saved', {'filepath': str(filepath)})
+    
+    @staticmethod
+    def load_session(filepath: str) -> 'OptimizationSession':
+        """
+        Load session from JSON file.
+        
+        Args:
+            filepath: Path to session file
+            
+        Returns:
+            OptimizationSession with restored state
+            
+        Example:
+            >>> session = OptimizationSession.load_session("my_session.json")
+        """
+        filepath = Path(filepath)
+        
+        with open(filepath, 'r') as f:
+            session_data = json.load(f)
+        
+        # Check version compatibility
+        version = session_data.get('version', '1.0.0')
+        if not version.startswith('1.'):
+            logger.warning(f"Session file version {version} may not be fully compatible")
+        
+        # Create session
+        session = OptimizationSession()
+        
+        # Restore metadata
+        if 'metadata' in session_data:
+            session.metadata = SessionMetadata.from_dict(session_data['metadata'])
+        
+        # Restore audit log
+        if 'audit_log' in session_data:
+            session.audit_log.from_dict(session_data['audit_log'])
+        
+        # Restore search space
+        if 'search_space' in session_data:
+            for var in session_data['search_space']['variables']:
+                session.search_space.add_variable(
+                    var['name'],
+                    var['type'],
+                    **{k: v for k, v in var.items() if k not in ['name', 'type']}
+                )
+        
+        # Restore experimental data
+        if 'experiments' in session_data and session_data['experiments']['data']:
+            df = pd.DataFrame(session_data['experiments']['data'])
+            
+            # Add experiments one by one
+            for _, row in df.iterrows():
+                inputs = {col: row[col] for col in df.columns if col != 'Output'}
+                output = row.get('Output')
+                session.add_experiment(inputs, output)
+        
+        # Restore config
+        if 'config' in session_data:
+            session.config.update(session_data['config'])
+        
+        # Note: Model state is not fully restored (would need pickle)
+        # User should retrain model after loading
+        
+        logger.info(f"Loaded session from {filepath}")
+        session.events.emit('session_loaded', {'filepath': str(filepath)})
+        
+        return session
+    
+    def update_metadata(self, name: Optional[str] = None, 
+                       description: Optional[str] = None,
+                       tags: Optional[List[str]] = None):
+        """
+        Update session metadata.
+        
+        Args:
+            name: New session name (optional)
+            description: New description (optional)
+            tags: New tags (optional)
+            
+        Example:
+            >>> session.update_metadata(
+            ...     name="Catalyst Screening - Final",
+            ...     description="Optimized Pt/Pd ratios",
+            ...     tags=["catalyst", "platinum", "palladium", "final"]
+            ... )
+        """
+        if name is not None:
+            self.metadata.name = name
+        if description is not None:
+            self.metadata.description = description
+        if tags is not None:
+            self.metadata.tags = tags
+        
+        self.metadata.update_modified()
+        logger.info("Updated session metadata")
+        self.events.emit('metadata_updated', self.metadata.to_dict())
+    
+    # ============================================================
+    # Legacy Configuration
+    # ============================================================
+    
+    def set_config(self, **kwargs) -> None:
+        """
+        Update session configuration.
+        
+        Args:
+            **kwargs: Configuration parameters to update
+        
+        Example:
+            >>> session.set_config(random_state=123, verbose=False)
+        """
+        self.config.update(kwargs)
+        logger.info(f"Updated config: {kwargs}")
+

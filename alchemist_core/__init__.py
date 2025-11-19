@@ -10,6 +10,7 @@ Main Components:
     - ExperimentManager: Manage experimental data
     - Models: Surrogate modeling backends (sklearn, BoTorch)
     - Acquisition: Acquisition function strategies
+    - AuditLog: Reproducible audit trail for optimization decisions
 
 Example:
     >>> from alchemist_core import OptimizationSession, SearchSpace, ExperimentManager
@@ -26,16 +27,19 @@ Example:
     >>> # Get next experiment suggestion
     >>> next_point = session.suggest_next(acq_func="ei")
 
-Version: 0.2.0-dev (Core-UI Split)
+Version: 0.3.0-beta.1
 """
 
-__version__ = "0.2.0-dev"
+__version__ = "0.3.0b1"
 __author__ = "Caleb Coatney"
 __email__ = "caleb.coatney@nrel.gov"
 
 # Core data structures
 from alchemist_core.data.search_space import SearchSpace
 from alchemist_core.data.experiment_manager import ExperimentManager
+
+# Audit log and session metadata
+from alchemist_core.audit_log import AuditLog, SessionMetadata, AuditEntry
 
 # Event system
 from alchemist_core.events import EventEmitter
@@ -48,16 +52,19 @@ from alchemist_core.session import OptimizationSession
 
 # Public API
 __all__ = [
-    # High-level API (recommended entry point)
+    # Session API
     "OptimizationSession",
-    
     # Data structures
     "SearchSpace",
     "ExperimentManager",
-    
-    # Events and logging
+    # Audit log
+    "AuditLog",
+    "SessionMetadata", 
+    "AuditEntry",
+    # Event system
     "EventEmitter",
+    # Configuration
     "configure_logging",
     "get_logger",
-    "set_verbosity",
+    "set_verbosity"
 ]

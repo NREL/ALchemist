@@ -344,3 +344,93 @@ class ErrorResponse(BaseModel):
             }
         }
     )
+
+
+# ============================================================
+# Audit Log & Session Management Responses
+# ============================================================
+
+class SessionMetadataResponse(BaseModel):
+    """Response containing session metadata."""
+    session_id: str
+    name: str
+    created_at: str
+    last_modified: str
+    description: str
+    tags: List[str]
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Catalyst_Screening_Nov2025",
+                "created_at": "2025-11-19T09:00:00",
+                "last_modified": "2025-11-19T14:30:00",
+                "description": "Pt/Pd ratio optimization",
+                "tags": ["catalyst", "CO2"]
+            }
+        }
+    )
+
+
+class AuditEntryResponse(BaseModel):
+    """Response containing a single audit log entry."""
+    timestamp: str
+    entry_type: str
+    parameters: Dict[str, Any]
+    hash: str
+    notes: str
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "timestamp": "2025-11-19T09:15:00",
+                "entry_type": "data_locked",
+                "parameters": {
+                    "n_experiments": 15,
+                    "variables": [],
+                    "data_hash": "abc123"
+                },
+                "hash": "a1b2c3d4",
+                "notes": "Initial screening dataset"
+            }
+        }
+    )
+
+
+class AuditLogResponse(BaseModel):
+    """Response containing complete audit log."""
+    entries: List[AuditEntryResponse]
+    n_entries: int
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entries": [],
+                "n_entries": 0
+            }
+        }
+    )
+
+
+class LockDecisionResponse(BaseModel):
+    """Response after locking a decision."""
+    success: bool
+    entry: AuditEntryResponse
+    message: str
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "entry": {
+                    "timestamp": "2025-11-19T09:15:00",
+                    "entry_type": "data_locked",
+                    "parameters": {},
+                    "hash": "a1b2c3d4",
+                    "notes": ""
+                },
+                "message": "Data decision locked successfully"
+            }
+        }
+    )

@@ -231,3 +231,43 @@ class PredictionRequest(BaseModel):
         }
     )
 
+
+# ============================================================
+# Audit Log & Session Management Models
+# ============================================================
+
+class UpdateMetadataRequest(BaseModel):
+    """Request to update session metadata."""
+    name: Optional[str] = Field(None, description="Session name")
+    description: Optional[str] = Field(None, description="Session description")
+    tags: Optional[List[str]] = Field(None, description="Session tags")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Catalyst_Screening_Nov2025",
+                "description": "Pt/Pd ratio optimization for CO2 reduction",
+                "tags": ["catalyst", "CO2", "electrochemistry"]
+            }
+        }
+    )
+
+
+class LockDecisionRequest(BaseModel):
+    """Request to lock in a decision to the audit log."""
+    lock_type: Literal["data", "model", "acquisition"] = Field(..., description="Type of decision to lock")
+    notes: Optional[str] = Field(None, description="Optional notes about this decision")
+    
+    # For acquisition lock
+    strategy: Optional[str] = Field(None, description="Acquisition strategy (required for acquisition lock)")
+    parameters: Optional[Dict[str, Any]] = Field(None, description="Acquisition parameters (required for acquisition lock)")
+    suggestions: Optional[List[Dict[str, Any]]] = Field(None, description="Suggested experiments (required for acquisition lock)")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "lock_type": "model",
+                "notes": "Best cross-validation performance: R²=0.93"
+            }
+        }
+    )
