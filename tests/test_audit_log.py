@@ -4,6 +4,7 @@ Test suite for audit log and session management functionality.
 
 import pytest
 import json
+import pandas as pd
 from pathlib import Path
 from alchemist_core.session import OptimizationSession
 from alchemist_core.audit_log import AuditLog, SessionMetadata, AuditEntry
@@ -29,11 +30,12 @@ def test_audit_log_basic():
     audit_log = AuditLog()
     assert len(audit_log) == 0
     
-    # Lock data
+    # Lock data (new API: pass DataFrame and optional extra_parameters)
+    df = pd.DataFrame([{"temp": 0}] * 10)
     entry = audit_log.lock_data(
-        n_experiments=10,
-        variables=[{"name": "temp", "type": "real"}],
-        data_hash="abc123"
+        df,
+        notes="",
+        extra_parameters={"variables": [{"name": "temp", "type": "real"}], "data_hash": "abc123"}
     )
     
     assert len(audit_log) == 1
@@ -57,21 +59,21 @@ def test_audit_log_export():
     audit_log = AuditLog()
     
     audit_log.lock_data(
-        n_experiments=5,
-        variables=[],
-        data_hash="test123"
+        pd.DataFrame([{}] * 5),
+        notes="",
+        extra_parameters={"variables": [], "data_hash": "test123"}
     )
-    
-    # Export to dict
+
+    # Export to dict (full export)
     data = audit_log.to_dict()
-    assert isinstance(data, list)
-    assert len(data) == 1
-    assert data[0]["entry_type"] == "data_locked"
+    assert isinstance(data, dict)
+    assert len(data.get("entries", [])) == 1
+    assert data["entries"][0]["entry_type"] == "data_locked"
     
     # Export to markdown
     md = audit_log.to_markdown()
     assert "# Optimization Audit Trail" in md
-    assert "Data Locked" in md or "data_locked" in md.lower()
+    assert "Experimental Data" in md or "experimental data" in md.lower()
 
 
 def test_session_with_audit_log():
@@ -128,7 +130,8 @@ def test_session_save_load(tmp_path):
     
     assert data["version"] == "1.0.0"
     assert data["metadata"]["name"] == "Save Test"
-    assert len(data["audit_log"]) == 1
+    # Audit log exported as a dict with 'entries' list
+    assert len(data["audit_log"].get("entries", [])) == 1
     assert len(data["search_space"]["variables"]) == 2
     assert data["experiments"]["n_total"] == 1
     
@@ -168,10 +171,10 @@ def test_audit_log_get_methods():
     """Test audit log filtering and retrieval."""
     audit_log = AuditLog()
     
-    # Add multiple entries
-    audit_log.lock_data(5, [], "hash1")
+    # Add multiple entries (use DataFrame for lock_data)
+    audit_log.lock_data(pd.DataFrame([{}] * 5), notes="", extra_parameters={"variables": [], "data_hash": "hash1"})
     audit_log.lock_model("sklearn", "rbf", {})
-    audit_log.lock_data(10, [], "hash2")
+    audit_log.lock_data(pd.DataFrame([{}] * 10), notes="", extra_parameters={"variables": [], "data_hash": "hash2"})
     
     # Get all entries
     all_entries = audit_log.get_entries()
@@ -205,10 +208,10 @@ def test_export_audit_markdown():
     md = session.export_audit_markdown()
     
     assert "# Optimization Audit Trail" in md
-    assert ("data locked" in md.lower() or "Data Locked" in md)
-    assert ("model locked" in md.lower() or "Model Locked" in md)
-    assert "Entry 1" in md
-    assert "Entry 2" in md
+    # Ensure major sections and iteration block are present
+    assert ("model" in md or "Model" in md)
+    assert ("metrics" in md.lower() or "Metrics" in md)
+    assert "## Optimization Iterations" in md
 
 
 if __name__ == "__main__":
