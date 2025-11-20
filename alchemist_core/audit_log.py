@@ -11,12 +11,13 @@ Users can explore freely without spamming the log; only explicit "lock-in"
 actions create audit entries.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 import hashlib
 import json
 import uuid
+import pandas as pd
 
 
 @dataclass
@@ -142,50 +143,58 @@ class AuditLog:
     to ensure reproducibility and traceability. Only explicit "lock-in" actions
     add entries, preventing log spam from exploration activities.
     
-    Example:
-        >>> audit_log = AuditLog()
-        >>> 
-        >>> # Lock in experimental data
-        >>> entry = audit_log.lock_data(
-        ...     n_experiments=10,
-        ...     variables=[{'name': 'temp', 'type': 'real', 'min': 100, 'max': 300}],
-        ...     data_hash='abc123'
-        ... )
-        >>> 
-        >>> # Lock in trained model
-        >>> entry = audit_log.lock_model(
-        ...     backend='sklearn',
-        ...     kernel='matern',
-        ...     hyperparameters={'length_scale': 0.5},
-        ...     cv_metrics={'rmse': 0.15, 'r2': 0.92}
-        ... )
+    The audit log is structured with:
+    - Search space definition (set once)
+    - Experimental data table (updated with each lock)
+    - Optimization iterations (model + acquisition per iteration)
     """
     
     def __init__(self):
         """Initialize empty audit log."""
         self.entries: List[AuditEntry] = []
+        self.search_space_definition: Optional[Dict[str, Any]] = None
+        self.experiment_data: Optional['pd.DataFrame'] = None
     
-    def lock_data(self, n_experiments: int, variables: List[Dict[str, Any]], 
-                  data_hash: str, notes: str = "") -> AuditEntry:
+    def set_search_space(self, variables: List[Dict[str, Any]]):
         """
-        Lock in experimental data configuration.
+        Set the search space definition (should only be called once).
         
         Args:
-            n_experiments: Number of experiments
             variables: List of variable definitions
-            data_hash: Hash of experimental data for verification
+        """
+        if self.search_space_definition is None:
+            self.search_space_definition = {'variables': variables}
+    
+    def lock_data(self, experiment_data: 'pd.DataFrame', notes: str = "", extra_parameters: Optional[Dict[str, Any]] = None) -> AuditEntry:
+        """
+        Lock in experimental data snapshot.
+        
+        Args:
+            experiment_data: DataFrame with all experimental data including Iteration and Reason
             notes: Optional user notes
             
         Returns:
             Created AuditEntry
         """
+        # Store the experiment data snapshot for markdown/export
+        self.experiment_data = experiment_data.copy()
+
+        # Create hash of data for verification
+        data_str = experiment_data.to_json()
+        data_hash = hashlib.sha256(data_str.encode()).hexdigest()[:16]
+
+        params: Dict[str, Any] = {
+            'n_experiments': len(experiment_data),
+            'data_hash': data_hash
+        }
+
+        # Merge any extra parameters (e.g., initial design method/count)
+        if extra_parameters:
+            params.update(extra_parameters)
+
         entry = AuditEntry.create(
             entry_type='data_locked',
-            parameters={
-                'n_experiments': n_experiments,
-                'variables': variables,
-                'data_hash': data_hash
-            },
+            parameters=params,
             notes=notes
         )
         self.entries.append(entry)
@@ -194,6 +203,7 @@ class AuditLog:
     def lock_model(self, backend: str, kernel: str, 
                    hyperparameters: Dict[str, Any], 
                    cv_metrics: Optional[Dict[str, float]] = None,
+                   iteration: Optional[int] = None,
                    notes: str = "") -> AuditEntry:
         """
         Lock in trained model configuration.
@@ -203,6 +213,7 @@ class AuditLog:
             kernel: Kernel type
             hyperparameters: Learned hyperparameters
             cv_metrics: Cross-validation metrics (optional)
+            iteration: Iteration number (optional)
             notes: Optional user notes
             
         Returns:
@@ -215,6 +226,8 @@ class AuditLog:
         }
         if cv_metrics is not None:
             params['cv_metrics'] = cv_metrics
+        if iteration is not None:
+            params['iteration'] = iteration
         
         entry = AuditEntry.create(
             entry_type='model_locked',
@@ -226,6 +239,7 @@ class AuditLog:
     
     def lock_acquisition(self, strategy: str, parameters: Dict[str, Any],
                         suggestions: List[Dict[str, Any]], 
+                        iteration: Optional[int] = None,
                         notes: str = "") -> AuditEntry:
         """
         Lock in acquisition function decision.
@@ -234,18 +248,23 @@ class AuditLog:
             strategy: Acquisition strategy name
             parameters: Acquisition function parameters
             suggestions: Suggested next experiments
+            iteration: Iteration number (optional)
             notes: Optional user notes
             
         Returns:
             Created AuditEntry
         """
+        params = {
+            'strategy': strategy,
+            'parameters': parameters,
+            'suggestions': suggestions
+        }
+        if iteration is not None:
+            params['iteration'] = iteration
+        
         entry = AuditEntry.create(
             entry_type='acquisition_locked',
-            parameters={
-                'strategy': strategy,
-                'parameters': parameters,
-                'suggestions': suggestions
-            },
+            parameters=params,
             notes=notes
         )
         self.entries.append(entry)
@@ -292,40 +311,246 @@ class AuditLog:
         Export audit log to dictionary format.
         
         Returns:
-            List of entry dictionaries
+            Dictionary with search_space, experiment_data, and entries
         """
-        return [entry.to_dict() for entry in self.entries]
+        result = {
+            'entries': [entry.to_dict() for entry in self.entries]
+        }
+        
+        if self.search_space_definition is not None:
+            result['search_space'] = self.search_space_definition
+        
+        if self.experiment_data is not None:
+            result['experiment_data'] = self.experiment_data.to_dict(orient='records')
+        
+        return result
     
-    def from_dict(self, data: List[Dict[str, Any]]):
+    def from_dict(self, data: Union[List[Dict[str, Any]], Dict[str, Any]]):
         """
         Import audit log from dictionary format.
         
         Args:
-            data: List of entry dictionaries
+            data: Dictionary with entries (and optionally search_space and experiment_data)
+                  or legacy list of entry dictionaries
         """
-        self.entries = [AuditEntry.from_dict(entry) for entry in data]
+        # Handle legacy format (list of entries)
+        if isinstance(data, list):
+            self.entries = [AuditEntry.from_dict(entry) for entry in data]
+            return
+        
+        # New format (dict with entries, search_space, experiment_data)
+        if 'entries' in data:
+            self.entries = [AuditEntry.from_dict(entry) for entry in data['entries']]
+        
+        if 'search_space' in data:
+            self.search_space_definition = data['search_space']
+        
+        if 'experiment_data' in data:
+            self.experiment_data = pd.DataFrame(data['experiment_data'])
     
     def to_markdown(self) -> str:
         """
         Export audit log to markdown format for publications.
         
         Returns:
-            Markdown-formatted audit trail
+            Markdown-formatted audit trail with search space, data table, and iterations
         """
         lines = ["# Optimization Audit Trail\n"]
         
-        for i, entry in enumerate(self.entries, 1):
-            lines.append(f"## Entry {i}: {entry.entry_type.replace('_', ' ').title()}")
-            lines.append(f"**Timestamp**: {entry.timestamp}")
-            lines.append(f"**Hash**: `{entry.hash}`\n")
+        # Section 1: Search Space Definition
+        if self.search_space_definition:
+            lines.append("## Search Space Definition\n")
+            for var in self.search_space_definition['variables']:
+                var_type = var['type']
+                name = var['name']
+                
+                if var_type in ['real', 'integer']:
+                    lines.append(f"- **{name}** ({var_type}): [{var.get('min', 'N/A')}, {var.get('max', 'N/A')}]")
+                else:  # categorical
+                    values = ', '.join(map(str, var.get('values', [])))
+                    lines.append(f"- **{name}** (categorical): {{{values}}}")
+            lines.append("")
+        
+        # Section 2: Experimental Data Table
+        if self.experiment_data is not None and len(self.experiment_data) > 0:
+            lines.append("## Experimental Data\n")
             
-            if entry.notes:
-                lines.append(f"**Notes**: {entry.notes}\n")
+            # Generate markdown table
+            df = self.experiment_data.copy()
             
-            lines.append("**Parameters**:")
-            lines.append("```json")
-            lines.append(json.dumps(entry.parameters, indent=2))
-            lines.append("```\n")
+            # Reorder columns: Iteration, Reason, then variables, then Output
+            col_order = []
+            if 'Iteration' in df.columns:
+                col_order.append('Iteration')
+            if 'Reason' in df.columns:
+                col_order.append('Reason')
+            
+            # Add variable columns (exclude metadata columns)
+            metadata_cols = {'Iteration', 'Reason', 'Output', 'Noise'}
+            var_cols = [col for col in df.columns if col not in metadata_cols]
+            col_order.extend(var_cols)
+            
+            # Add Output
+            if 'Output' in df.columns:
+                col_order.append('Output')
+            
+            # Reorder DataFrame
+            df = df[[col for col in col_order if col in df.columns]]
+            
+            # Create markdown table
+            lines.append("| " + " | ".join(df.columns) + " |")
+            lines.append("|" + "|".join(['---'] * len(df.columns)) + "|")
+            
+            for _, row in df.iterrows():
+                row_vals = []
+                for val in row:
+                    if isinstance(val, float):
+                        row_vals.append(f"{val:.4f}")
+                    else:
+                        row_vals.append(str(val))
+                lines.append("| " + " | ".join(row_vals) + " |")
+            
+            lines.append("")
+        
+        # Section 3: Optimization Iterations
+        if len(self.entries) > 0:
+            lines.append("## Optimization Iterations\n")
+            
+            # Group entries by iteration and track timestamps
+            iterations: Dict[Union[int, str], Dict[str, Any]] = {}
+
+            for entry in self.entries:
+                # Prefer explicit iteration in parameters when available
+                iteration = entry.parameters.get('iteration', None)
+
+                # Special-case data_locked entries that include initial-design metadata
+                if entry.entry_type == 'data_locked' and 'initial_design_method' in entry.parameters:
+                    iteration = 0
+
+                if iteration is None:
+                    iteration_key = 'N/A'
+                else:
+                    iteration_key = iteration
+
+                if iteration_key not in iterations:
+                    iterations[iteration_key] = {
+                        'model': None,
+                        'acquisition': None,
+                        'data': None,
+                        'timestamp': entry.timestamp
+                    }
+
+                if entry.entry_type == 'model_locked':
+                    iterations[iteration_key]['model'] = entry
+                elif entry.entry_type == 'acquisition_locked':
+                    iterations[iteration_key]['acquisition'] = entry
+                elif entry.entry_type == 'data_locked':
+                    iterations[iteration_key]['data'] = entry
+            
+            # Sort iterations: numeric iteration keys first (ascending), then 'N/A'
+            def sort_key(item):
+                iter_num, data = item
+                is_na = (iter_num == 'N/A')
+                # Primary: whether N/A (False comes before True), secondary: iteration number or large sentinel
+                num_key = iter_num if isinstance(iter_num, int) else 999999
+                # Use the stored timestamp as tie-breaker
+                return (is_na, num_key, data.get('timestamp', ''))
+            
+            # Output each iteration (skip N/A entries if they have no data)
+            for iter_num, iter_data in sorted(iterations.items(), key=sort_key):
+                # Skip N/A iteration if it has no model or acquisition
+                if iter_num == 'N/A' and not iter_data['model'] and not iter_data['acquisition']:
+                    continue
+                
+                lines.append(f"### Iteration {iter_num}\n")
+                
+                # Model information
+                if iter_data.get('model'):
+                    entry = iter_data['model']
+                    params = entry.parameters
+
+                    lines.append(f"**Timestamp**: {entry.timestamp}")
+                    lines.append("")
+
+                    # Build kernel string with nu parameter if Matern
+                    kernel = params.get('kernel', 'N/A')
+                    kernel_str = f"{kernel} kernel"
+                    hyperparams = params.get('hyperparameters', {})
+
+                    # Try common keys for matern nu
+                    matern_nu = None
+                    if kernel == 'Matern':
+                        matern_nu = hyperparams.get('matern_nu') or hyperparams.get('nu')
+                        if matern_nu is None:
+                            # Also try params top-level hyperparameters representation
+                            matern_nu = params.get('hyperparameters', {}).get('matern_nu')
+
+                    if kernel == 'Matern' and matern_nu is not None:
+                        kernel_str = f"{kernel} kernel (ν={matern_nu})"
+
+                    lines.append(f"**Model**: {params.get('backend', 'N/A')}, {kernel_str}")
+                    lines.append("")
+
+                    if 'cv_metrics' in params and params['cv_metrics']:
+                        metrics = params['cv_metrics']
+                        r2 = metrics.get('r2', 0)
+                        rmse = metrics.get('rmse', 0)
+                        lines.append(f"**Metrics**: R²={r2:.4f}, RMSE={rmse:.4f}")
+                    else:
+                        lines.append(f"**Metrics**: Not available")
+
+                    # Display input/output scaling if provided in hyperparameters
+                    input_scale = hyperparams.get('input_scaling') or hyperparams.get('input_transform_type')
+                    output_scale = hyperparams.get('output_scaling') or hyperparams.get('output_transform_type')
+                    if input_scale is not None or output_scale is not None:
+                        lines.append("")
+                        lines.append(f"**Input Scaling**: {input_scale if input_scale is not None else 'none'}")
+                        lines.append(f"**Output Scaling**: {output_scale if output_scale is not None else 'none'}")
+
+                    if entry.notes:
+                        lines.append("")
+                        lines.append(f"**Notes**: {entry.notes}")
+
+                    lines.append("")
+                
+                # Acquisition information
+                if iter_data.get('acquisition'):
+                    entry = iter_data['acquisition']
+                    params = entry.parameters
+
+                    lines.append(f"**Acquisition**: {params.get('strategy', 'N/A')}")
+                    lines.append("")
+
+                    if 'parameters' in params and params['parameters']:
+                        acq_params = params['parameters']
+                        param_str = ', '.join([f"{k}={v}" for k, v in acq_params.items()])
+                        lines.append(f"**Parameters**: {param_str}")
+                        lines.append("")
+
+                    if 'suggestions' in params and params['suggestions']:
+                        suggestions = params['suggestions']
+                        lines.append(f"**Suggested Next**: {suggestions}")
+
+                    if entry.notes:
+                        lines.append("")
+                        lines.append(f"**Notes**: {entry.notes}")
+
+                    lines.append("")
+
+                # Data information (e.g., initial design)
+                if iter_data.get('data'):
+                    entry = iter_data['data']
+                    params = entry.parameters
+                    # If initial design metadata present, print it clearly
+                    method = params.get('initial_design_method')
+                    n_points = params.get('initial_design_n_points')
+                    if method:
+                        lines.append(f"**Initial Design**: {method} ({n_points if n_points is not None else params.get('n_experiments', 'N/A')} points)")
+                        lines.append("")
+                    # Optionally include notes for data lock
+                    if entry.notes:
+                        lines.append(f"**Notes**: {entry.notes}")
+                        lines.append("")
         
         return "\n".join(lines)
     

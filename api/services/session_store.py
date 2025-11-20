@@ -2,7 +2,7 @@
 Session Store - Session management with disk persistence.
 
 Stores OptimizationSession instances with TTL and automatic cleanup.
-Sessions are persisted to disk to survive server restarts.
+Sessions are persisted to disk as JSON to survive server restarts.
 """
 
 from typing import Dict, Optional
@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 import uuid
 from alchemist_core.session import OptimizationSession
 import logging
-import pickle
+import json
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -41,17 +42,42 @@ class SessionStore:
     
     def _get_session_file(self, session_id: str) -> Path:
         """Get path to session file."""
-        return self.persist_dir / f"{session_id}.pkl"
+        return self.persist_dir / f"{session_id}.json"
     
     def _save_to_disk(self, session_id: str):
-        """Save session to disk."""
+        """Save session to disk as JSON."""
         if not self.persist_dir:
             return
         
         try:
             session_file = self._get_session_file(session_id)
-            with open(session_file, 'wb') as f:
-                pickle.dump(self._sessions[session_id], f)
+            session_data = self._sessions[session_id]
+            
+            # Create a temporary file for the session
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                session_data["session"].save_session(tmp.name)
+                temp_path = tmp.name
+            
+            # Store metadata alongside session
+            metadata = {
+                "created_at": session_data["created_at"].isoformat(),
+                "last_accessed": session_data["last_accessed"].isoformat(),
+                "expires_at": session_data["expires_at"].isoformat()
+            }
+            
+            # Load session JSON and add metadata
+            with open(temp_path, 'r') as f:
+                session_json = json.load(f)
+            
+            session_json["_session_store_metadata"] = metadata
+            
+            # Write combined data
+            with open(session_file, 'w') as f:
+                json.dump(session_json, f, indent=2)
+            
+            # Clean up temp file
+            Path(temp_path).unlink()
+            
         except Exception as e:
             logger.error(f"Failed to save session {session_id}: {e}")
     
@@ -61,19 +87,38 @@ class SessionStore:
             return
         
         loaded_count = 0
-        for session_file in self.persist_dir.glob("*.pkl"):
+        for session_file in self.persist_dir.glob("*.json"):
             try:
-                with open(session_file, 'rb') as f:
-                    session_data = pickle.load(f)
-                    session_id = session_file.stem
-                    
-                    # Check if expired
-                    if datetime.now() > session_data["expires_at"]:
+                with open(session_file, 'r') as f:
+                    session_json = json.load(f)
+                
+                # Extract metadata
+                metadata = session_json.pop("_session_store_metadata", {})
+                
+                # Check if expired
+                if metadata:
+                    expires_at = datetime.fromisoformat(metadata["expires_at"])
+                    if datetime.now() > expires_at:
                         session_file.unlink()  # Delete expired session file
                         continue
-                    
-                    self._sessions[session_id] = session_data
-                    loaded_count += 1
+                
+                # Write session data to temp file and load
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                    json.dump(session_json, tmp, indent=2)
+                    temp_path = tmp.name
+                
+                session = OptimizationSession.load_session(temp_path)
+                Path(temp_path).unlink()
+                
+                session_id = session_file.stem
+                self._sessions[session_id] = {
+                    "session": session,
+                    "created_at": datetime.fromisoformat(metadata.get("created_at", datetime.now().isoformat())),
+                    "last_accessed": datetime.fromisoformat(metadata.get("last_accessed", datetime.now().isoformat())),
+                    "expires_at": datetime.fromisoformat(metadata.get("expires_at", (datetime.now() + self.default_ttl).isoformat()))
+                }
+                loaded_count += 1
+                
             except Exception as e:
                 logger.error(f"Failed to load session from {session_file}: {e}")
         
@@ -234,49 +279,70 @@ class SessionStore:
         self._cleanup_expired()
         return list(self._sessions.keys())
     
-    def export_session(self, session_id: str) -> Optional[bytes]:
+    def export_session(self, session_id: str) -> Optional[str]:
         """
-        Export a session as bytes for download.
+        Export a session as JSON string for download.
         
         Args:
             session_id: Session identifier
             
         Returns:
-            Pickled session data or None if not found
+            JSON string of session data or None if not found
         """
         if session_id not in self._sessions:
             return None
         
         try:
-            return pickle.dumps(self._sessions[session_id])
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                self._sessions[session_id]["session"].save_session(tmp.name)
+                temp_path = tmp.name
+            
+            # Read the JSON content
+            with open(temp_path, 'r') as f:
+                json_content = f.read()
+            
+            # Clean up temp file
+            Path(temp_path).unlink()
+            
+            return json_content
         except Exception as e:
             logger.error(f"Failed to export session {session_id}: {e}")
             return None
     
-    def import_session(self, session_data: bytes, session_id: Optional[str] = None) -> Optional[str]:
+    def import_session(self, session_data: str, session_id: Optional[str] = None) -> Optional[str]:
         """
-        Import a session from bytes.
+        Import a session from JSON string.
         
         Args:
-            session_data: Pickled session data
+            session_data: JSON string of session data
             session_id: Optional custom session ID (generates new one if None)
             
         Returns:
             Session ID or None if import failed
         """
         try:
-            imported_data = pickle.loads(session_data)
+            # Write JSON to temp file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                tmp.write(session_data)
+                temp_path = tmp.name
+            
+            # Load session
+            session = OptimizationSession.load_session(temp_path)
+            Path(temp_path).unlink()
             
             # Generate new session ID if not provided
             if not session_id:
                 session_id = str(uuid.uuid4())
             
-            # Update timestamps
-            imported_data["last_accessed"] = datetime.now()
-            imported_data["expires_at"] = datetime.now() + self.default_ttl
+            # Store session with metadata
+            self._sessions[session_id] = {
+                "session": session,
+                "created_at": datetime.now(),
+                "last_accessed": datetime.now(),
+                "expires_at": datetime.now() + self.default_ttl
+            }
             
-            # Store session
-            self._sessions[session_id] = imported_data
             self._save_to_disk(session_id)
             
             logger.info(f"Imported session {session_id}")

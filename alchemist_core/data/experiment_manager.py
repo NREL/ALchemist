@@ -13,13 +13,15 @@ class ExperimentManager:
         self.df = pd.DataFrame()  # Raw experimental data
         self.search_space = search_space  # Reference to the search space
         self.filepath = None  # Path to saved experiment file
+        self._current_iteration = 0  # Track current iteration for audit log
         
     def set_search_space(self, search_space):
         """Set or update the search space reference."""
         self.search_space = search_space
         
     def add_experiment(self, point_dict: Dict[str, Union[float, str, int]], output_value: Optional[float] = None, 
-                       noise_value: Optional[float] = None):
+                       noise_value: Optional[float] = None, iteration: Optional[int] = None, 
+                       reason: Optional[str] = None):
         """
         Add a single experiment point.
         
@@ -27,6 +29,8 @@ class ExperimentManager:
             point_dict: Dictionary with variable names as keys and values
             output_value: The experiment output/target value (if known)
             noise_value: Optional observation noise/uncertainty value for regularization
+            iteration: Iteration number (auto-assigned if None)
+            reason: Reason for this experiment (e.g., 'Initial Design (LHS)', 'Expected Improvement')
         """
         # Create a copy of the point_dict to avoid modifying the original
         new_point = point_dict.copy()
@@ -38,6 +42,22 @@ class ExperimentManager:
         # Add noise value if provided
         if noise_value is not None:
             new_point['Noise'] = noise_value
+        
+        # Add iteration tracking
+        if iteration is not None:
+            # Use provided iteration and ensure _current_iteration reflects it
+            new_point['Iteration'] = int(iteration)
+            # Keep _current_iteration in sync with the latest explicit iteration
+            try:
+                self._current_iteration = int(iteration)
+            except Exception:
+                pass
+        else:
+            # Use current iteration (doesn't increment until lock_acquisition)
+            new_point['Iteration'] = int(self._current_iteration)
+        
+        # Add reason
+        new_point['Reason'] = reason if reason is not None else 'Manual'
             
         # Convert to DataFrame and append
         new_df = pd.DataFrame([new_point])
@@ -52,6 +72,20 @@ class ExperimentManager:
             if missing_cols:
                 raise ValueError(f"DataFrame is missing required columns: {missing_cols}")
         
+        # Ensure each row has an Iteration value; default to current iteration
+        if 'Iteration' not in data_df.columns:
+            data_df = data_df.copy()
+            data_df['Iteration'] = int(self._current_iteration)
+        else:
+            # Fill missing iterations with current iteration
+            data_df = data_df.copy()
+            data_df['Iteration'] = pd.to_numeric(data_df['Iteration'], errors='coerce').fillna(self._current_iteration).astype(int)
+            # Update _current_iteration to the max iteration present
+            if len(data_df) > 0:
+                max_iter = int(data_df['Iteration'].max())
+                if max_iter > self._current_iteration:
+                    self._current_iteration = max_iter
+
         # Append the data
         self.df = pd.concat([self.df, data_df], ignore_index=True)
     
@@ -69,8 +103,17 @@ class ExperimentManager:
         """
         if 'Output' not in self.df.columns:
             raise ValueError("DataFrame doesn't contain 'Output' column")
-            
-        X = self.df.drop(columns=['Output'] + (['Noise'] if 'Noise' in self.df.columns else []))
+        
+        # Drop metadata columns (Output, Noise, Iteration, Reason)
+        metadata_cols = ['Output']
+        if 'Noise' in self.df.columns:
+            metadata_cols.append('Noise')
+        if 'Iteration' in self.df.columns:
+            metadata_cols.append('Iteration')
+        if 'Reason' in self.df.columns:
+            metadata_cols.append('Reason')
+        
+        X = self.df.drop(columns=metadata_cols)
         y = self.df['Output']
         return X, y
     
@@ -85,8 +128,17 @@ class ExperimentManager:
         """
         if 'Output' not in self.df.columns:
             raise ValueError("DataFrame doesn't contain 'Output' column")
-            
-        X = self.df.drop(columns=['Output'] + (['Noise'] if 'Noise' in self.df.columns else []))
+        
+        # Drop metadata columns
+        metadata_cols = ['Output']
+        if 'Noise' in self.df.columns:
+            metadata_cols.append('Noise')
+        if 'Iteration' in self.df.columns:
+            metadata_cols.append('Iteration')
+        if 'Reason' in self.df.columns:
+            metadata_cols.append('Reason')
+        
+        X = self.df.drop(columns=metadata_cols)
         y = self.df['Output']
         noise = self.df['Noise'] if 'Noise' in self.df.columns else None
         return X, y, noise
@@ -128,6 +180,18 @@ class ExperimentManager:
             except ValueError:
                 print("Warning: Noise column contains non-numeric values. Converting to default noise level.")
                 self.df['Noise'] = 1e-10  # Default small noise
+        
+        # Initialize iteration tracking from data
+        if 'Iteration' in self.df.columns:
+            self._current_iteration = int(self.df['Iteration'].max())
+        else:
+            # Add iteration column if missing (legacy data)
+            self.df['Iteration'] = 0
+            self._current_iteration = 0
+        
+        # Add reason column if missing (legacy data)
+        if 'Reason' not in self.df.columns:
+            self.df['Reason'] = 'Initial Design'
         
         return self
     

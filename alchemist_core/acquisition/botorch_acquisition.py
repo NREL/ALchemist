@@ -392,10 +392,13 @@ class BoTorchAcquisition(BaseAcquisition):
         if self.batch_size > 1:
             result_points = []
             
+            # Use original feature names (before encoding)
+            feature_names = self.model.original_feature_names
+            
             # Convert each point in the batch to a dictionary with feature names
             for i in range(best_candidates.shape[0]):
                 point_dict = {}
-                for j, name in enumerate(self.model.feature_names):
+                for j, name in enumerate(feature_names):
                     value = best_candidates[i, j]
                     
                     # If this is a categorical variable, convert back to original value
@@ -418,8 +421,11 @@ class BoTorchAcquisition(BaseAcquisition):
             return result_points
         
         # For single-point results (q = 1)
+        # Use original feature names (before encoding)
+        feature_names = self.model.original_feature_names
+        
         result = {}
-        for i, name in enumerate(self.model.feature_names):
+        for i, name in enumerate(feature_names):
             value = best_candidates[0, i]
             
             # If this is a categorical variable, convert back to original value
@@ -448,10 +454,11 @@ class BoTorchAcquisition(BaseAcquisition):
                 return bounds_tensor
         
         # Get feature names from model to ensure proper order
-        if not hasattr(self.model, 'feature_names'):
-            raise ValueError("Model doesn't have feature_names attribute")
+        if not hasattr(self.model, 'original_feature_names'):
+            raise ValueError("Model doesn't have original_feature_names attribute")
         
-        feature_names = self.model.feature_names
+        # Use original_feature_names (before encoding) for bounds extraction
+        feature_names = self.model.original_feature_names
         
         # Get categorical variables
         categorical_variables = []
@@ -636,8 +643,9 @@ class BoTorchAcquisition(BaseAcquisition):
             best_candidate = best_x.cpu().numpy().reshape(1, -1)
             
         # Convert to dictionary and then to DataFrame
+        feature_names = self.model.original_feature_names
         result = {}
-        for i, name in enumerate(self.model.feature_names):
+        for i, name in enumerate(feature_names):
             value = best_candidate[0, i]
             
             # If this is a categorical variable, convert back to original value

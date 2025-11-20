@@ -132,8 +132,8 @@ async def export_session(session_id: str):
     """
     Export a session for download.
     
-    Downloads the complete session state as a .pkl file that can be
-    reimported later.
+    Downloads the complete session state as a .json file that can be
+    reimported later or used in desktop application.
     """
     session_data = session_store.export_session(session_id)
     if session_data is None:
@@ -144,9 +144,9 @@ async def export_session(session_id: str):
     
     return Response(
         content=session_data,
-        media_type="application/octet-stream",
+        media_type="application/json",
         headers={
-            "Content-Disposition": f"attachment; filename=session_{session_id}.pkl"
+            "Content-Disposition": f"attachment; filename=session_{session_id}.json"
         }
     )
 
@@ -156,12 +156,14 @@ async def import_session(file: UploadFile = File(...)):
     """
     Import a previously exported session.
     
-    Uploads a .pkl session file and creates a new session with the imported data.
-    A new session ID will be generated.
+    Uploads a .json session file and creates a new session with the imported data.
+    A new session ID will be generated. Compatible with desktop application sessions.
     """
     try:
         session_data = await file.read()
-        session_id = session_store.import_session(session_data)
+        # Decode bytes to string for JSON
+        session_json = session_data.decode('utf-8')
+        session_id = session_store.import_session(session_json)
         
         if session_id is None:
             raise HTTPException(

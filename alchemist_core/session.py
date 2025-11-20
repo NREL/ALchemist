@@ -232,7 +232,8 @@ class OptimizationSession:
         self.events.emit('data_loaded', {'n_experiments': n_experiments, 'filepath': filepath})
     
     def add_experiment(self, inputs: Dict[str, Any], output: float, 
-                      noise: Optional[float] = None) -> None:
+                      noise: Optional[float] = None, iteration: Optional[int] = None,
+                      reason: Optional[str] = None) -> None:
         """
         Add a single experiment to the dataset.
         
@@ -240,18 +241,23 @@ class OptimizationSession:
             inputs: Dictionary mapping variable names to values
             output: Target/output value
             noise: Optional measurement uncertainty
+            iteration: Iteration number (auto-assigned if None)
+            reason: Reason for this experiment (e.g., 'Manual', 'Expected Improvement')
         
         Example:
             >>> session.add_experiment(
             ...     inputs={'temperature': 350, 'catalyst': 'A'},
-            ...     output=0.85
+            ...     output=0.85,
+            ...     reason='Manual'
             ... )
         """
         # Use ExperimentManager's add_experiment method
         self.experiment_manager.add_experiment(
             point_dict=inputs,
             output_value=output,
-            noise_value=noise
+            noise_value=noise,
+            iteration=iteration,
+            reason=reason
         )
         
         logger.info(f"Added experiment: {inputs} → {output}")
@@ -341,12 +347,27 @@ class OptimizationSession:
             **kwargs
         )
         
+        # Store sampler info in config for audit trail
+        self.config['initial_design_method'] = method
+        self.config['initial_design_n_points'] = len(points)
+        
         logger.info(f"Generated {len(points)} initial design points using {method} method")
         self.events.emit('initial_design_generated', {
             'method': method,
             'n_points': len(points)
         })
         
+        # Add a lightweight audit data_locked entry for the initial design metadata
+        try:
+            extra = {'initial_design_method': method, 'initial_design_n_points': len(points)}
+            # Create an empty dataframe snapshot of the planned points
+            import pandas as pd
+            planned_df = pd.DataFrame(points)
+            self.audit_log.lock_data(planned_df, notes=f"Initial design ({method})", extra_parameters=extra)
+        except Exception:
+            # Audit logging should not block design generation
+            logger.debug("Failed to add initial design to audit log")
+
         return points
     
     # ============================================================
@@ -514,8 +535,45 @@ class OptimizationSession:
                 # Convert complex objects to their string representation
                 json_hyperparams[key] = str(value)
         
+        # Extract kernel name and parameters
+        kernel_name = 'unknown'
+        if self.model_backend == 'sklearn':
+            # First try kernel_options
+            if hasattr(self.model, 'kernel_options') and 'kernel_type' in self.model.kernel_options:
+                kernel_name = self.model.kernel_options['kernel_type']
+                # Add nu parameter for Matern kernels
+                if kernel_name == 'Matern' and 'matern_nu' in self.model.kernel_options:
+                    json_hyperparams['matern_nu'] = self.model.kernel_options['matern_nu']
+            # Then try trained kernel
+            elif hasattr(self.model, 'model') and hasattr(self.model.model, 'kernel_'):
+                kernel_obj = self.model.model.kernel_
+                # Navigate through Product/Sum kernels to find base kernel
+                if hasattr(kernel_obj, 'k2'):  # Product kernel (Constant * BaseKernel)
+                    base_kernel = kernel_obj.k2
+                else:
+                    base_kernel = kernel_obj
+                
+                kernel_class = type(base_kernel).__name__
+                if 'Matern' in kernel_class:
+                    kernel_name = 'Matern'
+                    # Extract nu parameter if available
+                    if hasattr(base_kernel, 'nu'):
+                        json_hyperparams['matern_nu'] = float(base_kernel.nu)
+                elif 'RBF' in kernel_class:
+                    kernel_name = 'RBF'
+                elif 'RationalQuadratic' in kernel_class:
+                    kernel_name = 'RationalQuadratic'
+                else:
+                    kernel_name = kernel_class
+        elif self.model_backend == 'botorch':
+            if hasattr(self.model, 'cont_kernel_type'):
+                kernel_name = self.model.cont_kernel_type
+            elif 'kernel_type' in json_hyperparams:
+                kernel_name = json_hyperparams['kernel_type']
+        
         return {
             'backend': self.model_backend,
+            'kernel': kernel_name,
             'hyperparameters': json_hyperparams,
             'metrics': metrics,
             'is_trained': True
@@ -605,6 +663,13 @@ class OptimizationSession:
         logger.info(f"Suggested point: {suggestion_dict}")
         self.events.emit('acquisition_completed', {'suggestion': suggestion_dict})
         
+        # Cache suggestion info for audit log
+        self._last_acquisition_info = {
+            'strategy': strategy,
+            'goal': goal,
+            'parameters': kwargs
+        }
+        
         return result_df    # ============================================================
     # Predictions
     # ============================================================
@@ -684,7 +749,7 @@ class OptimizationSession:
     # Audit Log & Session Management
     # ============================================================
     
-    def lock_data(self, notes: str = "") -> AuditEntry:
+    def lock_data(self, notes: str = "", extra_parameters: Optional[Dict[str, Any]] = None) -> AuditEntry:
         """
         Lock in current experimental data configuration.
         
@@ -702,24 +767,22 @@ class OptimizationSession:
             >>> session.add_experiment({'temp': 100, 'pressure': 5}, output=85.2)
             >>> session.lock_data(notes="Initial screening dataset")
         """
-        # Get current data state
-        n_experiments = len(self.experiment_manager.df)
-        variables = [v for v in self.search_space.variables]
+        # Set search space in audit log (once)
+        if self.audit_log.search_space_definition is None:
+            self.audit_log.set_search_space(self.search_space.variables)
         
-        # Create hash of experimental data for verification
+        # Get current experimental data
         df = self.experiment_manager.get_data()
-        data_str = df.to_json(orient='records')
-        data_hash = hashlib.sha256(data_str.encode()).hexdigest()[:16]
         
+        # Lock data in audit log
         entry = self.audit_log.lock_data(
-            n_experiments=n_experiments,
-            variables=variables,
-            data_hash=data_hash,
-            notes=notes
+            experiment_data=df,
+            notes=notes,
+            extra_parameters=extra_parameters
         )
         
         self.metadata.update_modified()
-        logger.info(f"Locked data: {n_experiments} experiments, hash={data_hash}")
+        logger.info(f"Locked data: {len(df)} experiments")
         self.events.emit('data_locked', {'entry': entry.to_dict()})
         
         return entry
@@ -748,31 +811,70 @@ class OptimizationSession:
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
         
+        # Set search space in audit log (once)
+        if self.audit_log.search_space_definition is None:
+            self.audit_log.set_search_space(self.search_space.variables)
+        
         # Get model info
         model_info = self.get_model_summary()
         
         # Extract hyperparameters
         hyperparameters = model_info.get('hyperparameters', {})
         
-        # Get CV metrics if available
-        cv_metrics = None
-        if hasattr(self.model, 'cv_cached_results') and self.model.cv_cached_results:
+        # Get kernel name from model_info (which extracts it properly)
+        kernel_name = model_info.get('kernel', 'unknown')
+        
+        # Get CV metrics if available - use model_info metrics which are already populated
+        cv_metrics = model_info.get('metrics', None)
+        if cv_metrics and all(k in cv_metrics for k in ['rmse', 'r2']):
+            # Metrics already in correct format from get_model_summary
+            pass
+        elif hasattr(self.model, 'cv_cached_results') and self.model.cv_cached_results:
+            # Fallback to direct access
             cv_metrics = {
                 'rmse': float(self.model.cv_cached_results.get('rmse', 0)),
                 'r2': float(self.model.cv_cached_results.get('r2', 0)),
                 'mae': float(self.model.cv_cached_results.get('mae', 0))
             }
+        else:
+            cv_metrics = None
         
+        # Get current iteration number
+        # Use the next iteration number for the model lock so model+acquisition share the same iteration
+        iteration = self.experiment_manager._current_iteration + 1
+        
+        # Include scaler information if available in hyperparameters
+        try:
+            if hasattr(self.model, 'input_transform_type'):
+                hyperparameters['input_transform_type'] = self.model.input_transform_type
+            if hasattr(self.model, 'output_transform_type'):
+                hyperparameters['output_transform_type'] = self.model.output_transform_type
+        except Exception:
+            pass
+
+        # Try to extract Matern nu for sklearn models if not already present
+        try:
+            if self.model_backend == 'sklearn' and 'matern_nu' not in hyperparameters:
+                # Try to navigate fitted kernel object for sklearn GaussianProcessRegressor
+                if hasattr(self.model, 'model') and hasattr(self.model.model, 'kernel_'):
+                    kernel_obj = self.model.model.kernel_
+                    base_kernel = getattr(kernel_obj, 'k2', kernel_obj)
+                    if hasattr(base_kernel, 'nu'):
+                        hyperparameters['matern_nu'] = float(base_kernel.nu)
+        except Exception:
+            pass
+
         entry = self.audit_log.lock_model(
             backend=self.model_backend,
-            kernel=model_info.get('kernel', 'unknown'),
+            kernel=kernel_name,
             hyperparameters=hyperparameters,
             cv_metrics=cv_metrics,
+            iteration=iteration,
             notes=notes
         )
         
         self.metadata.update_modified()
-        logger.info(f"Locked model: {self.model_backend}/{model_info.get('kernel')}")
+        logger.info(f"Locked model: {self.model_backend}/{model_info.get('kernel')}, iteration {iteration}")
         self.events.emit('model_locked', {'entry': entry.to_dict()})
         
         return entry
@@ -804,10 +906,19 @@ class OptimizationSession:
             ...     notes="Top 3 candidates for next batch"
             ... )
         """
+        # Set search space in audit log (once)
+        if self.audit_log.search_space_definition is None:
+            self.audit_log.set_search_space(self.search_space.variables)
+        
+        # Increment iteration counter first so this acquisition is logged as the next iteration
+        self.experiment_manager._current_iteration += 1
+        iteration = self.experiment_manager._current_iteration
+
         entry = self.audit_log.lock_acquisition(
             strategy=strategy,
             parameters=parameters,
             suggestions=suggestions,
+            iteration=iteration,
             notes=notes
         )
         
@@ -854,6 +965,12 @@ class OptimizationSession:
         """
         filepath = Path(filepath)
         
+        # Update audit log's experimental data snapshot to reflect current state
+        # This ensures the data table in the audit log markdown is always up-to-date
+        current_data = self.experiment_manager.get_data()
+        if current_data is not None and len(current_data) > 0:
+            self.audit_log.experiment_data = current_data.copy()
+        
         # Prepare session data
         session_data = {
             'version': '1.0.0',
@@ -872,13 +989,29 @@ class OptimizationSession:
         # Add model state if available
         if self.model is not None:
             model_info = self.get_model_summary()
-            session_data['model_state'] = {
+            
+            # Get kernel name from model_info which properly extracts it
+            kernel_name = model_info.get('kernel', 'unknown')
+            
+            # Extract kernel parameters if available
+            kernel_params = {}
+            if self.model_backend == 'sklearn' and hasattr(self.model, 'model'):
+                kernel_obj = self.model.model.kernel
+                # Extract kernel-specific parameters
+                if hasattr(kernel_obj, 'get_params'):
+                    kernel_params = kernel_obj.get_params()
+            elif self.model_backend == 'botorch':
+                # For BoTorch, parameters are in hyperparameters
+                hyperparams = model_info.get('hyperparameters', {})
+                if 'matern_nu' in hyperparams:
+                    kernel_params['nu'] = hyperparams['matern_nu']
+            
+            session_data['model_config'] = {
                 'backend': self.model_backend,
-                'trained': model_info.get('trained', False),
-                'kernel': model_info.get('kernel'),
-                'hyperparameters': model_info.get('hyperparameters', {})
-                # Note: Full model serialization would require pickle/joblib
-                # For now, we store configuration. Model can be retrained from data.
+                'kernel': kernel_name,
+                'kernel_params': kernel_params,
+                'hyperparameters': model_info.get('hyperparameters', {}),
+                'metrics': model_info.get('metrics', {})
             }
         
         # Create directory if needed
@@ -940,18 +1073,41 @@ class OptimizationSession:
         if 'experiments' in session_data and session_data['experiments']['data']:
             df = pd.DataFrame(session_data['experiments']['data'])
             
+            # Metadata columns to exclude from inputs
+            metadata_cols = {'Output', 'Noise', 'Iteration', 'Reason'}
+            
             # Add experiments one by one
             for _, row in df.iterrows():
-                inputs = {col: row[col] for col in df.columns if col != 'Output'}
+                # Only include actual input variables, not metadata
+                inputs = {col: row[col] for col in df.columns if col not in metadata_cols}
                 output = row.get('Output')
-                session.add_experiment(inputs, output)
+                noise = row.get('Noise') if pd.notna(row.get('Noise')) else None
+                iteration = row.get('Iteration') if pd.notna(row.get('Iteration')) else None
+                reason = row.get('Reason') if pd.notna(row.get('Reason')) else None
+                
+                session.add_experiment(inputs, output, noise=noise, iteration=iteration, reason=reason)
         
         # Restore config
         if 'config' in session_data:
             session.config.update(session_data['config'])
         
-        # Note: Model state is not fully restored (would need pickle)
-        # User should retrain model after loading
+        # Auto-retrain model if configuration exists
+        if 'model_config' in session_data:
+            model_config = session_data['model_config']
+            logger.info(f"Auto-retraining model: {model_config['backend']} with {model_config.get('kernel', 'default')} kernel")
+            
+            try:
+                # Trigger model training with saved configuration
+                session.train_model(
+                    backend=model_config['backend'],
+                    kernel=model_config.get('kernel', 'Matern'),
+                    kernel_params=model_config.get('kernel_params', {})
+                )
+                logger.info("Model retrained successfully")
+                session.events.emit('model_retrained', {'backend': model_config['backend']})
+            except Exception as e:
+                logger.warning(f"Failed to retrain model: {e}")
+                session.events.emit('model_retrain_failed', {'error': str(e)})
         
         logger.info(f"Loaded session from {filepath}")
         session.events.emit('session_loaded', {'filepath': str(filepath)})

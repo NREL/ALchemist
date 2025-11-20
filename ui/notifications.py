@@ -489,22 +489,64 @@ class ResultNotificationWindow:
     
     def _log_to_audit_trail(self):
         """Log the complete optimization decision (data + model + acquisition) to audit trail."""
+        # Show notes dialog
+        notes_dialog = AuditNotesDialog(self.window)
+        self.window.wait_window(notes_dialog)
+        
+        # Check if user cancelled
+        if notes_dialog.result is None:
+            print("Audit logging cancelled by user")
+            return
+        
+        notes = notes_dialog.result
+        
         # Get the main app from parent chain
         main_app = self._get_main_app()
         if main_app is None:
             print("Error: Could not find main app to log audit trail")
             return
         
-        # Get next point from result data
+        # Get next point(s) from result data
         next_point_df = self.result_data.get('point_df')
         
         # Create strategy info dict
+        strategy_type = self.result_data.get('strategy_type', 'Unknown')
         strategy_info = {
-            'type': self.result_data.get('strategy_type'),
+            'type': strategy_type,
             'params': self.result_data.get('strategy_params'),
             'maximize': self.result_data.get('maximize'),
-            'description': self.result_data.get('strategy_description')
+            'description': self.result_data.get('strategy_description'),
+            'notes': notes  # Add user notes
         }
+        
+        # Store pending suggestions in main app for use with Add Point dialog
+        if next_point_df is not None and len(next_point_df) > 0:
+            # Convert DataFrame to list of dicts and add metadata
+            pending = next_point_df.to_dict('records')
+            # Attach authoritative Iteration from the session so the Add Point
+            # dialog displays the correct iteration (session.lock_acquisition
+            # may have already incremented it).
+            sess_iter = int(getattr(main_app.session.experiment_manager, '_current_iteration',
+                                     getattr(main_app.experiment_manager, '_current_iteration', 0)))
+            for suggestion in pending:
+                suggestion['_reason'] = strategy_type  # Tag with acquisition strategy name
+                suggestion['Iteration'] = int(suggestion.get('Iteration', sess_iter))
+
+            # Sync UI experiment manager iteration to session so iteration
+            # shown in other UI places is consistent.
+            try:
+                main_app.experiment_manager._current_iteration = sess_iter
+            except Exception:
+                pass
+
+            main_app.pending_suggestions = pending
+            main_app.current_suggestion_index = 0
+            
+            batch_size = len(pending)
+            if batch_size > 1:
+                print(f"✓ Stored {batch_size} pending suggestions from {strategy_type}")
+            else:
+                print(f"✓ Stored 1 pending suggestion from {strategy_type}")
         
         # Call the main app's logging function
         success = main_app.log_optimization_to_audit(next_point_df, strategy_info)
@@ -513,12 +555,21 @@ class ResultNotificationWindow:
             print("✓ Complete optimization decision logged to audit trail")
             # Show brief success message and close window
             import tkinter as tk
-            tk.messagebox.showinfo("Logged to Audit Trail", 
-                "Optimization decision logged successfully!\n\n"
-                "• Data snapshot recorded\n"
-                "• Model parameters recorded\n"
-                "• Acquisition strategy recorded",
-                parent=self.window)
+            msg = "Optimization decision logged successfully!\n\n" \
+                  "• Data snapshot recorded\n" \
+                  "• Model parameters recorded\n" \
+                  "• Acquisition strategy recorded\n"
+            
+            if next_point_df is not None and len(next_point_df) > 0:
+                batch_size = len(next_point_df)
+                if batch_size > 1:
+                    msg += f"\n{batch_size} suggestions are now pending.\n" \
+                           f"Use 'Add Point' to enter results for each suggestion."
+                else:
+                    msg += f"\n1 suggestion is now pending.\n" \
+                           f"Use 'Add Point' to enter the result."
+            
+            tk.messagebox.showinfo("Logged to Audit Trail", msg, parent=self.window)
             self.window.destroy()
         else:
             import tkinter as tk
@@ -714,3 +765,67 @@ def show_calibration_warning(parent, calibration_factor, backend="scikit-learn")
         CalibrationWarningDialog(parent, calibration_factor, backend)
         return True
     return False
+
+
+# ============================================================
+# Audit Notes Dialog
+# ============================================================
+
+class AuditNotesDialog(ctk.CTkToplevel):
+    """Simple dialog for entering optional notes when logging to audit trail."""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.result = None  # Will be None (cancelled) or notes string (confirmed)
+        
+        self.title("Add Notes to Audit Log")
+        self.geometry("450x250")
+        
+        # Message
+        msg_label = ctk.CTkLabel(
+            self, 
+            text="Add optional notes to this audit log entry:",
+            font=('Arial', 12)
+        )
+        msg_label.pack(pady=(20, 10))
+        
+        # Notes field
+        self.notes_text = ctk.CTkTextbox(self, width=400, height=100)
+        self.notes_text.pack(pady=5, padx=20)
+        self.notes_text.focus()
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.pack(pady=20)
+        
+        confirm_btn = ctk.CTkButton(
+            button_frame, 
+            text="Log to Audit Trail", 
+            command=self.confirm,
+            fg_color="green",
+            hover_color="darkgreen",
+            width=150
+        )
+        confirm_btn.pack(side='left', padx=5)
+        
+        cancel_btn = ctk.CTkButton(
+            button_frame, 
+            text="Cancel", 
+            command=self.cancel,
+            width=100
+        )
+        cancel_btn.pack(side='left', padx=5)
+        
+        # Make modal
+        self.transient(parent)
+        self.grab_set()
+    
+    def confirm(self):
+        """Confirm and return notes."""
+        self.result = self.notes_text.get("1.0", "end-1c").strip()
+        self.destroy()
+    
+    def cancel(self):
+        """Cancel."""
+        self.result = None
+        self.destroy()

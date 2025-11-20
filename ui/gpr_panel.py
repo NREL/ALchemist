@@ -444,10 +444,15 @@ class GaussianProcessPanel(ctk.CTkFrame):
                 
                 # Get categorical dimensions
                 categorical_variables = self.main_app.search_space_manager.get_categorical_variables()
+                
+                # Get feature columns (excluding metadata)
+                metadata_cols = {'Output', 'Noise', 'Iteration', 'Reason'}
+                feature_cols = [col for col in self.main_app.exp_df.columns if col not in metadata_cols]
+                
                 cat_dims = [
-                    list(self.main_app.exp_df.columns).index(var)
+                    feature_cols.index(var)
                     for var in categorical_variables
-                    if var in self.main_app.exp_df.columns
+                    if var in feature_cols
                 ]
                 
                 # Train using session API

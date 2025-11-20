@@ -61,6 +61,8 @@ class ALchemistApp(ctk.CTk):
         self.var_df = None
         self.exp_df = pd.DataFrame()
         self.search_space = None
+        self.pool = None  # DEPRECATED: Pool visualization (initialized when variables loaded)
+        self.kmeans = None  # DEPRECATED: Clustering for pool visualization
         
         # NEW: Create OptimizationSession for session-based API
         # This provides a parallel code path alongside the existing direct logic calls
@@ -69,6 +71,7 @@ class ALchemistApp(ctk.CTk):
         # Connect session events to UI updates
         self.session.events.on('progress', self._on_session_progress)
         self.session.events.on('model_trained', self._on_session_model_trained)
+        self.session.events.on('model_retrained', self._on_session_model_retrained)
         self.session.events.on('suggestions_ready', self._on_session_suggestions)
 
         # Build essential UI sections
@@ -105,6 +108,10 @@ class ALchemistApp(ctk.CTk):
         # Initialize the experiment logger
         self.experiment_logger = ExperimentLogger()
         self.experiment_logger.start_experiment("ALchemist_Experiment")
+
+        # UI state: pending acquisition suggestions (persist across dialogs)
+        self.pending_suggestions = []
+        self.current_suggestion_index = 0
     
     def _configure_window(self):
         ctk.set_appearance_mode('dark')
@@ -523,25 +530,181 @@ class ALchemistApp(ctk.CTk):
     def update_exp_df_from_sheet(self):
         '''Updates the exp_df DataFrame with the current data from the exp_sheet.'''
         sheet_data = self.exp_sheet.get_sheet_data(get_header=False)
-        self.exp_df = pd.DataFrame(sheet_data, columns=self.exp_sheet.headers())
+        headers = self.exp_sheet.headers()
+        
+        # If headers are empty, use exp_df columns if available
+        if not headers and self.exp_df is not None:
+            headers = self.exp_df.columns.tolist()
+        
+        if headers:
+            self.exp_df = pd.DataFrame(sheet_data, columns=headers)
+        else:
+            print("Warning: No headers available for sheet data")
+            self.exp_df = pd.DataFrame(sheet_data)
 
     def save_experiments(self):
         '''Saves the experimental data to a CSV file using a file dialog.'''
         self.update_exp_df_from_sheet()  # Update the DataFrame with the current data from the sheet
         if self.exp_df is not None:
-            file_path = filedialog.asksaveasfilename(
-                title='Save Experiments CSV',
-                defaultextension='.csv',
-                filetypes=[('CSV Files', '*.csv')]
-            )
-            if file_path:
+            # If we have an associated experiments file path, overwrite it silently
+            target_path = None
+            if hasattr(self, 'exp_file_path') and self.exp_file_path:
+                target_path = self.exp_file_path
+            elif hasattr(self.experiment_manager, 'filepath') and self.experiment_manager.filepath:
+                target_path = self.experiment_manager.filepath
+
+            if target_path:
                 try:
-                    self.exp_df.to_csv(file_path, index=False)
-                    print('Experiments saved successfully.')
+                    self.exp_df.to_csv(target_path, index=False)
+                    print(f'Experiments auto-saved to {target_path}')
                 except Exception as e:
-                    print('Error saving experiments:', e)
+                    print('Error saving experiments to existing path:', e)
+            else:
+                file_path = filedialog.asksaveasfilename(
+                    title='Save Experiments CSV',
+                    defaultextension='.csv',
+                    filetypes=[('CSV Files', '*.csv')]
+                )
+                if file_path:
+                    try:
+                        self.exp_df.to_csv(file_path, index=False)
+                        self.exp_file_path = file_path
+                        print('Experiments saved successfully.')
+                    except Exception as e:
+                        print('Error saving experiments:', e)
         else:
             print('No experimental data to save.')
+
+    def save_and_commit_all_pending(self):
+        """Commit all pending suggestions to the experiment table and session.
+
+        This method persists any user edits that were made while navigating suggestions,
+        appends all pending suggestions to `self.exp_df` and to the session's ExperimentManager,
+        optionally retrains once, and clears the pending list.
+        """
+        # Save current dialog state first
+        try:
+            self._save_current_dialog_state()
+        except Exception:
+            pass
+
+        if not self.pending_suggestions:
+            # Nothing staged; behave like save_new_point
+            self.save_new_point()
+            if hasattr(self, 'add_point_window'):
+                self.add_point_window.destroy()
+            return
+
+        # Build DataFrame from pending suggestions
+        pending_df = pd.DataFrame(self.pending_suggestions)
+
+        # Ensure we have Iteration and Reason columns
+        # If there are acquisition suggestions (not initial design), we should
+        # increment the iteration counter first so committed rows receive the
+        # next iteration number. This keeps the experiment table in-sync with
+        # the audit log which increments on lock_acquisition.
+        if 'Iteration' not in pending_df.columns:
+            pending_df['Iteration'] = int(getattr(self.experiment_manager, '_current_iteration', 0))
+        if 'Reason' not in pending_df.columns:
+            pending_df['Reason'] = pending_df.get('_reason', 'Acquisition')
+
+        # If committing acquisition suggestions, advance the iteration counter
+        try:
+            # Determine if any pending suggestion is not an initial design
+            has_acquisition = any(not str(row.get('_reason', row.get('Reason', ''))).lower().startswith('initial')
+                                  for _, row in pending_df.iterrows())
+        except Exception:
+            has_acquisition = False
+
+        if has_acquisition:
+            # Use the session's ExperimentManager iteration as authoritative.
+            # `lock_acquisition` should have already incremented it during
+            # audit logging; do not modify `_current_iteration` here to avoid
+            # double increments.
+            try:
+                sess_iter = int(getattr(self.session.experiment_manager, '_current_iteration',
+                                         getattr(self.experiment_manager, '_current_iteration', 0)))
+            except Exception:
+                sess_iter = int(getattr(self.experiment_manager, '_current_iteration', 0))
+
+            # Overwrite Iteration column for all non-initial-design pending rows
+            def assign_iter(row):
+                r_reason = str(row.get('_reason', row.get('Reason', ''))).lower()
+                if r_reason.startswith('initial'):
+                    return int(row.get('Iteration', 0))
+                return int(sess_iter)
+
+            pending_df['Iteration'] = pending_df.apply(assign_iter, axis=1).astype(int)
+
+        # Now that Iteration column has been finalized, append to the visible experiment
+        # table so the UI shows the correct (post-increment) iteration numbers.
+        if self.exp_df is None or self.exp_df.empty:
+            self.exp_df = pending_df.drop(columns=['_reason'], errors='ignore').copy()
+        else:
+            self.exp_df = pd.concat([self.exp_df, pending_df.drop(columns=['_reason'], errors='ignore')], ignore_index=True)
+
+        # Update experiment manager and session
+        for _, row in pending_df.iterrows():
+            inputs = {c: row[c] for c in pending_df.columns if c not in ['Output', 'Noise', 'Iteration', 'Reason', '_reason']}
+            output_val = row.get('Output', None)
+            noise_val = row.get('Noise', None)
+            # Determine reason (prefer internal _reason tag)
+            reason_val = row.get('Reason', row.get('_reason', 'Acquisition'))
+
+            # If this is an acquisition (committed after lock_acquisition),
+            # prefer the experiment manager's current iteration which was
+            # incremented when the acquisition was locked. For initial design
+            # keep the recorded iteration (usually 0).
+            if str(reason_val).lower().startswith('initial'):
+                iter_val = int(row.get('Iteration', 0))
+            else:
+                iter_val = int(getattr(self.experiment_manager, '_current_iteration', 0))
+            try:
+                self.session.add_experiment(inputs=inputs, output=float(output_val) if output_val is not None else None,
+                                            noise=noise_val, iteration=iter_val, reason=reason_val)
+            except Exception:
+                # Fallback: add without casting
+                self.session.add_experiment(inputs=inputs, output=output_val, noise=noise_val, iteration=iter_val, reason=reason_val)
+
+        # Update sheet and headers
+        headers = self.exp_df.columns.tolist()
+        self.exp_sheet.set_sheet_data(self.exp_df.values.tolist())
+        try:
+            self.exp_sheet.set_header_data(headers)
+        except Exception:
+            pass
+
+        # Clear pending suggestions
+        n_committed = len(self.pending_suggestions)
+        self.pending_suggestions = []
+        self.current_suggestion_index = 0
+
+        # Optionally retrain model once if user checked retrain
+        if hasattr(self, 'retrain_checkbox') and self.retrain_checkbox.get():
+            try:
+                self.retrain_model()
+            except Exception as e:
+                print('Warning: retrain failed after committing pending suggestions:', e)
+
+        # Auto-save experiments if we have a path
+        if hasattr(self, 'exp_file_path') and self.exp_file_path:
+            try:
+                self.exp_df.to_csv(self.exp_file_path, index=False)
+                print(f'Committed {n_committed} pending suggestions and auto-saved to {self.exp_file_path}')
+            except Exception as e:
+                print('Warning: failed to auto-save committed suggestions:', e)
+
+        # Auto-save session if available
+        if hasattr(self, 'current_session_file') and self.current_session_file:
+            try:
+                self.session.save_session(self.current_session_file)
+                print(f'Session auto-saved to {self.current_session_file}')
+            except Exception as e:
+                print('Warning: Failed to auto-save session:', e)
+
+        # Close dialog
+        if hasattr(self, 'add_point_window'):
+            self.add_point_window.destroy()
     
     # ============================================================
     # Lock-in Methods (Audit Trail)
@@ -552,21 +715,44 @@ class ALchemistApp(ctk.CTk):
         
         Args:
             next_point_df: DataFrame with suggested points
-            strategy_info: Dict with strategy details (name, params, etc.)
+            strategy_info: Dict with strategy details (name, params, notes, etc.)
         """
         try:
             # Ensure data is synced to session
             self._sync_data_to_session()
             
-            # Log data
-            data_entry = self.session.lock_data()
-            print(f"Data logged to audit trail: {data_entry.hash}...")
+            # Extract notes from strategy_info
+            notes = strategy_info.get('notes', '') if strategy_info else ''
+            
+            # Log data snapshot (include initial design metadata if present in session.config)
+            extra = {}
+            if hasattr(self.session, 'config'):
+                method = self.session.config.get('initial_design_method')
+                n_pts = self.session.config.get('initial_design_n_points')
+                if method:
+                    extra['initial_design_method'] = method
+                    extra['initial_design_n_points'] = n_pts
+
+            try:
+                data_entry = self.session.lock_data(notes=notes, extra_parameters=extra)
+            except TypeError:
+                # Older session API may not accept extra_parameters; fall back and merge metadata into last entry
+                data_entry = self.session.lock_data(notes=notes)
+                try:
+                    if extra and hasattr(self.session.audit_log, 'entries') and len(self.session.audit_log.entries) > 0:
+                        last = self.session.audit_log.entries[-1]
+                        if last.entry_type == 'data_locked':
+                            last.parameters.update(extra)
+                except Exception:
+                    pass
+
+            print(f"Data logged to audit trail: {len(self.session.experiment_manager.df)} experiments")
             
             # Log model
             if hasattr(self, 'gpr_model') and self.gpr_model is not None:
                 self.session.model = self.gpr_model
-                model_entry = self.session.lock_model()
-                print(f"Model logged to audit trail: {model_entry.hash}...")
+                model_entry = self.session.lock_model(notes=notes)
+                print(f"Model logged to audit trail")
             
             # Log acquisition
             if next_point_df is not None and strategy_info is not None:
@@ -585,9 +771,17 @@ class ALchemistApp(ctk.CTk):
                     strategy=strategy_type,
                     parameters=parameters,
                     suggestions=suggestions,
-                    notes=strategy_info.get('description', '')
+                    notes=notes
                 )
-                print(f"Acquisition logged to audit trail: {acq_entry.hash}...")
+                print(f"Acquisition logged to audit trail: {strategy_type}")
+            
+            # Auto-save session after audit log update
+            if hasattr(self, 'current_session_file') and self.current_session_file:
+                try:
+                    self.session.save_session(self.current_session_file)
+                    print(f"Session auto-saved to {self.current_session_file}")
+                except Exception as e:
+                    print(f"Warning: Failed to auto-save session: {e}")
             
             return True
             
@@ -629,6 +823,12 @@ class ALchemistApp(ctk.CTk):
 
         var1 = self.var1_dropdown.get()
         var2 = self.var2_dropdown.get()
+        
+        # Safety check: pool visualization is deprecated and may not be initialized
+        if self.pool is None:
+            print("Pool not initialized - skipping pool visualization (deprecated feature)")
+            self.canvas.draw()
+            return
 
         if self.cluster_switch.get():
             # DEPRECATED: cluster_pool functionality is deprecated
@@ -823,50 +1023,172 @@ class ALchemistApp(ctk.CTk):
 
         # Build a DataFrame with the generated points and an 'Output' column.
         data = {dim.name: samples[:, i].tolist() for i, dim in enumerate(self.search_space)}
+        # Add workflow metadata columns: Output (empty), Iteration, Reason
+        current_iter = getattr(self.experiment_manager, '_current_iteration', 0)
         data['Output'] = [None] * num_points
-        self.exp_df = pd.DataFrame(data)
-        self.exp_sheet.set_sheet_data(self.exp_df.values.tolist())
+        data['Iteration'] = [int(current_iter)] * num_points
+        data['Reason'] = ['Initial Design'] * num_points
+
+        # Stage as pending suggestions (do not commit to session until user confirms)
+        pending_df = pd.DataFrame(data)
+
+        # Store pending suggestions as list of dicts (used by Add Point dialog)
+        pending = []
+        for _, row in pending_df.iterrows():
+            rec = {col: row[col] for col in pending_df.columns}
+            # Tag with internal reason key for dialog logic
+            rec['_reason'] = 'Initial Design'
+            pending.append(rec)
+
+        # Replace current pending suggestions and reset index
+        self.pending_suggestions = pending
+        self.current_suggestion_index = 0
+
+        # Display pending suggestions in the experiment sheet (so user can edit or save)
+        headers = pending_df.columns.tolist()
+        self.exp_sheet.set_sheet_data(pending_df.values.tolist())
+        try:
+            self.exp_sheet.set_header_data(headers)
+        except Exception:
+            pass
+        try:
+            self.exp_sheet.set_all_column_widths()
+        except Exception:
+            pass
+
+        # Do not commit to self.exp_df yet; user must confirm via Add Point or Save
         self._update_ui_state()
-        print('Initial points generated.')
+        # Record initial design metadata in the audit log as a snapshot of planned points
+        try:
+            extra = {'initial_design_method': strategy, 'initial_design_n_points': num_points}
+            # Use a copy to avoid accidental mutation
+            self.session.audit_log.lock_data(pending_df.copy(), notes=f"Initial design staged ({strategy})", extra_parameters=extra)
+        except Exception as e:
+            print(f"Warning: failed to record initial design in audit log: {e}")
+
+        print(f'Initial points generated and staged as {len(pending)} pending suggestions.')
         self.initial_points_window.destroy()
 
     def add_point(self):
-        '''Opens a window to add a new experiment point.'''
+        '''Opens a window to add a new experiment point, with support for pending suggestions.'''
         if not self.search_space:
             print('Please load variables before adding a point.')
             return
 
         self.add_point_window = ctk.CTkToplevel(self)
-        self.add_point_window.title("Add New Point")
-        self.add_point_window.geometry("400x450")  # Made taller for the new field
+        self.add_point_window.title("Add Experimental Result")
+        self.add_point_window.geometry("500x600")
         self.add_point_window.grab_set()
+        
+        # Header with suggestion info
+        header_frame = ctk.CTkFrame(self.add_point_window)
+        header_frame.pack(pady=10, padx=10, fill='x')
+        
+        if self.pending_suggestions and self.current_suggestion_index < len(self.pending_suggestions):
+            # Show which suggestion we're on
+            suggestion_label = ctk.CTkLabel(
+                header_frame,
+                text=f"Pending Suggestion {self.current_suggestion_index + 1} of {len(self.pending_suggestions)}",
+                font=('Arial', 14, 'bold'),
+                text_color='#2B8A3E'
+            )
+            suggestion_label.pack(pady=5)
+            
+            # Navigation buttons
+            nav_frame = ctk.CTkFrame(header_frame)
+            nav_frame.pack(pady=5)
+            
+            prev_btn = ctk.CTkButton(
+                nav_frame,
+                text="← Previous",
+                width=100,
+                command=lambda: self._save_current_and_load(self.current_suggestion_index - 1)
+            )
+            if self.current_suggestion_index > 0:
+                prev_btn.pack(side='left', padx=5)
+            
+            next_btn = ctk.CTkButton(
+                nav_frame,
+                text="Next →",
+                width=100,
+                command=lambda: self._save_current_and_load(self.current_suggestion_index + 1)
+            )
+            if self.current_suggestion_index < len(self.pending_suggestions) - 1:
+                next_btn.pack(side='left', padx=5)
+        else:
+            # Manual entry (no suggestions)
+            manual_label = ctk.CTkLabel(
+                header_frame,
+                text="Manual Entry",
+                font=('Arial', 14, 'bold')
+            )
+            manual_label.pack(pady=5)
 
+        # Variable entries
+        entries_frame = ctk.CTkFrame(self.add_point_window)
+        entries_frame.pack(pady=10, padx=10, fill='both', expand=True)
+        
         self.var_entries = {}
         for var in self.search_space:
-            ctk.CTkLabel(self.add_point_window, text=var.name).pack(pady=5)
-            entry = ctk.CTkEntry(self.add_point_window)
+            ctk.CTkLabel(entries_frame, text=var.name).pack(pady=5)
+            entry = ctk.CTkEntry(entries_frame)
             entry.pack(pady=5)
             self.var_entries[var.name] = entry
+        
+        # Pre-fill if we have a pending suggestion
+        if self.pending_suggestions and self.current_suggestion_index < len(self.pending_suggestions):
+            current_suggestion = self.pending_suggestions[self.current_suggestion_index]
+            for var_name, entry in self.var_entries.items():
+                if var_name in current_suggestion:
+                    entry.insert(0, str(current_suggestion[var_name]))
 
-        ctk.CTkLabel(self.add_point_window, text='Output').pack(pady=5)
-        self.output_entry = ctk.CTkEntry(self.add_point_window)
+        ctk.CTkLabel(entries_frame, text='Output').pack(pady=5)
+        self.output_entry = ctk.CTkEntry(entries_frame)
         self.output_entry.pack(pady=5)
+        self.output_entry.focus()  # Focus on output field
+
+        # Display iteration and reason (read-only)
+        iter_frame = ctk.CTkFrame(entries_frame)
+        iter_frame.pack(fill='x', pady=(6, 2))
+        ctk.CTkLabel(iter_frame, text='Iteration:', width=100, anchor='w').pack(side='left', padx=5)
+        self.iteration_label = ctk.CTkLabel(iter_frame, text='N/A')
+        self.iteration_label.pack(side='left', padx=5)
+
+        reason_frame = ctk.CTkFrame(entries_frame)
+        reason_frame.pack(fill='x', pady=(2, 8))
+        ctk.CTkLabel(reason_frame, text='Reason:', width=100, anchor='w').pack(side='left', padx=5)
+        self.reason_label = ctk.CTkLabel(reason_frame, text='Manual')
+        self.reason_label.pack(side='left', padx=5)
+
+        # If pending suggestion exists, populate iteration and reason
+        if self.pending_suggestions and self.current_suggestion_index < len(self.pending_suggestions):
+            cs = self.pending_suggestions[self.current_suggestion_index]
+            # Prefer the session's experiment manager as the authoritative source
+            iter_val = cs.get('Iteration', getattr(self.session.experiment_manager, '_current_iteration',
+                                                  getattr(self.experiment_manager, '_current_iteration', 0))) + 1
+            self.iteration_label.configure(text=str(int(iter_val)))
+            self.reason_label.configure(text=str(cs.get('_reason', cs.get('Reason', 'Acquisition'))))
+        else:
+            # Default values for manual entry
+            self.iteration_label.configure(text=str(getattr(self.experiment_manager, '_current_iteration', 0)))
+            self.reason_label.configure(text='Manual')
         
         # Add noise field
-        ctk.CTkLabel(self.add_point_window, text='Noise (optional)').pack(pady=5)
-        self.noise_entry = ctk.CTkEntry(self.add_point_window)
+        ctk.CTkLabel(entries_frame, text='Noise (optional)').pack(pady=5)
+        self.noise_entry = ctk.CTkEntry(entries_frame)
         self.noise_entry.pack(pady=5)
         
         # Add info tooltip about noise
         ctk.CTkLabel(
-            self.add_point_window, 
-            text='Noise value represents measurement uncertainty\nand helps prevent overfitting.',
+            entries_frame, 
+            text='Noise represents measurement uncertainty',
             font=('Arial', 10),
             text_color='grey'
         ).pack(pady=0)
 
+        # Options
         self.add_point_button_frame = ctk.CTkFrame(self.add_point_window)
-        self.add_point_button_frame.pack(pady=5)
+        self.add_point_button_frame.pack(pady=10)
 
         self.save_checkbox = ctk.CTkCheckBox(self.add_point_button_frame, text='Save to file')
         self.save_checkbox.select()
@@ -876,10 +1198,57 @@ class ALchemistApp(ctk.CTk):
         self.retrain_checkbox.select()
         self.retrain_checkbox.pack(side='left', padx=5, pady=5)
 
-        ctk.CTkButton(self.add_point_window, text='Save & Close', command=self.save_new_point).pack(pady=10)
+        ctk.CTkButton(self.add_point_window, text='Save & Close', command=self.save_and_commit_all_pending).pack(pady=10)
+    
+    def load_suggestion(self, index):
+        '''Load a specific suggestion into the add point dialog.'''
+        if 0 <= index < len(self.pending_suggestions):
+            self.current_suggestion_index = index
+            # Close and reopen dialog with new suggestion
+            if hasattr(self, 'add_point_window'):
+                self.add_point_window.destroy()
+            self.add_point()
+
+    def _save_current_and_load(self, index):
+        """Save current dialog edits back to pending_suggestions then load another suggestion."""
+        try:
+            # Save current edits
+            self._save_current_dialog_state()
+        except Exception:
+            pass
+        # Load requested suggestion
+        self.load_suggestion(index)
+
+    def _save_current_dialog_state(self):
+        """Persist current Add Point dialog fields into pending_suggestions[current_index]."""
+        if not (hasattr(self, 'var_entries') and self.var_entries):
+            return
+        if not (self.pending_suggestions and 0 <= self.current_suggestion_index < len(self.pending_suggestions)):
+            return
+
+        # Read current values
+        cs = self.pending_suggestions[self.current_suggestion_index]
+        for var_name, entry in self.var_entries.items():
+            try:
+                cs[var_name] = entry.get()
+            except Exception:
+                cs[var_name] = ''
+
+        # Output and noise
+        try:
+            cs['Output'] = self.output_entry.get()
+        except Exception:
+            pass
+        try:
+            noise_val = self.noise_entry.get().strip()
+            if noise_val:
+                cs['Noise'] = float(noise_val)
+        except Exception:
+            # leave as-is if parse fails
+            pass
 
     def save_new_point(self):
-        '''Saves the new point to the tksheet, exp_df, and optionally to a file.'''
+        '''Saves the new point with proper iteration and reason tracking.'''
         new_point = {var: entry.get() for var, entry in self.var_entries.items()}
         new_point['Output'] = self.output_entry.get()
         
@@ -895,19 +1264,71 @@ class ALchemistApp(ctk.CTk):
             # If noise column exists but no value provided, use default
             new_point['Noise'] = 1e-6
 
-        # Add the new point to the exp_df
-        new_point_df = pd.DataFrame([new_point])
-        self.exp_df = pd.concat([self.exp_df, new_point_df], ignore_index=True)
+        # If this corresponds to a pending suggestion, preserve Iteration and Reason
+        if self.pending_suggestions and self.current_suggestion_index < len(self.pending_suggestions):
+            ps = self.pending_suggestions[self.current_suggestion_index]
+            new_point['Iteration'] = int(ps.get('Iteration', getattr(self.experiment_manager, '_current_iteration', 0)))
+            new_point['Reason'] = ps.get('_reason', ps.get('Reason', 'Acquisition'))
+            # Remove this suggestion from pending list
+            self.pending_suggestions.pop(self.current_suggestion_index)
+            if self.current_suggestion_index >= len(self.pending_suggestions):
+                self.current_suggestion_index = max(0, len(self.pending_suggestions) - 1)
+        else:
+            # Manual entry uses current iteration and Manual reason
+            new_point['Iteration'] = int(getattr(self.experiment_manager, '_current_iteration', 0))
+            new_point['Reason'] = 'Manual'
 
-        # Update the tksheet
+        # Add the new point to the exp_df and update sheet
+        new_point_df = pd.DataFrame([new_point])
+        # Ensure exp_df has the right columns (merge if empty)
+        if self.exp_df is None or self.exp_df.empty:
+            self.exp_df = new_point_df.copy()
+        else:
+            self.exp_df = pd.concat([self.exp_df, new_point_df], ignore_index=True)
+
+        # Update the tksheet and headers
+        headers = self.exp_df.columns.tolist()
         self.exp_sheet.set_sheet_data(self.exp_df.values.tolist())
+        try:
+            self.exp_sheet.set_header_data(headers)
+        except Exception:
+            pass
+        
+        # Sync to session (adds iteration/reason and saves session)
+        if hasattr(self, 'session') and self.session:
+            try:
+                # Extract inputs dict (remove Output and Noise)
+                inputs = {k: v for k, v in new_point.items() if k not in ['Output', 'Noise']}
+                output_val = float(new_point['Output'])
+                noise_val = new_point.get('Noise', None)
+                
+                # Add to session with determined reason
+                self.session.add_experiment(
+                    inputs=inputs,
+                    output=output_val,
+                    noise=noise_val,
+                    reason=new_point.get('Reason', 'Manual')
+                )
+
+                # Auto-save session if we have a file path
+                if hasattr(self, 'current_session_file') and self.current_session_file:
+                    try:
+                        self.session.save_session(self.current_session_file)
+                        print(f"Point added (Iteration {self.session.experiment_manager._current_iteration}, Reason: {new_point.get('Reason', 'Manual')})")
+                        print(f"Session auto-saved to {self.current_session_file}")
+                    except Exception as e:
+                        print(f"Warning: Failed to auto-save session: {e}")
+            except Exception as e:
+                print(f"Warning: Failed to sync point to session: {e}")
 
         # Save to file if checkbox is checked
         if self.save_checkbox.get():
             if hasattr(self, 'exp_file_path') and self.exp_file_path:
+                # Auto-save to existing file without prompting
                 self.exp_df.to_csv(self.exp_file_path, index=False)
-                self.load_experiments(self.exp_file_path)
+                print(f"Experiments saved to {self.exp_file_path}")
             else:
+                # Ask for file path if not set
                 file_path = filedialog.asksaveasfilename(
                     title='Save Experiments CSV',
                     defaultextension='.csv',
@@ -915,6 +1336,8 @@ class ALchemistApp(ctk.CTk):
                 )
                 if file_path:
                     self.exp_df.to_csv(file_path, index=False)
+                    self.exp_file_path = file_path
+                    print(f"Experiments saved to {file_path}")
         
         if self.retrain_checkbox.get():
             self.retrain_model()
@@ -1249,9 +1672,61 @@ class ALchemistApp(ctk.CTk):
             
             # Sync experiment data
             if hasattr(self, 'exp_df') and len(self.exp_df) > 0:
-                # Copy experiment data to session's experiment manager
-                # IMPORTANT: ExperimentManager uses 'df' attribute, not 'experiments_df'
-                self.session.experiment_manager.df = self.exp_df.copy()
+                # Ensure metadata columns have correct types
+                exp_df_clean = self.exp_df.copy()
+                
+                # Define metadata columns
+                metadata_cols = {'Output', 'Noise', 'Iteration', 'Reason'}
+                
+                # Ensure Iteration is numeric
+                if 'Iteration' in exp_df_clean.columns:
+                    exp_df_clean['Iteration'] = pd.to_numeric(exp_df_clean['Iteration'], errors='coerce').fillna(0).astype(int)
+                
+                # Ensure Reason is string
+                if 'Reason' in exp_df_clean.columns:
+                    exp_df_clean['Reason'] = exp_df_clean['Reason'].astype(str).replace('nan', 'Manual')
+                
+                # Ensure Output is numeric
+                if 'Output' in exp_df_clean.columns:
+                    exp_df_clean['Output'] = pd.to_numeric(exp_df_clean['Output'], errors='coerce')
+                
+                # Ensure Noise is numeric if present
+                if 'Noise' in exp_df_clean.columns:
+                    exp_df_clean['Noise'] = pd.to_numeric(exp_df_clean['Noise'], errors='coerce')
+                
+                # Get categorical variable names from search space
+                categorical_vars = []
+                if hasattr(self.session, 'search_space') and hasattr(self.session.search_space, 'variables'):
+                    categorical_vars = [v['name'] for v in self.session.search_space.variables if v.get('type') == 'categorical']
+                
+                # Ensure all feature columns are numeric (except categoricals)
+                for col in exp_df_clean.columns:
+                    if col not in metadata_cols:
+                        if col in categorical_vars:
+                            # Keep as string for categorical variables
+                            exp_df_clean[col] = exp_df_clean[col].astype(str)
+                        else:
+                            # Convert to numeric for real/integer variables  
+                            exp_df_clean[col] = pd.to_numeric(exp_df_clean[col], errors='coerce')
+                
+                # Verify no NaN in non-nullable columns and drop bad rows
+                required_cols = [col for col in exp_df_clean.columns if col not in ['Noise', 'Reason']]
+                n_before = len(exp_df_clean)
+                exp_df_clean = exp_df_clean.dropna(subset=required_cols)
+                n_after = len(exp_df_clean)
+                
+                if n_after < n_before:
+                    print(f"WARNING: Dropped {n_before - n_after} rows with invalid/missing data")
+                
+                if len(exp_df_clean) == 0:
+                    print("ERROR: No valid experiment data after cleaning!")
+                    return
+                
+                # Copy cleaned data to session's experiment manager
+                self.session.experiment_manager.df = exp_df_clean
+                
+                # Update local exp_df with cleaned version
+                self.exp_df = exp_df_clean
                 
                 # Set search space in experiment manager
                 self.session.experiment_manager.set_search_space(self.session.search_space)
@@ -1282,6 +1757,7 @@ class ALchemistApp(ctk.CTk):
         self.session = OptimizationSession()
         self.session.events.on('progress', self._on_session_progress)
         self.session.events.on('model_trained', self._on_session_model_trained)
+        self.session.events.on('model_retrained', self._on_session_model_retrained)
         self.session.events.on('suggestions_ready', self._on_session_suggestions)
         
         # Clear UI
@@ -1312,6 +1788,7 @@ class ALchemistApp(ctk.CTk):
             # Reconnect event handlers
             self.session.events.on('progress', self._on_session_progress)
             self.session.events.on('model_trained', self._on_session_model_trained)
+            self.session.events.on('model_retrained', self._on_session_model_retrained)
             self.session.events.on('suggestions_ready', self._on_session_suggestions)
             
             # Sync session data to UI
@@ -1329,6 +1806,26 @@ class ALchemistApp(ctk.CTk):
                 f"Failed to load session:\n{str(e)}")
             import traceback
             traceback.print_exc()
+    
+    def _on_session_model_retrained(self, event_data):
+        """Handle model retraining completion after session load."""
+        backend = event_data.get('backend', 'unknown')
+        print(f"Session: Model retrained successfully ({backend})")
+        
+        # Sync session model to main_app.gpr_model
+        self.gpr_model = self.session.model
+        
+        # Enable UI elements
+        if hasattr(self, 'gpr_panel'):
+            self.gpr_panel.visualize_button.configure(state="normal")
+        
+        if hasattr(self, 'acq_panel'):
+            self.acq_panel.enable()
+        
+        # Show notification
+        tk.messagebox.showinfo("Model Retrained", 
+            f"Model retrained successfully using {backend} backend.")
+
     
     def save_session_cmd(self):
         """Save the current session (use existing file or prompt for new)."""
@@ -1538,3 +2035,73 @@ class SessionMetadataDialog(ctk.CTkToplevel):
         
         print(f"Session metadata updated: {name}")
         self.destroy()
+
+
+# ============================================================
+# Lock Decision Confirmation Dialog
+# ============================================================
+
+class LockDecisionDialog(ctk.CTkToplevel):
+    """Dialog for confirming lock decisions with optional notes."""
+    
+    def __init__(self, parent, decision_type: str):
+        super().__init__(parent)
+        self.result = None  # Will be None (cancelled) or notes string (confirmed)
+        self.decision_type = decision_type
+        
+        self.title(f"Lock {decision_type}")
+        self.geometry("450x300")
+        
+        # Message
+        message_text = f"Lock this {decision_type.lower()} decision to the audit log?\n\n" \
+                      f"This will create an immutable record of your {decision_type.lower()} configuration."
+        
+        msg_label = ctk.CTkLabel(
+            self, 
+            text=message_text,
+            font=('Arial', 12),
+            wraplength=400
+        )
+        msg_label.pack(pady=(20, 10))
+        
+        # Notes field
+        ctk.CTkLabel(self, text="Optional Notes:", font=('Arial', 12, 'bold')).pack(pady=(10, 5))
+        
+        self.notes_text = ctk.CTkTextbox(self, width=400, height=100)
+        self.notes_text.pack(pady=5)
+        self.notes_text.focus()
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(self)
+        button_frame.pack(pady=20)
+        
+        ok_btn = ctk.CTkButton(
+            button_frame, 
+            text="Lock Decision", 
+            command=self.confirm,
+            fg_color="#2B8A3E",  # Green
+            hover_color="#228B22"
+        )
+        ok_btn.pack(side='left', padx=5)
+        
+        cancel_btn = ctk.CTkButton(
+            button_frame, 
+            text="Cancel", 
+            command=self.cancel
+        )
+        cancel_btn.pack(side='left', padx=5)
+        
+        # Make modal
+        self.transient(parent)
+        self.grab_set()
+    
+    def confirm(self):
+        """Confirm the lock decision."""
+        self.result = self.notes_text.get("1.0", "end-1c").strip()
+        self.destroy()
+    
+    def cancel(self):
+        """Cancel the lock decision."""
+        self.result = None
+        self.destroy()
+

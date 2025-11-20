@@ -485,8 +485,10 @@ class BoTorchModel(BaseModel):
                         outcome_transform=fold_outcome_transform
                     )
                 
-                # Load the trained state - this keeps the hyperparameters without retraining
-                fold_model.load_state_dict(self.fitted_state_dict, strict=False)
+                # Train the fold model from scratch (don't load state_dict to avoid dimension mismatches)
+                # This is necessary because folds may have different categorical values or data shapes
+                mll = ExactMarginalLogLikelihood(fold_model.likelihood, fold_model)
+                fit_gpytorch_mll(mll)
                 
                 # Make predictions on test fold
                 fold_model.eval()
@@ -720,8 +722,8 @@ class BoTorchModel(BaseModel):
         y_vals = torch.linspace(y_range[0], y_range[1], 100)
         X, Y = torch.meshgrid(x_vals, y_vals, indexing='ij')
         
-        # Total dimensions in the model
-        input_dim = len(self.feature_names) if self.feature_names else 4
+        # Total dimensions in the model (use original_feature_names to match actual input dimensions)
+        input_dim = len(self.original_feature_names) if self.original_feature_names else 2
         
         # Create placeholder tensors for all dimensions
         grid_tensors = []
