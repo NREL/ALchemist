@@ -94,14 +94,10 @@ export function ContourPlot({ sessionId }: ContourPlotProps) {
   // Fetch contour data (use committedFixedValues - only updates when slider is released)
   const contourRequest = useMemo(() => {
     if (!xAxis || !yAxis) return null;
-    
-    // Don't make request if we don't have fixed values initialized yet
-    if (Object.keys(committedFixedValues).length === 0) {
-      return null;
-    }
 
-    // CRITICAL: Ensure fixed values don't include x or y axis variables
-    // This can happen during initialization race conditions
+    // Build fixed values object (exclude x/y axes). It's valid for this
+    // object to be empty when the search space only contains the two
+    // selected variables — that should still produce a valid contour.
     const fixed: Record<string, number | string> = {};
     Object.entries(committedFixedValues).forEach(([key, val]) => {
       if (key !== xAxis && key !== yAxis) {
@@ -117,6 +113,8 @@ export function ContourPlot({ sessionId }: ContourPlotProps) {
       include_experiments: showExperiments,
       include_suggestions: showNextPoint,
     };
+
+    // Prepared request (debug log intentionally removed in cleanup)
 
     return request;
   }, [xAxis, yAxis, committedFixedValues, committedGridResolution, showExperiments, showNextPoint]);

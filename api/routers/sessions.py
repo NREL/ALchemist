@@ -408,18 +408,23 @@ async def upload_session(file: UploadFile = File(...)):
             temp_path = f.name
         
         try:
-            # Load session from file
-            loaded_session = OptimizationSession.load_session(temp_path)
-            
+            # Load session from file without retraining
+            loaded_session = OptimizationSession.load_session(temp_path, retrain_on_load=False)
+
             # Create new session in store
             new_session_id = session_store.create()
-            
-            # Replace the session object with loaded one
+
+            # Replace the session object with loaded one and align metadata
+            try:
+                loaded_session.metadata.session_id = new_session_id
+            except Exception:
+                pass
+
             session_store._sessions[new_session_id]["session"] = loaded_session
-            
+
             # Update last accessed
             session_store._sessions[new_session_id]["last_accessed"] = datetime.now()
-            
+
             # Persist to disk
             session_store._save_to_disk(new_session_id)
             

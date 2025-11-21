@@ -1024,9 +1024,32 @@ class OptimizationSession:
         self.metadata.update_modified()
         logger.info(f"Saved session to {filepath}")
         self.events.emit('session_saved', {'filepath': str(filepath)})
+
+    def export_session_json(self) -> str:
+        """
+        Export current session state as a JSON string (no filesystem side-effects for caller).
+
+        Returns:
+            JSON string of session data
+        """
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            tmp_path = tmp.name
+            # Use existing save_session logic to write a complete JSON
+            self.save_session(tmp_path)
+
+        try:
+            with open(tmp_path, 'r') as f:
+                content = f.read()
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        return content
     
     @staticmethod
-    def load_session(filepath: str) -> 'OptimizationSession':
+    def load_session(filepath: str, retrain_on_load: bool = True) -> 'OptimizationSession':
         """
         Load session from JSON file.
         
@@ -1091,8 +1114,8 @@ class OptimizationSession:
         if 'config' in session_data:
             session.config.update(session_data['config'])
         
-        # Auto-retrain model if configuration exists
-        if 'model_config' in session_data:
+        # Auto-retrain model if configuration exists (optional)
+        if 'model_config' in session_data and retrain_on_load:
             model_config = session_data['model_config']
             logger.info(f"Auto-retraining model: {model_config['backend']} with {model_config.get('kernel', 'default')} kernel")
             

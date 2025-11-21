@@ -13,6 +13,16 @@ import logging
 import json
 import tempfile
 from pathlib import Path
+import threading
+
+# TODO: Consider migrating per-session `threading.Lock()` to an async-compatible
+# `anyio.Lock()` (or `asyncio.Lock`) for cleaner async endpoint integration.
+#
+# Rationale / next steps:
+# - Many API endpoints are `async def` and blocking the event loop with
+#   `threading.Lock().acquire()` is undesirable.
+# - A migration plan is in `memory/SESSION_LOCKING_ASYNC_PLAN.md` describing
+#   how to transition to `anyio.Lock()` and update handlers to use `async with`.
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +117,16 @@ class SessionStore:
                     json.dump(session_json, tmp, indent=2)
                     temp_path = tmp.name
                 
-                session = OptimizationSession.load_session(temp_path)
+                # Load without retraining by default during startup
+                session = OptimizationSession.load_session(temp_path, retrain_on_load=False)
                 Path(temp_path).unlink()
-                
                 session_id = session_file.stem
                 self._sessions[session_id] = {
                     "session": session,
                     "created_at": datetime.fromisoformat(metadata.get("created_at", datetime.now().isoformat())),
                     "last_accessed": datetime.fromisoformat(metadata.get("last_accessed", datetime.now().isoformat())),
-                    "expires_at": datetime.fromisoformat(metadata.get("expires_at", (datetime.now() + self.default_ttl).isoformat()))
+                    "expires_at": datetime.fromisoformat(metadata.get("expires_at", (datetime.now() + self.default_ttl).isoformat())),
+                    "lock": threading.Lock()
                 }
                 loaded_count += 1
                 
@@ -137,7 +148,7 @@ class SessionStore:
         except Exception as e:
             logger.error(f"Failed to delete session file {session_id}: {e}")
     
-    def create(self) -> str:
+    def create(self, name: Optional[str] = None, description: Optional[str] = None, tags: Optional[list] = None) -> str:
         """
         Create a new session.
         
@@ -146,12 +157,28 @@ class SessionStore:
         """
         session_id = str(uuid.uuid4())
         session = OptimizationSession()
-        
+        # Ensure session metadata matches store id
+        try:
+            session.metadata.session_id = session_id
+        except Exception:
+            pass
+        # Populate optional metadata
+        if name:
+            session.metadata.name = name
+        if description:
+            session.metadata.description = description
+        if tags:
+            try:
+                session.metadata.tags = tags
+            except Exception:
+                pass
+
         self._sessions[session_id] = {
             "session": session,
             "created_at": datetime.now(),
             "last_accessed": datetime.now(),
-            "expires_at": datetime.now() + self.default_ttl
+            "expires_at": datetime.now() + self.default_ttl,
+            "lock": threading.Lock()
         }
         
         # Persist to disk
@@ -178,20 +205,31 @@ class SessionStore:
             return None
         
         session_data = self._sessions[session_id]
-        
-        # Check if expired
-        if datetime.now() > session_data["expires_at"]:
-            logger.info(f"Session {session_id} expired, removing")
-            del self._sessions[session_id]
-            return None
-        
-        # Update last accessed time
-        session_data["last_accessed"] = datetime.now()
-        
-        # Save updated access time to disk
-        self._save_to_disk(session_id)
-        
-        return session_data["session"]
+        lock = session_data.get("lock")
+        if lock:
+            with lock:
+                # Check if expired
+                if datetime.now() > session_data["expires_at"]:
+                    logger.info(f"Session {session_id} expired, removing")
+                    del self._sessions[session_id]
+                    return None
+
+                # Update last accessed time
+                session_data["last_accessed"] = datetime.now()
+
+                # Save updated access time to disk
+                self._save_to_disk(session_id)
+
+                return session_data["session"]
+        else:
+            # Fallback (no lock present)
+            if datetime.now() > session_data["expires_at"]:
+                logger.info(f"Session {session_id} expired, removing")
+                del self._sessions[session_id]
+                return None
+            session_data["last_accessed"] = datetime.now()
+            self._save_to_disk(session_id)
+            return session_data["session"]
     
     def delete(self, session_id: str) -> bool:
         """
@@ -204,8 +242,14 @@ class SessionStore:
             True if deleted, False if not found
         """
         if session_id in self._sessions:
-            del self._sessions[session_id]
-            self._delete_from_disk(session_id)
+            lock = self._sessions[session_id].get("lock")
+            if lock:
+                with lock:
+                    del self._sessions[session_id]
+                    self._delete_from_disk(session_id)
+            else:
+                del self._sessions[session_id]
+                self._delete_from_disk(session_id)
             logger.info(f"Deleted session {session_id}")
             return True
         return False
@@ -249,10 +293,17 @@ class SessionStore:
         """
         if session_id not in self._sessions:
             return False
-        
-        extension = timedelta(hours=hours) if hours else self.default_ttl
-        self._sessions[session_id]["expires_at"] = datetime.now() + extension
-        self._save_to_disk(session_id)
+        lock = self._sessions[session_id].get("lock")
+        if lock:
+            with lock:
+                extension = timedelta(hours=hours) if hours else self.default_ttl
+                self._sessions[session_id]["expires_at"] = datetime.now() + extension
+                self._save_to_disk(session_id)
+        else:
+            extension = timedelta(hours=hours) if hours else self.default_ttl
+            self._sessions[session_id]["expires_at"] = datetime.now() + extension
+            self._save_to_disk(session_id)
+
         logger.info(f"Extended TTL for session {session_id}")
         return True
     
@@ -291,21 +342,33 @@ class SessionStore:
         """
         if session_id not in self._sessions:
             return None
-        
+
         try:
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
-                self._sessions[session_id]["session"].save_session(tmp.name)
-                temp_path = tmp.name
-            
-            # Read the JSON content
-            with open(temp_path, 'r') as f:
-                json_content = f.read()
-            
-            # Clean up temp file
-            Path(temp_path).unlink()
-            
-            return json_content
+            lock = self._sessions[session_id].get("lock")
+            if lock:
+                with lock:
+                    # Create temporary file
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                        self._sessions[session_id]["session"].save_session(tmp.name)
+                        temp_path = tmp.name
+
+                    # Read the JSON content
+                    with open(temp_path, 'r') as f:
+                        json_content = f.read()
+
+                    # Clean up temp file
+                    Path(temp_path).unlink()
+                    return json_content
+            else:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                    self._sessions[session_id]["session"].save_session(tmp.name)
+                    temp_path = tmp.name
+
+                with open(temp_path, 'r') as f:
+                    json_content = f.read()
+
+                Path(temp_path).unlink()
+                return json_content
         except Exception as e:
             logger.error(f"Failed to export session {session_id}: {e}")
             return None
@@ -327,20 +390,27 @@ class SessionStore:
                 tmp.write(session_data)
                 temp_path = tmp.name
             
-            # Load session
-            session = OptimizationSession.load_session(temp_path)
+            # Load session without automatic retrain
+            session = OptimizationSession.load_session(temp_path, retrain_on_load=False)
             Path(temp_path).unlink()
             
             # Generate new session ID if not provided
             if not session_id:
                 session_id = str(uuid.uuid4())
-            
-            # Store session with metadata
+
+            # Ensure session metadata session_id matches store id
+            try:
+                session.metadata.session_id = session_id
+            except Exception:
+                pass
+
+            # Store session with metadata and lock
             self._sessions[session_id] = {
                 "session": session,
                 "created_at": datetime.now(),
                 "last_accessed": datetime.now(),
-                "expires_at": datetime.now() + self.default_ttl
+                "expires_at": datetime.now() + self.default_ttl,
+                "lock": threading.Lock()
             }
             
             self._save_to_disk(session_id)

@@ -192,12 +192,17 @@ async def get_contour_data(
     grid_df = pd.DataFrame(grid_points)
     
     # CRITICAL FIX: Reorder columns to match training data
-    # The model was trained with a specific column order, we must match it
+    # The model was trained with a specific column order, we must match it.
+    # Exclude metadata columns that are part of the experiments table but
+    # are not model input features (e.g., Iteration, Reason, Output, Noise).
     train_data = session.experiment_manager.get_data()
-    train_columns = [col for col in train_data.columns if col != 'Output']
-    
-    # Reorder grid_df to match training column order
-    grid_df = grid_df[train_columns]
+    metadata_cols = {'Iteration', 'Reason', 'Output', 'Noise'}
+    feature_cols = [col for col in train_data.columns if col not in metadata_cols]
+
+    # Safely align the prediction grid to the model feature order.
+    # Use reindex so missing columns (shouldn't happen) are filled with the
+    # midpoint/defaults the grid already supplies; this avoids KeyError.
+    grid_df = grid_df.reindex(columns=feature_cols)
     
     # IMPORTANT: The model's predict() method handles preprocessing internally
     # (including categorical encoding), so we can pass the raw DataFrame directly
