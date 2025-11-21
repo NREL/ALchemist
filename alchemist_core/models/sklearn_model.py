@@ -85,9 +85,30 @@ class SklearnModel(BaseModel):
     def _build_kernel(self, X):
         """Build the kernel using training data X to initialize length scales."""
         kernel_type = self.kernel_options.get("kernel_type", "RBF")
-        # Compute initial length scales as the mean of the data along each dimension.
-        ls_init = np.mean(X, axis=0)
-        ls_bounds = [(1e-5, l * 1e5) for l in ls_init]
+        # Compute initial length scales from the data.
+        # Use standard deviation (positive) as a robust length-scale initializer.
+        try:
+            ls_init = np.std(X, axis=0)
+            ls_init = np.array(ls_init, dtype=float)
+            # Replace non-finite or non-positive values with sensible defaults
+            bad_mask = ~np.isfinite(ls_init) | (ls_init <= 0)
+            if np.any(bad_mask):
+                logger.debug("Replacing non-finite or non-positive length-scales with 1.0")
+                ls_init[bad_mask] = 1.0
+
+            # Build finite, positive bounds for each length-scale
+            ls_bounds = []
+            for l in ls_init:
+                # Protect against extremely small or non-finite upper bounds
+                upper = float(l * 1e5) if np.isfinite(l) else 1e5
+                if not np.isfinite(upper) or upper <= 1e-8:
+                    upper = 1e3
+                ls_bounds.append((1e-5, upper))
+        except Exception as e:
+            logger.warning(f"Failed to compute sensible length-scales from data: {e}. Using safe defaults.")
+            n_dims = X.shape[1] if hasattr(X, 'shape') else 1
+            ls_init = np.ones(n_dims, dtype=float)
+            ls_bounds = [(1e-5, 1e5) for _ in range(n_dims)]
         constant = C()
         if kernel_type == "RBF":
             kernel = constant * RBF(length_scale=ls_init, length_scale_bounds=ls_bounds)
@@ -317,12 +338,29 @@ class SklearnModel(BaseModel):
         
         # Create model with appropriate parameters
         self.model = GaussianProcessRegressor(**params)
-        
+
         # Store the raw training data for possible reuse with skopt
         self.X_train_ = X
         self.y_train_ = y
-        
-        self.model.fit(X, y)
+
+        # Fit the model, but be defensive: if sklearn complains about non-finite
+        # bounds when n_restarts_optimizer>0, retry with no restarts.
+        try:
+            self.model.fit(X, y)
+        except ValueError as e:
+            msg = str(e)
+            if 'requires that all bounds are finite' in msg or 'bounds' in msg.lower():
+                logger.warning("GaussianProcessRegressor failed due to non-finite bounds. "
+                               "Retrying without optimizer restarts (n_restarts_optimizer=0).")
+                # Retry with safer parameters
+                safe_params = params.copy()
+                safe_params['n_restarts_optimizer'] = 0
+                safe_params['optimizer'] = None
+                self.model = GaussianProcessRegressor(**safe_params)
+                self.model.fit(X, y)
+            else:
+                # Re-raise other value errors
+                raise
         self.optimized_kernel = self.model.kernel_
         self._is_trained = True
         

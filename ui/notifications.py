@@ -16,7 +16,16 @@ class ResultNotificationWindow:
         """
         self.window = ctk.CTkToplevel(parent)
         self.window.title("Suggested Next Experiment")
-        self.window.geometry("600x500")
+        # Increase height to avoid bottom content being cut off on smaller displays
+        # Use a taller default and enforce a reasonable minimum size
+        screen_h = self.window.winfo_screenheight()
+        default_h = min(750, int(screen_h * 0.65))
+        self.window.geometry(f"600x{default_h}")
+        # Ensure window cannot be resized smaller than a usable size
+        try:
+            self.window.minsize(560, 600)
+        except Exception:
+            pass
         self.window.lift()
         self.window.focus_force()
         self.window.grab_set()
@@ -153,7 +162,7 @@ class ResultNotificationWindow:
             ).pack(pady=5)
             
             # Create scrollable frame for coordinates
-            coords_scroll = ctk.CTkScrollableFrame(coords_frame, height=150)
+            coords_scroll = ctk.CTkScrollableFrame(coords_frame, height=220)
             coords_scroll.pack(fill="x", padx=10, pady=5)
             
             # Add each coordinate
@@ -239,7 +248,7 @@ class ResultNotificationWindow:
         ).pack(pady=5)
         
         # Create scrollable frame for model details
-        model_scroll = ctk.CTkScrollableFrame(model_frame, height=350)
+        model_scroll = ctk.CTkScrollableFrame(model_frame, height=520)
         model_scroll.pack(fill="both", expand=True, padx=10, pady=5)
         
         # Basic model info
@@ -349,7 +358,7 @@ class ResultNotificationWindow:
         ).pack(pady=5)
         
         # Create scrollable frame for strategy details
-        strategy_scroll = ctk.CTkScrollableFrame(strategy_frame, height=350)
+        strategy_scroll = ctk.CTkScrollableFrame(strategy_frame, height=520)
         strategy_scroll.pack(fill="both", expand=True, padx=10, pady=5)
         
         # Strategy type
@@ -608,7 +617,8 @@ class CalibrationWarningDialog:
         """
         self.window = ctk.CTkToplevel(parent)
         self.window.title("⚠ Model Calibration Warning")
-        self.window.geometry("550x400")
+        # Slightly taller to ensure recommendations aren't clipped
+        self.window.geometry("600x480")
         self.window.lift()
         self.window.focus_force()
         self.window.grab_set()

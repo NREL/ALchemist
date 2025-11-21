@@ -2,6 +2,7 @@ import customtkinter as ctk
 from customtkinter import filedialog
 import json, csv, os
 from skopt.space import Real, Integer, Categorical
+from alchemist_core.data.search_space import SearchSpace
 from tkinter import StringVar
 import tkinter.messagebox as messagebox
 from tksheet import Sheet  # requires tksheet package
@@ -427,7 +428,52 @@ class SpaceSetupWindow(ctk.CTkToplevel):
         
         # Update the main UI if it has the necessary methods
         if hasattr(self.master, 'search_space'):
+            # Store the skopt-compatible dimensions for legacy UI code
             self.master.search_space = self.search_space
+        # Always create/update the SearchSpace manager on the master so the
+        # OptimizationSession and ExperimentManager get a consistent object.
+        try:
+            ss = SearchSpace().from_dict(self.master.variable_space_data)
+            self.master.search_space_manager = ss
+            # Keep the skopt-compatible reference too
+            try:
+                self.master.search_space = ss.to_skopt()
+            except Exception:
+                self.master.search_space = ss
+            # Ensure experiment manager is updated
+            if hasattr(self.master, 'experiment_manager'):
+                try:
+                    self.master.experiment_manager.set_search_space(ss)
+                except Exception:
+                    pass
+            # If there's an active OptimizationSession, update it as well
+            if hasattr(self.master, 'session') and self.master.session is not None:
+                try:
+                    self.master.session.search_space = ss
+                    self.master.session.experiment_manager.set_search_space(ss)
+                    # emit an event so other UI components can react
+                    try:
+                        self.master.session.events.emit('search_space_loaded', {'source': 'ui'})
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Let the main app know the search space changed so it can sync to session
+        if hasattr(self.master, '_sync_data_to_session'):
+            try:
+                self.master._sync_data_to_session()
+            except Exception:
+                pass
+
+        if hasattr(self.master, '_update_ui_state'):
+            try:
+                self.master._update_ui_state()
+            except Exception:
+                pass
+
         if hasattr(self.master, 'update_variables_display'):
             self.master.update_variables_display()
         elif hasattr(self.master, 'var_sheet'):
@@ -469,8 +515,7 @@ class SpaceSetupWindow(ctk.CTkToplevel):
                 self.master.load_exp_button.configure(state='normal')
             if hasattr(self.master, 'gen_template_button'):
                 self.master.gen_template_button.configure(state='normal')
-            if hasattr(self.master, 'cluster_switch'):
-                self.master.cluster_switch.configure(state='normal')
+            # Clustering UI removed; no cluster_switch configuration needed
                 
         except Exception as e:
             print(f"Error updating main UI variables: {e}")

@@ -10,6 +10,7 @@ from skopt.space import Categorical, Integer, Real
 import numpy as np
 from skopt.sampler import Lhs, Sobol, Hammersly
 import tkinter as tk
+import os
 
 from ui.variables_setup import SpaceSetupWindow
 from ui.gpr_panel import GaussianProcessPanel
@@ -34,6 +35,7 @@ from alchemist_core.session import OptimizationSession
 from alchemist_core.events import EventEmitter
 
 plt.rcParams['savefig.dpi'] = 600
+ 
 
 
 # ============================================================
@@ -62,7 +64,7 @@ class ALchemistApp(ctk.CTk):
         self.exp_df = pd.DataFrame()
         self.search_space = None
         self.pool = None  # DEPRECATED: Pool visualization (initialized when variables loaded)
-        self.kmeans = None  # DEPRECATED: Clustering for pool visualization
+        # Clustering removed; no kmeans placeholder
         
         # NEW: Create OptimizationSession for session-based API
         # This provides a parallel code path alongside the existing direct logic calls
@@ -126,8 +128,8 @@ class ALchemistApp(ctk.CTk):
         
         # File menu - NEW: Session management
         file_menu = tk.Menu(menu_bar, tearoff=0)
-        file_menu.add_command(label="New Session", command=self.new_session)
-        file_menu.add_command(label="Open Session...", command=self.open_session)
+        file_menu.add_command(label="New Session", command=self.new_session, accelerator="Cmd+N")
+        file_menu.add_command(label="Open Session...", command=self.open_session, accelerator="Cmd+O")
         file_menu.add_command(label="Save Session", command=self.save_session_cmd, accelerator="Cmd+S")
         file_menu.add_command(label="Save Session As...", command=self.save_session_as)
         file_menu.add_separator()
@@ -157,6 +159,11 @@ class ALchemistApp(ctk.CTk):
         
         # Bind keyboard shortcuts
         self.bind_all("<Command-s>", lambda e: self.save_session_cmd())
+        self.bind_all("<Command-n>", lambda e: self.new_session())
+        self.bind_all("<Control-n>", lambda e: self.new_session())
+        # Open session with Cmd+O (macOS) or Ctrl+O (Windows/Linux)
+        self.bind_all("<Command-o>", lambda e: self.open_session())
+        self.bind_all("<Control-o>", lambda e: self.open_session())
         
         self.config(menu=menu_bar)
 
@@ -175,14 +182,7 @@ class ALchemistApp(ctk.CTk):
     def show_settings(self):
         tk.messagebox.showinfo("Settings", "This is the settings dialog.")
 
-    def _quit(self):
-        # Cancel all pending "after" tasks
-        for task_id in self.tk.call('after', 'info'):
-            self.after_cancel(task_id)
     
-        # Now safely destroy the window
-        self.quit()
-        self.destroy()
     
     # ============================================================
     # Session Event Handlers
@@ -277,15 +277,44 @@ class ALchemistApp(ctk.CTk):
         self._create_variables_dropdown()
 
         # Clustering switch
-        self.cluster_switch = ctk.CTkSwitch(self.frame_viz_options, text='Clustering', command=self.update_pool_plot, state='disabled')
-        self.cluster_switch.pack(side='left', padx=5, pady=5)
+        # NOTE: Clustering switch removed (deprecated)
 
         # Visualization canvas - use square figure for better aspect ratio
-        self.fig, self.ax = plt.subplots(figsize=(5, 5))  # Square figure
+        # Fix macOS Retina scaling by using the Tk root pixels-per-inch as DPI
+        try:
+            dpi = int(self.winfo_fpixels('1i'))
+        except Exception:
+            dpi = plt.rcParams.get('figure.dpi', 100)
+
+        # Apply DPI to matplotlib runtime settings so text and markers scale correctly
+        plt.rcParams['figure.dpi'] = dpi
+
+        # Create figure with explicit DPI and cap font sizes to avoid oversized rendering
+        try:
+            plt.rcParams['axes.titlesize'] = min(12, plt.rcParams.get('axes.titlesize', 12))
+            plt.rcParams['axes.labelsize'] = min(10, plt.rcParams.get('axes.labelsize', 10))
+            plt.rcParams['legend.fontsize'] = min(9, plt.rcParams.get('legend.fontsize', 9))
+            plt.rcParams['xtick.labelsize'] = min(9, plt.rcParams.get('xtick.labelsize', 9))
+            plt.rcParams['ytick.labelsize'] = min(9, plt.rcParams.get('ytick.labelsize', 9))
+            plt.rcParams['lines.markersize'] = min(6, plt.rcParams.get('lines.markersize', 6))
+        except Exception:
+            pass
+
+        try:
+            self.fig, self.ax = plt.subplots(figsize=(5, 5), dpi=dpi)
+            # Ensure compact layout
+            try:
+                self.fig.tight_layout(pad=0.6)
+            except Exception:
+                pass
+        except Exception:
+            # Fallback to defaults
+            self.fig, self.ax = plt.subplots(figsize=(5, 5))
+
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_viz)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame_viz)
         self.toolbar.update()
-        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=2, pady=2)
 
     def _create_variables_dropdown(self):
         '''Creates dropdowns for selecting variables for 2D visualization.'''
@@ -343,10 +372,7 @@ class ALchemistApp(ctk.CTk):
         else:
             self.load_exp_button.configure(state='disabled')
             self.gen_template_button.configure(state='disabled')
-        if self.exp_df is not None:
-            self.cluster_switch.configure(state='normal')
-        else:
-            self.cluster_switch.configure(state='disabled')
+        # Clustering functionality is deprecated and removed from the UI
 
     def load_variables(self):
         """Loads a search space from a file using a file dialog."""
@@ -419,7 +445,7 @@ class ALchemistApp(ctk.CTk):
                 self.pool = generate_pool(self.search_space, lhs_iterations=20)
 
                 # Reset kmeans and update plot
-                self.kmeans = None
+                # Clustering removed; just update plot
                 self.update_pool_plot()
             except Exception as e:
                 print('Error loading search space:', e)
@@ -830,22 +856,8 @@ class ALchemistApp(ctk.CTk):
             self.canvas.draw()
             return
 
-        if self.cluster_switch.get():
-            # DEPRECATED: cluster_pool functionality is deprecated
-            print("WARNING: Clustering visualization is deprecated")
-            # Compute kmeans if it hasn't been computed already.
-            # if not hasattr(self, 'kmeans') or self.kmeans is None:
-            #     # Use skopt-compatible version
-            #     skopt_space = self._get_skopt_space()
-            #     _, _, self.kmeans = cluster_pool(self.pool, self.exp_df, skopt_space, add_cluster=False)
-            # # If a next point exists, enable the highlighting of the largest empty cluster.
-            # add_cluster_flag = True if self.next_point is not None else False
-            # plot_pool(self.pool, var1, var2, self.ax, kmeans=self.kmeans,
-            #         add_cluster=add_cluster_flag, experiments=self.exp_df)
-            # Fallback to non-clustered visualization
-            plot_pool(self.pool, var1, var2, self.ax, kmeans=None, experiments=self.exp_df)
-        else:
-            plot_pool(self.pool, var1, var2, self.ax, kmeans=None, experiments=self.exp_df)
+        # Clustering was deprecated — always use non-clustered visualization
+        plot_pool(self.pool, var1, var2, self.ax, kmeans=None, experiments=self.exp_df)
 
         if self.exp_df is not None and not self.exp_df.empty:
             self.ax.plot(self.exp_df[var1], self.exp_df[var2], 'go', markeredgecolor='k')
@@ -1077,7 +1089,14 @@ class ALchemistApp(ctk.CTk):
 
         self.add_point_window = ctk.CTkToplevel(self)
         self.add_point_window.title("Add Experimental Result")
-        self.add_point_window.geometry("500x600")
+        # Taller default to avoid vertical clipping; constrain min size
+        try:
+            screen_h = self.add_point_window.winfo_screenheight()
+            default_h = min(800, int(screen_h * 0.75))
+            self.add_point_window.geometry(f"560x{default_h}")
+            self.add_point_window.minsize(520, 520)
+        except Exception:
+            self.add_point_window.geometry("560x700")
         self.add_point_window.grab_set()
         
         # Header with suggestion info
@@ -1188,7 +1207,7 @@ class ALchemistApp(ctk.CTk):
 
         # Options
         self.add_point_button_frame = ctk.CTkFrame(self.add_point_window)
-        self.add_point_button_frame.pack(pady=10)
+        self.add_point_button_frame.pack(pady=10, padx=10, fill='x')
 
         self.save_checkbox = ctk.CTkCheckBox(self.add_point_button_frame, text='Save to file')
         self.save_checkbox.select()
@@ -1198,7 +1217,8 @@ class ALchemistApp(ctk.CTk):
         self.retrain_checkbox.select()
         self.retrain_checkbox.pack(side='left', padx=5, pady=5)
 
-        ctk.CTkButton(self.add_point_window, text='Save & Close', command=self.save_and_commit_all_pending).pack(pady=10)
+        save_btn = ctk.CTkButton(self.add_point_button_frame, text='Save & Close', command=self.save_and_commit_all_pending)
+        save_btn.pack(side='right', padx=5, pady=5)
     
     def load_suggestion(self, index):
         '''Load a specific suggestion into the add point dialog.'''
@@ -1768,7 +1788,13 @@ class ALchemistApp(ctk.CTk):
         self.exp_sheet.set_sheet_data([])
         
         print("New session created")
-        tk.messagebox.showinfo("New Session", "New session created successfully.")
+        # Prompt user to name the session immediately
+        dialog = SessionMetadataDialog(self, self.session)
+        dialog.grab_set()
+        self.wait_window(dialog)
+
+        if getattr(dialog, 'saved', False):
+            tk.messagebox.showinfo("New Session", "New session created successfully.")
     
     def open_session(self):
         """Open a session from a JSON file."""
@@ -1796,7 +1822,25 @@ class ALchemistApp(ctk.CTk):
             
             # Store the current filepath for "Save" command
             self.current_session_file = filepath
-            
+
+            # If the loaded session has no meaningful name, default to the
+            # filename (basename without extension).
+            current_name = (self.session.metadata.name or "").strip()
+            if not current_name or current_name.lower().startswith("untitled"):
+                try:
+                    basename = os.path.splitext(os.path.basename(filepath))[0]
+                    # Update session metadata via provided API (keeps modified timestamp)
+                    self.session.update_metadata(name=basename)
+                except Exception:
+                    # Fall back to leaving whatever the session provided
+                    pass
+
+            # Update application title to reflect the opened session
+            try:
+                self.title(f"ALchemist - {self.session.metadata.name}")
+            except Exception:
+                pass
+
             print(f"Session loaded from {filepath}")
             tk.messagebox.showinfo("Session Loaded", 
                 f"Session '{self.session.metadata.name}' loaded successfully.")
@@ -1843,8 +1887,17 @@ class ALchemistApp(ctk.CTk):
                 tk.messagebox.showerror("Error Saving Session", 
                     f"Failed to save session:\n{str(e)}")
         else:
-            # No existing file, prompt for new one
-            self.save_session_as()
+            # No existing file: this is effectively an autosave point. If the
+            # session is unnamed, ask the user if they'd like to create/save a
+            # named session first.
+            if self.maybe_prompt_create_session():
+                # User either created/confirmed a session name; prompt for save-as
+                self.save_session_as()
+            else:
+                # User declined to create a session; still offer Save As as optional
+                # but don't force it. We return early.
+                return
+
     
     def save_session_as(self):
         """Save the current session to a new file."""
@@ -1966,6 +2019,72 @@ class ALchemistApp(ctk.CTk):
             import traceback
             traceback.print_exc()
 
+    def maybe_prompt_create_session(self) -> bool:
+        """If the current session is unnamed, prompt the user to create session metadata.
+
+        Returns True if the user created/confirmed a session name (or one already existed),
+        False if the user declined.
+        """
+        try:
+            name = (self.session.metadata.name or "").strip()
+            if name and not name.lower().startswith('untitled'):
+                return True
+
+            resp = tk.messagebox.askyesno(
+                "Create Session?",
+                "This workspace is not associated with a saved session. Would you like to create a session now?"
+            )
+            if not resp:
+                return False
+
+            dialog = SessionMetadataDialog(self, self.session)
+            dialog.grab_set()
+            self.wait_window(dialog)
+            # Return True if the session now has a name
+            return bool((self.session.metadata.name or "").strip())
+        except Exception:
+            return False
+
+    def _quit(self):
+        """Handle window close with Save / Don't Save / Cancel dialog.
+
+        - Yes: prompt Save As if no file, then quit on success
+        - No: quit without saving
+        - Cancel: abort close
+        """
+        try:
+            if hasattr(self.session, 'audit_log') and len(self.session.audit_log.entries) > 0:
+                resp = tk.messagebox.askyesnocancel(
+                    "Save Session?",
+                    "Would you like to save the current session before quitting?"
+                )
+                if resp is None:
+                    # Cancel
+                    return
+                if resp:
+                    # Yes -> save
+                    if hasattr(self, 'current_session_file') and self.current_session_file:
+                        try:
+                            self._sync_data_to_session()
+                            self.session.save_session(self.current_session_file)
+                        except Exception as e:
+                            tk.messagebox.showerror("Save Failed", f"Failed to save session:\n{e}")
+                            return
+                    else:
+                        # No existing file -> prompt for save-as
+                        if not self.maybe_prompt_create_session():
+                            # User declined to create a session, abort quit
+                            return
+                        self.save_session_as()
+            # If we get here, either user chose No or save succeeded
+            self.destroy()
+        except Exception:
+            # Fallback: destroy the window
+            try:
+                self.destroy()
+            except Exception:
+                pass
+
 
 # ============================================================
 # Session Metadata Dialog
@@ -1978,7 +2097,10 @@ class SessionMetadataDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.session = session
         self.title("Session Metadata")
-        self.geometry("500x400")
+        # Taller dialog to accommodate fields on smaller displays
+        self.geometry("560x560")
+        self.minsize(480, 420)
+        self.saved = False
         
         # Name field
         ctk.CTkLabel(self, text="Session Name:", font=('Arial', 12)).pack(pady=(10, 0))
@@ -1999,14 +2121,19 @@ class SessionMetadataDialog(ctk.CTkToplevel):
         if session.metadata.tags:
             self.tags_entry.insert(0, ", ".join(session.metadata.tags))
         
-        # Author field (read-only)
+        # Author field (editable)
         ctk.CTkLabel(self, text="Author:", font=('Arial', 12)).pack(pady=(10, 0))
-        author_label = ctk.CTkLabel(self, text=session.metadata.author or "Unknown")
-        author_label.pack(pady=5)
+        self.author_entry = ctk.CTkEntry(self, width=400)
+        self.author_entry.pack(pady=5)
+        author_text = getattr(session.metadata, 'author', None)
+        if author_text:
+            self.author_entry.insert(0, author_text)
         
         # Session ID (read-only)
         ctk.CTkLabel(self, text="Session ID:", font=('Arial', 12)).pack(pady=(10, 0))
-        id_label = ctk.CTkLabel(self, text=session.session_id[:16] + "...")
+        session_id = getattr(getattr(session, 'metadata', None), 'session_id', None)
+        id_text = (session_id[:16] + "...") if session_id else "(no id)"
+        id_label = ctk.CTkLabel(self, text=id_text)
         id_label.pack(pady=5)
         
         # Buttons
@@ -2016,7 +2143,7 @@ class SessionMetadataDialog(ctk.CTkToplevel):
         save_btn = ctk.CTkButton(button_frame, text="Save", command=self.save_metadata)
         save_btn.pack(side='left', padx=5)
         
-        cancel_btn = ctk.CTkButton(button_frame, text="Cancel", command=self.destroy)
+        cancel_btn = ctk.CTkButton(button_frame, text="Cancel", command=self._on_cancel)
         cancel_btn.pack(side='left', padx=5)
     
     def save_metadata(self):
@@ -2030,10 +2157,17 @@ class SessionMetadataDialog(ctk.CTkToplevel):
         self.session.update_metadata(
             name=name if name else None,
             description=description if description else None,
-            tags=tags if tags else None
+            tags=tags if tags else None,
+            author=self.author_entry.get().strip() if hasattr(self, 'author_entry') else None
         )
         
         print(f"Session metadata updated: {name}")
+        self.saved = True
+        self.destroy()
+
+    def _on_cancel(self):
+        """Handle cancel/close without saving."""
+        self.saved = False
         self.destroy()
 
 

@@ -93,11 +93,53 @@ class Visualizations:
     def initialize_figure(self):
         """Initialize the Matplotlib figure and axes."""
         if self.fig is None or self.ax is None:
-            self.fig, self.ax = plt.subplots(figsize=(6, 4))
+            # Use current rcParam DPI when creating the figure so text sizes
+            # are consistent with the active window's DPI settings.
+            dpi = plt.rcParams.get('figure.dpi', 100)
+            self.fig, self.ax = plt.subplots(figsize=(6, 4), dpi=dpi)
 
     def open_window(self):
         """Open the visualization window."""
-        self.initialize_figure()  # Ensure the figure is initialized
+        # Probe DPI from the parent window (avoids creating a new Tk root).
+        try:
+            dpi = int(self.parent.winfo_fpixels('1i'))
+        except Exception:
+            dpi = plt.rcParams.get('figure.dpi', 100)
+
+        # Apply DPI to matplotlib runtime settings so text and markers scale correctly
+        plt.rcParams['figure.dpi'] = dpi
+
+        # Cap font sizes to avoid oversized rendering on HiDPI displays
+        try:
+            fs = plt.rcParams.get('font.size', 10)
+            if fs > 14:
+                plt.rcParams['font.size'] = 10
+            if plt.rcParams.get('xtick.labelsize', 10) > 12:
+                plt.rcParams['xtick.labelsize'] = 8
+            if plt.rcParams.get('ytick.labelsize', 10) > 12:
+                plt.rcParams['ytick.labelsize'] = 8
+        except Exception:
+            pass
+
+        self.initialize_figure()  # Ensure the figure is initialized with corrected DPI
+        # Enforce additional rcParams to keep the figure compact and fonts reasonable
+        try:
+            plt.rcParams['axes.titlesize'] = min(12, plt.rcParams.get('axes.titlesize', 12))
+            plt.rcParams['axes.labelsize'] = min(10, plt.rcParams.get('axes.labelsize', 10))
+            plt.rcParams['legend.fontsize'] = min(9, plt.rcParams.get('legend.fontsize', 9))
+            plt.rcParams['xtick.labelsize'] = min(9, plt.rcParams.get('xtick.labelsize', 9))
+            plt.rcParams['ytick.labelsize'] = min(9, plt.rcParams.get('ytick.labelsize', 9))
+            plt.rcParams['lines.markersize'] = min(6, plt.rcParams.get('lines.markersize', 6))
+        except Exception:
+            pass
+
+        # Ensure the figure uses a compact size (in inches) and the detected DPI.
+        try:
+            # Prefer a slightly smaller figure to avoid huge white margins
+            self.fig.set_size_inches(5, 4, forward=True)
+            self.fig.set_dpi(dpi)
+        except Exception:
+            pass
 
         if self.search_space is None:
             print("Error: Search space is not defined.")
@@ -121,6 +163,15 @@ class Visualizations:
         visualization_window.lift()
         visualization_window.focus_force()
         visualization_window.grab_set()
+
+        # Fix macOS Retina scaling by probing the new window's DPI and applying it
+        try:
+            dpi = int(visualization_window.winfo_fpixels('1i'))
+        except Exception:
+            dpi = plt.rcParams.get('figure.dpi', 100)
+
+        # Apply DPI to matplotlib runtime settings so text and markers scale correctly
+        plt.rcParams['figure.dpi'] = dpi
 
         # Top control frame for other visualizations (metrics, parity, hyperparameters)
         # Use two rows to avoid crowding
@@ -191,8 +242,14 @@ class Visualizations:
         self.plot_frame = ctk.CTkFrame(main_container, height=450)
         self.plot_frame.pack(side="left", fill='both', expand=True, padx=5, pady=5)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_frame)
+        # Draw and tighten layout before packing to reduce excess margins
+        try:
+            self.fig.tight_layout(pad=0.6)
+        except Exception:
+            pass
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
+        # Use smaller padding so the canvas doesn't create excess whitespace
+        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=2, pady=2)
         self.metrics_toolbar = NavigationToolbar2Tk(self.canvas, self.plot_frame)
         self.metrics_toolbar.config(background='#2E2E2E')
         self.metrics_toolbar._message_label.config(background='#2E2E2E')
