@@ -1116,7 +1116,8 @@ class OptimizationSession:
     
     def update_metadata(self, name: Optional[str] = None, 
                        description: Optional[str] = None,
-                       tags: Optional[List[str]] = None):
+                       tags: Optional[List[str]] = None,
+                       author: Optional[str] = None):
         """
         Update session metadata.
         
@@ -1136,6 +1137,9 @@ class OptimizationSession:
             self.metadata.name = name
         if description is not None:
             self.metadata.description = description
+        if author is not None:
+            # Backwards compatible: store author if provided
+            setattr(self.metadata, 'author', author)
         if tags is not None:
             self.metadata.tags = tags
         

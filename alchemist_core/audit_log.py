@@ -31,6 +31,7 @@ class SessionMetadata:
         created_at: ISO timestamp of session creation
         last_modified: ISO timestamp of last modification
         description: Optional detailed description
+        author: Optional author name
         tags: Optional list of tags for organization
     """
     session_id: str
@@ -38,6 +39,7 @@ class SessionMetadata:
     created_at: str
     last_modified: str
     description: str = ""
+    author: str = ""
     tags: List[str] = field(default_factory=list)
     
     @staticmethod
@@ -61,6 +63,7 @@ class SessionMetadata:
             created_at=now,
             last_modified=now,
             description=description,
+            author="",
             tags=tags or []
         )
     
