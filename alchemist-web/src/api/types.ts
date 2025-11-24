@@ -15,6 +15,16 @@ export interface Session {
   variable_count: number;
   experiment_count: number;
   model_trained: boolean;
+  // Optional metadata may be present on session responses
+  metadata?: {
+    session_id?: string;
+    name?: string;
+    description?: string;
+    tags?: string[];
+    author?: string;
+    created_at?: string;
+    last_modified?: string;
+  };
 }
 
 export interface CreateSessionRequest {

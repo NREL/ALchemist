@@ -15,9 +15,12 @@ import { Play, Info, Target } from 'lucide-react';
 interface AcquisitionPanelProps {
   sessionId: string;
   modelBackend?: ModelBackend | null;
+  // optional props to lift pending suggestions to a parent (App)
+  pendingSuggestions?: any[];
+  onStageSuggestions?: (pending: any[]) => void;
 }
 
-export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelProps) {
+export function AcquisitionPanel({ sessionId, modelBackend, pendingSuggestions: pendingFromProps, onStageSuggestions }: AcquisitionPanelProps) {
   // State for sklearn options
   const [skStrategy, setSkStrategy] = useState<string>('EI');
   const [skGoal, setSkGoal] = useState<OptimizationGoal>('maximize');
@@ -39,6 +42,9 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
   const { data: modelInfo } = useModelInfo(sessionId);
   const suggestNext = useSuggestNext(sessionId);
   const findOptimum = useFindOptimum(sessionId);
+  // Local fallback state when parent doesn't provide staging handlers
+  const [localPendingSuggestions, setLocalPendingSuggestions] = useState<any[]>([])
+  const pendingSuggestions = pendingFromProps ?? localPendingSuggestions
   
   // Determine which backend is active
   const activeBackend = modelBackend || modelInfo?.backend || 'sklearn';
@@ -63,8 +69,10 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
     }
     
     let request: AcquisitionRequest;
+    let strategyName: string;
     
     if (activeBackend === 'sklearn') {
+      strategyName = skStrategy;
       request = {
         strategy: skStrategy as any,
         goal: skGoal,
@@ -83,12 +91,14 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
     } else {
       // BoTorch
       if (btAcqType === 'regular') {
+        strategyName = btRegularStrategy;
         request = {
           strategy: btRegularStrategy as any,
           goal: btGoal,
           n_suggestions: 1,
         };
       } else if (btAcqType === 'batch') {
+        strategyName = btBatchStrategy;
         request = {
           strategy: btBatchStrategy as any,
           goal: btGoal,
@@ -99,6 +109,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
         }
       } else {
         // Exploratory
+        strategyName = 'qNIPV';
         request = {
           strategy: 'qNIPV',
           goal: btGoal,
@@ -110,6 +121,21 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
     try {
       const result = await suggestNext.mutateAsync(request);
       console.log('Suggestions:', result.suggestions);
+      // Stage suggestions with strategy metadata (mirrors desktop UX)
+      if (result?.suggestions && result.suggestions.length > 0) {
+        // Tag each suggestion with acquisition strategy for auto-fill in Add Point dialog
+        const taggedSuggestions = result.suggestions.map((s: any) => ({
+          ...s,
+          _reason: strategyName,  // Desktop workflow: tag with strategy name
+          _strategyParams: request  // Store full request for audit log
+        }));
+        
+        if (onStageSuggestions) {
+          onStageSuggestions(taggedSuggestions);
+        } else {
+          setLocalPendingSuggestions(taggedSuggestions);
+        }
+      }
     } catch (error) {
       console.error('Failed to get suggestions:', error);
     }
@@ -451,7 +477,7 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
         </p>
       )}
       
-      {/* Display suggestions */}
+      {/* Display suggestions - now staged to App-level state for Add Point in Experiments panel */}
       {suggestNext.isSuccess && suggestNext.data && (
         <div className="mt-6 p-4 bg-muted/50 rounded-lg">
           <h3 className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-2">Suggested Experiments</h3>
@@ -471,6 +497,53 @@ export function AcquisitionPanel({ sessionId, modelBackend }: AcquisitionPanelPr
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            <button
+              onClick={async () => {
+                // Stage to audit log (desktop workflow: lock_acquisition)
+                const { toast } = await import('sonner');
+                try {
+                  // Extract strategy info from first pending suggestion
+                  const strategyInfo = pendingSuggestions[0]?._strategyParams;
+                  const strategyName = pendingSuggestions[0]?._reason || 'Unknown';
+                  
+                  // Clean suggestions (remove internal metadata)
+                  const cleanSuggestions = pendingSuggestions.map(s => {
+                    const { _reason, _strategyParams, ...rest } = s;
+                    return rest;
+                  });
+                  
+                  const response = await fetch(`/api/v1/sessions/${sessionId}/audit/lock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      lock_type: 'acquisition',
+                      strategy: strategyName,
+                      parameters: strategyInfo || {},
+                      suggestions: cleanSuggestions,
+                      notes: ''
+                    })
+                  });
+                  
+                  if (!response.ok) throw new Error('Failed to stage suggestions');
+                  
+                  toast.success(`✓ ${cleanSuggestions.length} suggestion(s) staged to audit log`, {
+                    description: 'Use "Add Point" button in Experiments panel to add results'
+                  });
+                  console.log(`✓ Suggestions staged to audit log (${strategyName})`);
+                } catch (e: any) {
+                  toast.error('Failed to stage suggestions: ' + (e?.message || String(e)));
+                  console.error('Failed to stage suggestions:', e);
+                }
+              }}
+              className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-medium flex items-center justify-center gap-2"
+            >
+              📝 Stage to Audit Log
+            </button>
+            <p className="text-xs text-muted-foreground text-center">
+              Staging persists suggestions across page reloads. Use "Add Point" to enter experimental results.
+            </p>
           </div>
         </div>
       )}

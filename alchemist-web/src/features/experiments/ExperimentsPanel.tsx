@@ -2,15 +2,23 @@
  * Experiments Panel - Manage experimental data
  * Mimics desktop UI experiment management
  */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useExperiments, useExperimentsSummary, useUploadExperiments } from '../../hooks/api/useExperiments';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import AddPointDialog from '../../components/AddPointDialog';
 
 interface ExperimentsPanelProps {
   sessionId: string;
+  pendingSuggestions?: any[];
+  onStageSuggestions?: (pending: any[]) => void;
 }
 
-export function ExperimentsPanel({ sessionId }: ExperimentsPanelProps) {
+export function ExperimentsPanel({ sessionId, pendingSuggestions = [], onStageSuggestions }: ExperimentsPanelProps) {
+  const [addPointOpen, setAddPointOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   
   const { data: experimentsData, isLoading: isLoadingExperiments } = useExperiments(sessionId);
   const { data: summaryData } = useExperimentsSummary(sessionId);
@@ -125,6 +133,59 @@ export function ExperimentsPanel({ sessionId }: ExperimentsPanelProps) {
       ) : (
         <div className="border border-dashed border-muted-foreground/20 rounded p-6 text-center">
           <p className="text-xs text-muted-foreground">No data loaded</p>
+        </div>
+      )}
+
+      {/* Add Point button - below table */}
+      <button
+        onClick={() => { setAddPointOpen(true); setCurrentIndex(0); }}
+        disabled={!pendingSuggestions || pendingSuggestions.length === 0}
+        className="w-full border border-muted px-3 py-2 rounded text-sm font-medium hover:bg-muted/5 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Add Point... {pendingSuggestions && pendingSuggestions.length > 0 ? `(${pendingSuggestions.length})` : ''}
+      </button>
+
+      {/* Modal overlay for Add Point dialog */}
+      {addPointOpen && pendingSuggestions && pendingSuggestions.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setAddPointOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <AddPointDialog
+              suggestion={pendingSuggestions[currentIndex]}
+              index={currentIndex}
+              total={pendingSuggestions.length}
+              onCancel={() => setAddPointOpen(false)}
+              onConfirm={async (payload, options) => {
+                // Import API helper
+                const { addExperiment } = await import('../../components/api');
+                try {
+                  await addExperiment(sessionId, payload, options.retrain);
+                  
+                  // Invalidate queries to refresh experiments table
+                  queryClient.invalidateQueries({ queryKey: ['experiments', sessionId] });
+                  queryClient.invalidateQueries({ queryKey: ['experiments-summary', sessionId] });
+                  queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+                  
+                  // Remove current suggestion from staged list
+                  const updated = pendingSuggestions.filter((_, i) => i !== currentIndex);
+                  onStageSuggestions && onStageSuggestions(updated);
+                  
+                  // Show success message
+                  toast.success('Experiment added successfully!');
+                  
+                  // Close modal if no more suggestions, otherwise adjust index
+                  if (updated.length === 0) {
+                    setAddPointOpen(false);
+                  } else if (currentIndex >= updated.length) {
+                    setCurrentIndex(updated.length - 1);
+                  }
+                } catch (e: any) {
+                  toast.error('Failed to add point: ' + (e?.message || String(e)));
+                }
+              }}
+              onPrev={currentIndex > 0 ? () => setCurrentIndex((i)=>i-1) : undefined}
+              onNext={currentIndex < pendingSuggestions.length - 1 ? () => setCurrentIndex((i)=>i+1) : undefined}
+            />
+          </div>
         </div>
       )}
     </div>

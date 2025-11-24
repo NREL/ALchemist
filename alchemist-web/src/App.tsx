@@ -8,7 +8,8 @@ import {
   useCreateSession, 
   useSession,
   useExportSession,
-  useImportSession
+  useImportSession,
+  useUpdateSessionMetadata
 } from './hooks/api/useSessions';
 import { VariablesPanel } from './features/variables/VariablesPanel';
 import { ExperimentsPanel } from './features/experiments/ExperimentsPanel';
@@ -18,6 +19,7 @@ import { AcquisitionPanel } from './features/acquisition/AcquisitionPanel';
 import { MonitoringDashboard } from './features/monitoring/MonitoringDashboard';
 import { VisualizationsPanel } from './components/visualizations';
 import { TabView } from './components/ui';
+import { SessionMetadataDialog } from './components/SessionMetadataDialog';
 import { useTheme } from './hooks/useTheme';
 import { Sun, Moon, X } from 'lucide-react';
 import './index.css';
@@ -25,14 +27,53 @@ import './index.css';
 function AppContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isMonitoringMode, setIsMonitoringMode] = useState<boolean>(false);
+  const [showMetadataDialog, setShowMetadataDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const createSession = useCreateSession();
   const exportSession = useExportSession();
   const importSession = useImportSession();
+  const updateMetadata = useUpdateSessionMetadata(sessionId);
   const { data: session, error: sessionError } = useSession(sessionId);
   const { theme, toggleTheme } = useTheme();
   const { isVisualizationOpen, closeVisualization, sessionId: vizSessionId } = useVisualization();
+  // Global staged suggestions to mirror desktop main_app.pending_suggestions
+  const [pendingSuggestions, setPendingSuggestions] = useState<any[]>([]);
+
+  // Restore pending suggestions from audit log on session load (desktop workflow)
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    async function restorePendingSuggestions() {
+      try {
+        const response = await fetch(`/api/v1/sessions/${sessionId}/audit?entry_type=acquisition_locked`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        if (data.entries && data.entries.length > 0) {
+          // Get latest acquisition entry
+          const latestAcq = data.entries[data.entries.length - 1];
+          const suggestions = latestAcq.parameters?.suggestions || [];
+          
+          if (suggestions.length > 0) {
+            // Tag suggestions with strategy for reason auto-fill
+            const strategy = latestAcq.parameters?.strategy || 'Acquisition';
+            const taggedSuggestions = suggestions.map((s: any) => ({
+              ...s,
+              _reason: strategy,
+              Iteration: latestAcq.parameters?.iteration
+            }));
+            setPendingSuggestions(taggedSuggestions);
+            console.log(`✓ Restored ${suggestions.length} pending suggestions from audit log`);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to restore pending suggestions:', e);
+      }
+    }
+    
+    restorePendingSuggestions();
+  }, [sessionId]);
 
   // Check for monitoring mode URL parameter
   useEffect(() => {
@@ -59,12 +100,48 @@ function AppContent() {
     }
   }, [sessionError, sessionId]);
 
+  // Prompt to save on page close/reload (desktop _quit behavior)
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only prompt if session has data
+      if (session && (session.variable_count > 0 || session.experiment_count > 0)) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [sessionId, session]);
+
+  // Prompt to save on page close/reload (desktop _quit behavior)
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only prompt if session has data
+      if (session && (session.variable_count > 0 || session.experiment_count > 0)) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [sessionId, session]);
+
   // Handle session creation
   const handleCreateSession = async () => {
     try {
       const newSession = await createSession.mutateAsync({ ttl_hours: 24 });
       setSessionId(newSession.session_id);
       toast.success('Session created successfully!');
+      // Show metadata dialog for new session
+      setShowMetadataDialog(true);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to create session');
       console.error('Error creating session:', error);
@@ -110,6 +187,30 @@ function AppContent() {
         toast.error(error.response?.data?.detail || 'Failed to import session');
         console.error('Error importing session:', error);
       }
+    }
+  };
+
+  // Handle audit log export (matches desktop File → Export Audit Log)
+  const handleExportAuditLog = async () => {
+    if (!sessionId) return;
+    try {
+      const response = await fetch(`/api/v1/sessions/${sessionId}/audit/export`);
+      if (!response.ok) throw new Error('Failed to export audit log');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_log_${sessionId.substring(0, 8)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Audit log exported successfully!');
+    } catch (error: any) {
+      toast.error('Failed to export audit log');
+      console.error('Error exporting audit log:', error);
     }
   };
 
@@ -164,6 +265,20 @@ function AppContent() {
                     )}
                   </div>
                   <button
+                    onClick={() => setShowMetadataDialog(true)}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-accent"
+                    title="Edit session metadata"
+                  >
+                    Edit Info
+                  </button>
+                  <button
+                    onClick={handleExportAuditLog}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-accent"
+                    title="Export audit log as markdown"
+                  >
+                    Export Log
+                  </button>
+                  <button
                     onClick={handleExportSession}
                     disabled={exportSession.isPending}
                     className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
@@ -196,7 +311,7 @@ function AppContent() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pkl"
+                    accept=".json"
                     onChange={handleFileSelected}
                     className="hidden"
                   />
@@ -211,7 +326,11 @@ function AppContent() {
               {/* LEFT SIDEBAR - Variables & Experiments (fixed width, increased for better readability) */}
               <div className="w-[580px] flex-shrink-0 overflow-y-auto border-r bg-card p-4 space-y-4">
                 <VariablesPanel sessionId={sessionId} />
-                <ExperimentsPanel sessionId={sessionId} />
+                <ExperimentsPanel 
+                  sessionId={sessionId} 
+                  pendingSuggestions={pendingSuggestions}
+                  onStageSuggestions={(s:any[])=>setPendingSuggestions(s)}
+                />
                 <InitialDesignPanel sessionId={sessionId} />
               </div>
 
@@ -268,11 +387,13 @@ function AppContent() {
                       id: 'acquisition',
                       label: 'Acquisition',
                       content: (
-                        <AcquisitionPanel 
-                          sessionId={sessionId} 
-                          modelBackend={session?.model_trained ? (session as any).model_backend : null} 
-                        />
-                      ),
+                          <AcquisitionPanel 
+                            sessionId={sessionId} 
+                            modelBackend={session?.model_trained ? (session as any).model_backend : null} 
+                            pendingSuggestions={pendingSuggestions}
+                            onStageSuggestions={(s:any[])=>setPendingSuggestions(s)}
+                          />
+                        ),
                     },
                   ]}
                   defaultTab="model"
@@ -295,6 +416,24 @@ function AppContent() {
       
       {/* Toast notifications */}
       <Toaster position="top-right" richColors />
+      
+      {/* Session Metadata Dialog */}
+      {showMetadataDialog && sessionId && session && (
+        <SessionMetadataDialog
+          sessionId={sessionId}
+          metadata={session.metadata || {}}
+          onSave={async (metadata) => {
+            try {
+              await updateMetadata.mutateAsync(metadata);
+              toast.success('Session metadata updated');
+              setShowMetadataDialog(false);
+            } catch (e: any) {
+              toast.error('Failed to update metadata: ' + (e?.message || String(e)));
+            }
+          }}
+          onCancel={() => setShowMetadataDialog(false)}
+        />
+      )}
     </div>
   );
 }

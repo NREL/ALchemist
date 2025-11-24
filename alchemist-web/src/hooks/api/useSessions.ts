@@ -60,6 +60,29 @@ export function useUpdateSessionTTL(sessionId: string) {
 }
 
 /**
+ * Hook to update session metadata
+ */
+export function useUpdateSessionMetadata(sessionId: string | null) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (metadata: { name?: string; description?: string; tags?: string[]; author?: string }) => {
+      if (!sessionId) throw new Error('No session ID provided');
+      const response = await fetch(`/api/v1/sessions/${sessionId}/metadata`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metadata)
+      });
+      if (!response.ok) throw new Error('Failed to update metadata');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+    },
+  });
+}
+
+/**
  * Hook to delete a session
  */
 export function useDeleteSession() {
@@ -114,7 +137,7 @@ export function useExportSession() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `alchemist_session_${sessionId.slice(0, 8)}.pkl`;
+      link.download = `alchemist_session_${sessionId.slice(0, 8)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
