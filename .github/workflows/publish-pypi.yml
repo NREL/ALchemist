@@ -57,11 +57,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
       
-      - name: Install Node.js dependencies
-        run: |
-          cd alchemist-web
-          npm ci
-      
       - name: Verify version matches tag
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -75,7 +70,16 @@ jobs:
           fi
       
       - name: Build package
-        run: python -m build
+        run: |
+          # The build_hooks.py will handle npm install and build
+          python -m build --verbose
+      
+      - name: List wheel contents for debugging
+        run: |
+          echo "=== Wheel contents ==="
+          unzip -l dist/*.whl | head -50
+          echo "=== Looking for api/static files ==="
+          unzip -l dist/*.whl | grep "api/static" || echo "No api/static files found!"
       
       - name: Verify React UI is bundled
         run: |
