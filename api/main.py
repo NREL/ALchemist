@@ -32,14 +32,19 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="ALchemist API",
     description="REST API for Bayesian optimization and active learning",
-    version="0.3.0-beta.1",
+    version="0.3.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
 
 # CORS configuration - allows frontend in both dev and production
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5174").split(",")
+# Default origins include dev servers and common production patterns
+# Override with ALLOWED_ORIGINS environment variable for specific deployments
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:8000,http://127.0.0.1:8000"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,9 +87,17 @@ async def health_check():
 
 
 # Mount static files for production (if they exist)
-# Look for built React app in alchemist-web/dist
-static_dir = Path(__file__).parent.parent / "alchemist-web" / "dist"
+# Priority order:
+# 1. api/static/ - Production (pip installed or built package)
+# 2. alchemist-web/dist/ - Development (after manual npm run build)
+api_static_dir = Path(__file__).parent / "static"
+dev_static_dir = Path(__file__).parent.parent / "alchemist-web" / "dist"
+
+# Use api/static if it exists (production), otherwise fall back to dev build
+static_dir = api_static_dir if api_static_dir.exists() else dev_static_dir
+
 if static_dir.exists():
+    logger.info(f"Serving static files from: {static_dir}")
     app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
     
     @app.get("/{full_path:path}")
@@ -105,6 +118,8 @@ if static_dir.exists():
             return FileResponse(index_path)
         
         return {"detail": "Not Found"}
+else:
+    logger.warning("Static files not found. Web UI will not be available. Run 'npm run build' in alchemist-web/ or install from built wheel.")
 
 
 if __name__ == "__main__":

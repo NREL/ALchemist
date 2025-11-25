@@ -130,9 +130,16 @@ export function clearStoredSessionId(): void {
  */
 export function useExportSession() {
   return useMutation({
-    mutationFn: async (sessionId: string) => {
+    mutationFn: async (opts: { sessionId: string; serverSide?: boolean }) => {
+      const { sessionId, serverSide } = opts;
+      if (serverSide) {
+        // Ask server to persist the session to its storage
+        await sessionAPI.saveSession(sessionId);
+        return { success: true, serverSide: true };
+      }
+
       const blob = await sessionAPI.exportSession(sessionId);
-      
+
       // Trigger download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -142,8 +149,8 @@ export function useExportSession() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      return { success: true };
+
+      return { success: true, serverSide: false };
     },
   });
 }

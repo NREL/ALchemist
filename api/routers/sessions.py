@@ -127,6 +127,23 @@ async def extend_session(session_id: str, hours: int = 24):
     }
 
 
+@router.post("/sessions/{session_id}/save", status_code=status.HTTP_200_OK)
+async def save_session_server_side(session_id: str):
+    """
+    Persist the current in-memory session to the server-side session file.
+
+    This allows the web UI to save changes directly to the session store file
+    instead of triggering a browser download.
+    """
+    success = session_store.persist_session_to_disk(session_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found or failed to save"
+        )
+    return {"message": "Session persisted to server storage"}
+
+
 @router.get("/sessions/{session_id}/export")
 async def export_session(session_id: str):
     """

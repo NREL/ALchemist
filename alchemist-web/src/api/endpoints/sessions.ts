@@ -63,6 +63,13 @@ export const exportSession = async (sessionId: string): Promise<Blob> => {
 };
 
 /**
+ * Persist session on the server side (overwrite the stored session file)
+ */
+export const saveSession = async (sessionId: string): Promise<void> => {
+  await apiClient.post(`/sessions/${sessionId}/save`);
+};
+
+/**
  * Import a session from a file
  */
 export const importSession = async (file: File): Promise<CreateSessionResponse> => {

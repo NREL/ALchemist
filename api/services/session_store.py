@@ -372,6 +372,26 @@ class SessionStore:
         except Exception as e:
             logger.error(f"Failed to export session {session_id}: {e}")
             return None
+
+    def persist_session_to_disk(self, session_id: str) -> bool:
+        """
+        Persist the in-memory session to disk (overwrite existing persisted file).
+
+        Returns True on success, False otherwise.
+        """
+        if session_id not in self._sessions:
+            return False
+        try:
+            lock = self._sessions[session_id].get('lock')
+            if lock:
+                with lock:
+                    self._save_to_disk(session_id)
+            else:
+                self._save_to_disk(session_id)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to persist session {session_id}: {e}")
+            return False
     
     def import_session(self, session_data: str, session_id: Optional[str] = None) -> Optional[str]:
         """

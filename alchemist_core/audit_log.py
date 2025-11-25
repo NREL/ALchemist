@@ -351,14 +351,42 @@ class AuditLog:
         if 'experiment_data' in data:
             self.experiment_data = pd.DataFrame(data['experiment_data'])
     
-    def to_markdown(self) -> str:
+    def to_markdown(self, session_metadata: Optional[Dict[str, Any]] = None) -> str:
         """
         Export audit log to markdown format for publications.
-        
+
+        Args:
+            session_metadata: Optional dictionary of session metadata (name, description, tags, created_at, etc.)
+
         Returns:
-            Markdown-formatted audit trail with search space, data table, and iterations
+            Markdown-formatted audit trail with session metadata, search space, data table, and iterations
         """
         lines = ["# Optimization Audit Trail\n"]
+
+        # If session metadata provided, include a small metadata section
+        if session_metadata:
+            lines.append("## Session Metadata\n")
+            name = session_metadata.get('name', 'Untitled Session')
+            created = session_metadata.get('created_at', '')
+            last_mod = session_metadata.get('last_modified', '')
+            description = session_metadata.get('description', '')
+            tags = session_metadata.get('tags', [])
+
+            lines.append(f"- **Name**: {name}")
+            if created:
+                lines.append(f"- **Created At**: {created}")
+            if last_mod:
+                lines.append(f"- **Last Modified**: {last_mod}")
+            if description:
+                lines.append(f"- **Description**: {description}")
+            if tags:
+                if isinstance(tags, (list, tuple)):
+                    tags_str = ', '.join(map(str, tags))
+                else:
+                    tags_str = str(tags)
+                lines.append(f"- **Tags**: {tags_str}")
+
+            lines.append("")
         
         # Section 1: Search Space Definition
         if self.search_space_definition:

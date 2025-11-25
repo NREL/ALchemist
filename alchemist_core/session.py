@@ -944,7 +944,13 @@ class OptimizationSession:
         Returns:
             Markdown-formatted audit trail
         """
-        return self.audit_log.to_markdown()
+        # Pass session metadata to markdown exporter so user-entered metadata appears
+        try:
+            metadata_dict = self.metadata.to_dict()
+        except Exception:
+            metadata_dict = None
+
+        return self.audit_log.to_markdown(session_metadata=metadata_dict)
     
     def save_session(self, filepath: str):
         """

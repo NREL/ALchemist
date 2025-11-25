@@ -9,17 +9,18 @@ include RELEASE_NOTES_*.md
 # Include build hook
 include build_hooks.py
 
-# Include frontend source (for building from sdist)
-recursive-include alchemist-web *.json *.ts *.tsx *.html *.css *.js
+# Include frontend source (for building from sdist) - but NOT node_modules or build artifacts
 recursive-include alchemist-web/src *
 recursive-include alchemist-web/public *
-include alchemist-web/.gitignore
+include alchemist-web/package.json
+include alchemist-web/package-lock.json
 include alchemist-web/tsconfig.json
 include alchemist-web/tsconfig.*.json
 include alchemist-web/vite.config.ts
 include alchemist-web/tailwind.config.js
 include alchemist-web/postcss.config.js
 include alchemist-web/eslint.config.js
+include alchemist-web/index.html
 
 # Include run scripts
 include run_api.py
@@ -29,7 +30,11 @@ include main.py
 global-exclude __pycache__
 global-exclude *.py[co]
 global-exclude .DS_Store
+global-exclude node_modules
 recursive-exclude tests *
 recursive-exclude docs *
 recursive-exclude memory *
 recursive-exclude .github *
+recursive-exclude alchemist-web/node_modules *
+recursive-exclude alchemist-web/dist *
+recursive-exclude alchemist-web/.vite *

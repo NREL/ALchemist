@@ -39,6 +39,7 @@ function AppContent() {
   const { isVisualizationOpen, closeVisualization, sessionId: vizSessionId } = useVisualization();
   // Global staged suggestions to mirror desktop main_app.pending_suggestions
   const [pendingSuggestions, setPendingSuggestions] = useState<any[]>([]);
+  const [loadedFromFile, setLoadedFromFile] = useState<boolean>(false);
 
   // Restore pending suggestions from audit log on session load (desktop workflow)
   useEffect(() => {
@@ -139,6 +140,7 @@ function AppContent() {
     try {
       const newSession = await createSession.mutateAsync({ ttl_hours: 24 });
       setSessionId(newSession.session_id);
+      setLoadedFromFile(false);
       toast.success('Session created successfully!');
       // Show metadata dialog for new session
       setShowMetadataDialog(true);
@@ -152,6 +154,7 @@ function AppContent() {
   const handleClearSession = () => {
     clearStoredSessionId();
     setSessionId(null);
+    setLoadedFromFile(false);
     toast.info('Session cleared');
   };
 
@@ -159,7 +162,12 @@ function AppContent() {
   const handleExportSession = async () => {
     if (!sessionId) return;
     try {
-      await exportSession.mutateAsync(sessionId);
+      // If this session was loaded via the file upload dialog, persist server-side
+      if (loadedFromFile) {
+        await exportSession.mutateAsync({ sessionId, serverSide: true });
+      } else {
+        await exportSession.mutateAsync({ sessionId, serverSide: false });
+      }
       toast.success('Session exported successfully!');
     } catch (error: any) {
       toast.error('Failed to export session');
@@ -178,6 +186,8 @@ function AppContent() {
       try {
         const newSession = await importSession.mutateAsync(file);
         setSessionId(newSession.session_id);
+        // Mark that this session was created from a file upload/import
+        setLoadedFromFile(true);
         toast.success('Session imported successfully!');
         // Reset file input
         if (fileInputRef.current) {

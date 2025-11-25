@@ -1,5 +1,5 @@
 // PendingSuggestionsPanel.tsx - show and manage staged suggestions
-import React, { useState } from 'react'
+import { useState } from 'react'
 import AddPointDialog from './AddPointDialog'
 import { addExperiment } from './api'
 

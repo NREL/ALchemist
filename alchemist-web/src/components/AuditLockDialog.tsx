@@ -1,5 +1,5 @@
 // AuditLockDialog.tsx - modal for lock confirmation + notes
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 export default function AuditLockDialog({ sessionId, lockType, payload, onClose }:
   { sessionId: string, lockType: 'data'|'model'|'acquisition', payload?: any, onClose?: (success: boolean, entry?: any) => void }) {
