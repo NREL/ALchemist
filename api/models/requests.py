@@ -271,3 +271,22 @@ class LockDecisionRequest(BaseModel):
             }
         }
     )
+
+
+# ============================================================
+# Session Lock Models
+# ============================================================
+
+class SessionLockRequest(BaseModel):
+    """Request to lock a session for programmatic control."""
+    locked_by: str = Field(..., description="Identifier of the client locking the session")
+    client_id: Optional[str] = Field(None, description="Optional unique client identifier")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "locked_by": "Reactor Controller v1.2",
+                "client_id": "lab-3-workstation"
+            }
+        }
+    )

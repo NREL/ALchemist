@@ -11,6 +11,7 @@ import {
   useImportSession,
   useUpdateSessionMetadata
 } from './hooks/api/useSessions';
+import { useLockStatus } from './hooks/useLockStatus';
 import { VariablesPanel } from './features/variables/VariablesPanel';
 import { ExperimentsPanel } from './features/experiments/ExperimentsPanel';
 import { InitialDesignPanel } from './features/experiments/InitialDesignPanel';
@@ -21,13 +22,15 @@ import { VisualizationsPanel } from './components/visualizations';
 import { TabView } from './components/ui';
 import { SessionMetadataDialog } from './components/SessionMetadataDialog';
 import { useTheme } from './hooks/useTheme';
-import { Sun, Moon, X } from 'lucide-react';
+import { Sun, Moon, X, Copy, Check } from 'lucide-react';
 import './index.css';
 
 function AppContent() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isMonitoringMode, setIsMonitoringMode] = useState<boolean>(false);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  const [copiedSessionId, setCopiedSessionId] = useState(false);
+  const [sessionFromUrl, setSessionFromUrl] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const createSession = useCreateSession();
@@ -37,6 +40,12 @@ function AppContent() {
   const { data: session, error: sessionError } = useSession(sessionId);
   const { theme, toggleTheme } = useTheme();
   const { isVisualizationOpen, closeVisualization, sessionId: vizSessionId } = useVisualization();
+  
+  // Monitor lock status and auto-switch to monitoring mode
+  const { lockStatus } = useLockStatus(sessionId, 5000, (locked) => {
+    setIsMonitoringMode(locked);
+  });
+  
   // Global staged suggestions to mirror desktop main_app.pending_suggestions
   const [pendingSuggestions, setPendingSuggestions] = useState<any[]>([]);
   const [loadedFromFile, setLoadedFromFile] = useState<boolean>(false);
@@ -76,30 +85,47 @@ function AppContent() {
     restorePendingSuggestions();
   }, [sessionId]);
 
-  // Check for monitoring mode URL parameter
+  // Check for URL parameters (session ID and monitoring mode)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('URL search params:', window.location.search);
+    
+    // Check for session ID in URL
+    const urlSessionId = urlParams.get('session');
+    console.log('Session ID from URL:', urlSessionId);
+    
+    if (urlSessionId) {
+      setSessionId(urlSessionId);
+      setSessionFromUrl(true);  // Mark that this session came from URL
+      console.log(`✓ Loaded session from URL: ${urlSessionId}`);
+    } else {
+      // Fallback to localStorage if no URL session
+      const storedId = getStoredSessionId();
+      if (storedId) {
+        setSessionId(storedId);
+        console.log(`✓ Loaded session from localStorage: ${storedId}`);
+      }
+    }
+    
+    // Check for monitoring mode
     const monitorParam = urlParams.get('mode');
+    console.log('Monitoring mode from URL:', monitorParam);
     if (monitorParam === 'monitor') {
       setIsMonitoringMode(true);
+      console.log('✓ Monitoring mode enabled');
     }
   }, []);
 
-  // Load session ID from localStorage on mount
+  // Auto-clear invalid session (but not if it came from URL - let user see the error)
   useEffect(() => {
-    const storedId = getStoredSessionId();
-    if (storedId) {
-      setSessionId(storedId);
-    }
-  }, []);
-
-  // Auto-clear invalid session
-  useEffect(() => {
-    if (sessionError && sessionId) {
+    if (sessionError && sessionId && !sessionFromUrl) {
       toast.error('Session expired or not found. Please create a new session.');
       handleClearSession();
+    } else if (sessionError && sessionFromUrl) {
+      // Show error but don't clear - might be loading or user wants to see the issue
+      console.warn('Session from URL not found or error loading:', sessionError);
     }
-  }, [sessionError, sessionId]);
+  }, [sessionError, sessionId, sessionFromUrl]);
 
   // Prompt to save on page close/reload (desktop _quit behavior)
   useEffect(() => {
@@ -199,7 +225,6 @@ function AppContent() {
       }
     }
   };
-
   // Handle audit log export (matches desktop File → Export Audit Log)
   const handleExportAuditLog = async () => {
     if (!sessionId) return;
@@ -223,6 +248,26 @@ function AppContent() {
       console.error('Error exporting audit log:', error);
     }
   };
+
+  // Handle copy session ID to clipboard
+  const handleCopySessionId = async () => {
+    if (!sessionId) return;
+    try {
+      await navigator.clipboard.writeText(sessionId);
+      setCopiedSessionId(true);
+      toast.success('Session ID copied to clipboard!');
+      setTimeout(() => setCopiedSessionId(false), 2000);
+    } catch (error) {
+      toast.error('Failed to copy session ID');
+      console.error('Error copying session ID:', error);
+    }
+  };
+
+  // Debug: Log state before render
+  console.log('=== Render State ===');
+  console.log('sessionId:', sessionId);
+  console.log('isMonitoringMode:', isMonitoringMode);
+  console.log('Should show monitoring:', isMonitoringMode && sessionId);
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -264,15 +309,36 @@ function AppContent() {
               {/* Session Controls */}
               {sessionId ? (
                 <div className="flex items-center gap-3">
-                  <div className="text-sm text-muted-foreground">
-                    <code className="bg-muted px-2 py-1 rounded text-xs">
-                      {sessionId.substring(0, 8)}
-                    </code>
-                    {session && (
-                      <span className="ml-2">
-                        {session.variable_count}V · {session.experiment_count}E
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-muted-foreground">
+                      <code className="bg-muted px-2 py-1 rounded text-xs">
+                        {sessionId.substring(0, 8)}
+                      </code>
+                      {session && (
+                        <span className="ml-2">
+                          {session.variable_count}V · {session.experiment_count}E
+                        </span>
+                      )}
+                      {lockStatus?.locked && (
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                          </svg>
+                          {lockStatus.locked_by}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleCopySessionId}
+                      className="p-1.5 rounded hover:bg-accent transition-colors"
+                      title="Copy full session ID to clipboard"
+                    >
+                      {copiedSessionId ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                      )}
+                    </button>
                   </div>
                   <button
                     onClick={() => setShowMetadataDialog(true)}

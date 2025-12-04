@@ -434,3 +434,26 @@ class LockDecisionResponse(BaseModel):
             }
         }
     )
+
+
+# ============================================================
+# Session Lock Models
+# ============================================================
+
+class SessionLockResponse(BaseModel):
+    """Response for session lock operations."""
+    locked: bool = Field(..., description="Whether the session is locked")
+    locked_by: Optional[str] = Field(None, description="Identifier of who locked the session")
+    locked_at: Optional[str] = Field(None, description="When the session was locked")
+    lock_token: Optional[str] = Field(None, description="Token for unlocking (only on lock)")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "locked": True,
+                "locked_by": "Reactor Controller v1.2",
+                "locked_at": "2025-12-04T16:30:00",
+                "lock_token": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+    )

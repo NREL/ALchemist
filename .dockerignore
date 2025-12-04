@@ -1,0 +1,63 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+alchemist-env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation build output
+site/
+docs/
+
+# Test and coverage
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data, logs, and cache (use volumes instead)
+logs/
+cache/
+memory/
+*.log
+
+# Build artifacts that will be regenerated
+dist/
+build/
+*.egg-info/
+alchemist-web/node_modules/
+alchemist-web/dist/
+
+# Desktop UI (not needed for web deployment)
+ui/
+
+# Development scripts
+scripts/
+
+# Docker files (already in context via -f flag)
+docker/
+
+# Large or unnecessary files
+*.tar
+*.zip
+*.gz

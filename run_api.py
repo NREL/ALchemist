@@ -47,7 +47,8 @@ def main():
             host="0.0.0.0",
             port=8000,
             reload=True,
-            log_level="info"
+            log_level="warning",  # Suppress INFO logs from polling
+            access_log=False  # Disable access logs entirely
         )
 
 

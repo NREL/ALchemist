@@ -8,6 +8,7 @@ cache/
 logs/
 images/
 memory/
+examples/
 
 # Build artifacts (excluded from git, but included in wheel via build hook)
 api/static/

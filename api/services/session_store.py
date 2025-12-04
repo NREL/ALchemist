@@ -442,6 +442,81 @@ class SessionStore:
             logger.error(f"Failed to import session: {e}")
             return None
 
+    # ============================================================
+    # Session Locking for Programmatic Control
+    # ============================================================
+    
+    def lock_session(self, session_id: str, locked_by: str, client_id: Optional[str] = None) -> Dict:
+        """Lock a session for external programmatic control."""
+        if session_id not in self._sessions:
+            raise KeyError(f"Session {session_id} not found")
+        
+        lock_token = str(uuid.uuid4())
+        lock_time = datetime.now()
+        
+        self._sessions[session_id]["lock_info"] = {
+            "locked": True,
+            "locked_by": locked_by,
+            "client_id": client_id,
+            "locked_at": lock_time.isoformat(),
+            "lock_token": lock_token
+        }
+        
+        self._save_to_disk(session_id)
+        logger.info(f"Session {session_id} locked by {locked_by}")
+        
+        return {
+            "locked": True,
+            "locked_by": locked_by,
+            "locked_at": lock_time.isoformat(),
+            "lock_token": lock_token
+        }
+    
+    def unlock_session(self, session_id: str, lock_token: Optional[str] = None) -> Dict:
+        """Unlock a session."""
+        if session_id not in self._sessions:
+            raise KeyError(f"Session {session_id} not found")
+        
+        lock_info = self._sessions[session_id].get("lock_info", {})
+        
+        # If token provided, verify it
+        if lock_token and lock_info.get("lock_token") != lock_token:
+            raise ValueError("Invalid lock token")
+        
+        # Clear lock info
+        self._sessions[session_id]["lock_info"] = {
+            "locked": False,
+            "locked_by": None,
+            "client_id": None,
+            "locked_at": None,
+            "lock_token": None
+        }
+        
+        self._save_to_disk(session_id)
+        logger.info(f"Session {session_id} unlocked")
+        
+        return {
+            "locked": False,
+            "locked_by": None,
+            "locked_at": None,
+            "lock_token": None
+        }
+    
+    def get_lock_status(self, session_id: str) -> Dict:
+        """Get current lock status without exposing the token."""
+        if session_id not in self._sessions:
+            raise KeyError(f"Session {session_id} not found")
+        
+        lock_info = self._sessions[session_id].get("lock_info", {})
+        
+        # Don't log status checks - they happen frequently via polling
+        return {
+            "locked": lock_info.get("locked", False),
+            "locked_by": lock_info.get("locked_by"),
+            "locked_at": lock_info.get("locked_at"),
+            "lock_token": None  # Never expose token in status check
+        }
+
 
 # Global session store instance
 session_store = SessionStore(default_ttl_hours=24)

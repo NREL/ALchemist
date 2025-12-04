@@ -111,6 +111,26 @@ docker-compose up --build
 
 For step-by-step instructions, see the [Getting Started](https://nrel.github.io/ALchemist/) section of the documentation.
 
+### Programmatic Control from External Applications
+
+Integrate ALchemist into your own Qt, Tkinter, or web applications for autonomous optimization:
+
+```python
+# Use pre-built connection panel templates
+from templates.connection_panels.qt import AlchemistConnector
+
+connector = AlchemistConnector()
+connector.connected.connect(lambda sid, info: start_optimization(sid))
+```
+
+See [`templates/connection_panels/`](templates/connection_panels/) for ready-to-use UI components that let you:
+- Connect to ALchemist sessions from custom applications
+- Control optimization programmatically
+- Monitor progress in the web dashboard
+- Perfect for hardware control, reactor optimization, etc.
+
+Quick start: [`templates/connection_panels/QUICK_START.md`](templates/connection_panels/QUICK_START.md)
+
 ---
 
 ## 📁 Project Structure

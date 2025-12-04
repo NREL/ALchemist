@@ -121,7 +121,6 @@ If upgrading from v0.2.x:
 ## 🚀 What's Next
 
 ### Planned for v0.3.1
-- PyPI publishing automation
 - Additional acquisition strategies
 - Enhanced documentation
 
@@ -144,11 +143,3 @@ BSD 3-Clause License
 - **Documentation**: https://nrel.github.io/ALchemist/
 - **Issues**: https://github.com/NREL/ALchemist/issues
 - **NREL Software Record**: SWR-25-102
-
----
-
-For detailed installation and deployment instructions, see:
-- `README.md` - General overview and quick start
-- `memory/RELEASE_BUILD_GUIDE.md` - Build system details
-- `memory/DOCKER.md` - Docker deployment guide
-- `memory/PRODUCTION_DEPLOYMENT.md` - Production configuration

@@ -4,10 +4,12 @@ Sessions router - Session lifecycle management.
 
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Depends
 from fastapi.responses import Response, FileResponse, JSONResponse
-from ..models.requests import UpdateMetadataRequest, LockDecisionRequest
+from typing import Optional
+from ..models.requests import UpdateMetadataRequest, LockDecisionRequest, SessionLockRequest
 from ..models.responses import (
     SessionCreateResponse, SessionInfoResponse, SessionStateResponse,
-    SessionMetadataResponse, AuditLogResponse, AuditEntryResponse, LockDecisionResponse
+    SessionMetadataResponse, AuditLogResponse, AuditEntryResponse, LockDecisionResponse,
+    SessionLockResponse
 )
 from ..services import session_store
 from ..dependencies import get_session
@@ -462,4 +464,92 @@ async def upload_session(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to upload session: {str(e)}"
+        )
+
+
+# ============================================================
+# Session Locking Endpoints
+# ============================================================
+
+@router.post("/sessions/{session_id}/lock", response_model=SessionLockResponse)
+async def lock_session(
+    session_id: str,
+    request: SessionLockRequest
+):
+    """
+    Lock a session for external programmatic control.
+    
+    When locked, the web UI should enter monitor-only mode.
+    Returns a lock_token that must be used to unlock.
+    """
+    try:
+        result = session_store.lock_session(
+            session_id=session_id,
+            locked_by=request.locked_by,
+            client_id=request.client_id
+        )
+        return SessionLockResponse(**result)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found or expired"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to lock session: {str(e)}"
+        )
+
+
+@router.delete("/sessions/{session_id}/lock", response_model=SessionLockResponse)
+async def unlock_session(
+    session_id: str,
+    lock_token: Optional[str] = None
+):
+    """
+    Unlock a session.
+    
+    Optionally provide lock_token for verification.
+    If no token provided, forcibly unlocks (use with caution).
+    """
+    try:
+        result = session_store.unlock_session(session_id=session_id, lock_token=lock_token)
+        return SessionLockResponse(**result)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found or expired"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to unlock session: {str(e)}"
+        )
+
+
+@router.get("/sessions/{session_id}/lock", response_model=SessionLockResponse)
+async def get_lock_status(session_id: str):
+    """
+    Get current lock status of a session.
+    
+    Used by web UI to detect when external controller has taken control
+    and automatically enter monitor mode.
+    """
+    try:
+        result = session_store.get_lock_status(session_id=session_id)
+        return SessionLockResponse(**result)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found or expired"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get lock status: {str(e)}"
         )
