@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface LockStatus {
@@ -9,94 +9,156 @@ interface LockStatus {
 
 interface UseLockStatusReturn {
   lockStatus: LockStatus | null;
-  isLoading: boolean;
+  isConnected: boolean;
   error: Error | null;
-  checkLockStatus: () => Promise<void>;
 }
 
 /**
- * Hook to poll session lock status and detect external controllers
+ * Hook to monitor session lock status via WebSocket for real-time updates.
  * 
  * When a session is locked by an external controller (e.g., Qt app),
- * this hook detects the lock and can trigger automatic monitor mode.
+ * this hook receives instant push notifications and can trigger automatic monitor mode.
  * 
  * @param sessionId - The session ID to monitor
- * @param pollingInterval - How often to poll in milliseconds (default: 5000ms)
+ * @param _pollingInterval - Deprecated parameter (kept for backwards compatibility)
  * @param onLockStateChange - Callback when lock state changes
  */
 export function useLockStatus(
   sessionId: string | null,
-  pollingInterval: number = 5000,
+  _pollingInterval?: number, // Kept for backwards compatibility but unused
   onLockStateChange?: (locked: boolean, lockedBy: string | null) => void
 ): UseLockStatusReturn {
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const [previousLockState, setPreviousLockState] = useState<boolean | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const previousLockStateRef = useRef<boolean | null>(null);
 
-  const checkLockStatus = useCallback(async () => {
+  const connect = useCallback(() => {
     if (!sessionId) return;
 
-    setIsLoading(true);
-    setError(null);
+    // Clean up existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/v1/sessions/${sessionId}/lock`
-      );
+      // Create WebSocket connection
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname;
+      const port = '8000'; // FastAPI backend port
+      const ws = new WebSocket(`${protocol}//${host}:${port}/api/v1/ws/sessions/${sessionId}`);
 
-      if (!response.ok) {
-        throw new Error(`Failed to check lock status: ${response.statusText}`);
-      }
+      ws.onopen = () => {
+        console.log('✓ WebSocket connected for session lock status');
+        setIsConnected(true);
+        setError(null);
+      };
 
-      const data: LockStatus = await response.json();
-      setLockStatus(data);
-
-      // Detect lock state changes
-      if (previousLockState !== null && previousLockState !== data.locked) {
-        if (data.locked) {
-          toast.info(`External controller connected: ${data.locked_by}`, {
-            duration: 5000,
-          });
-        } else {
-          toast.info('External controller disconnected - resuming interactive mode', {
-            duration: 3000,
-          });
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.event === 'connected') {
+            console.log('✓ WebSocket connection confirmed');
+          } else if (data.event === 'lock_status_changed') {
+            const newStatus: LockStatus = {
+              locked: data.locked,
+              locked_by: data.locked_by,
+              locked_at: data.locked_at,
+            };
+            
+            setLockStatus(newStatus);
+            
+            // Show toast notification only on state changes (not initial connection)
+            const previousLockState = previousLockStateRef.current;
+            if (previousLockState !== null && previousLockState !== data.locked) {
+              if (data.locked) {
+                toast.info(`External controller connected: ${data.locked_by}`, {
+                  duration: 5000,
+                });
+              } else {
+                toast.info('External controller disconnected - resuming interactive mode', {
+                  duration: 3000,
+                });
+              }
+            }
+            
+            // Update previous state
+            previousLockStateRef.current = data.locked;
+            
+            // Trigger callback
+            if (onLockStateChange) {
+              onLockStateChange(data.locked, data.locked_by);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
         }
+      };
 
-        // Call the callback if provided
-        if (onLockStateChange) {
-          onLockStateChange(data.locked, data.locked_by);
+      ws.onerror = (event) => {
+        console.error('WebSocket error:', event);
+        setError(new Error('WebSocket connection error'));
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
+        wsRef.current = null;
+        
+        // Attempt to reconnect after 5 seconds
+        if (sessionId) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Attempting to reconnect WebSocket...');
+            connect();
+          }, 5000);
         }
-      }
+      };
 
-      setPreviousLockState(data.locked);
+      wsRef.current = ws;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
+      const error = err instanceof Error ? err : new Error('Failed to create WebSocket');
       setError(error);
-      console.error('Error checking lock status:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error creating WebSocket:', error);
     }
-  }, [sessionId, previousLockState, onLockStateChange]);
+  }, [sessionId, onLockStateChange]);
 
-  // Poll lock status at regular intervals
+  // Connect on mount or when sessionId changes
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      // Clean up if no session
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      setIsConnected(false);
+      setLockStatus(null);
+      previousLockStateRef.current = null;
+      return;
+    }
 
-    // Check immediately
-    checkLockStatus();
+    connect();
 
-    // Set up polling
-    const interval = setInterval(checkLockStatus, pollingInterval);
-
-    return () => clearInterval(interval);
-  }, [sessionId, pollingInterval, checkLockStatus]);
+    // Cleanup on unmount
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [sessionId, connect]);
 
   return {
     lockStatus,
-    isLoading,
+    isConnected,
     error,
-    checkLockStatus,
   };
 }

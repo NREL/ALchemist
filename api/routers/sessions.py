@@ -11,6 +11,7 @@ from ..models.responses import (
     SessionMetadataResponse, AuditLogResponse, AuditEntryResponse, LockDecisionResponse,
     SessionLockResponse
 )
+from .websocket import broadcast_to_session
 from ..services import session_store
 from ..dependencies import get_session
 from alchemist_core.session import OptimizationSession
@@ -488,6 +489,15 @@ async def lock_session(
             locked_by=request.locked_by,
             client_id=request.client_id
         )
+        
+        # Broadcast lock event to WebSocket clients
+        await broadcast_to_session(session_id, {
+            "event": "lock_status_changed",
+            "locked": True,
+            "locked_by": request.locked_by,
+            "locked_at": result["locked_at"]
+        })
+        
         return SessionLockResponse(**result)
     except KeyError:
         raise HTTPException(
@@ -514,6 +524,15 @@ async def unlock_session(
     """
     try:
         result = session_store.unlock_session(session_id=session_id, lock_token=lock_token)
+        
+        # Broadcast unlock event to WebSocket clients
+        await broadcast_to_session(session_id, {
+            "event": "lock_status_changed",
+            "locked": False,
+            "locked_by": None,
+            "locked_at": None
+        })
+        
         return SessionLockResponse(**result)
     except KeyError:
         raise HTTPException(

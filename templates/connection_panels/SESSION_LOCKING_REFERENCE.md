@@ -1,5 +1,7 @@
 # Session Locking Quick Reference
 
+**Updated:** December 4, 2025 - Now with WebSocket real-time push notifications!
+
 ## For External App Developers
 
 ### Qt/PySide6
@@ -123,7 +125,7 @@ Force unlock (no token - use with caution):
 DELETE /sessions/{session_id}/lock
 ```
 
-### Check Lock Status
+### Check Lock Status (Legacy - Prefer WebSocket)
 ```http
 GET /sessions/{session_id}/lock
 
@@ -136,15 +138,62 @@ Response 200:
 }
 ```
 
+**Note:** The web UI now uses WebSocket for instant updates instead of polling this endpoint.
+
+## WebSocket Real-Time Updates (New!)
+
+### Connect to Session Events
+```javascript
+const ws = new WebSocket('ws://localhost:8000/api/v1/ws/sessions/{session_id}');
+
+ws.onopen = () => {
+  console.log('Connected to session updates');
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  if (data.event === 'lock_status_changed') {
+    console.log('Lock status:', data.locked);
+    console.log('Locked by:', data.locked_by);
+    // Update UI instantly - no polling needed!
+  }
+};
+```
+
+### Event Types
+```json
+// Connection confirmation
+{
+  "event": "connected",
+  "session_id": "abc-123",
+  "message": "WebSocket connection established"
+}
+
+// Lock status change (instant push when lock/unlock occurs)
+{
+  "event": "lock_status_changed",
+  "locked": true,
+  "locked_by": "QtOptimizer",
+  "locked_at": "2024-12-04T16:23:38.849288"
+}
+```
+
+**Benefits over polling:**
+- Instant updates (<100ms vs 5 second delay)
+- Lower server load (event-driven vs continuous requests)
+- Better for multiple users watching same session
+
 ## Web UI Behavior
 
 When a session is locked:
 
-1. **Blue lock badge** appears next to session ID: `🔒 ClientName`
-2. **Monitor mode** activates automatically
-3. **All controls** become read-only
-4. **Toast notification**: "External controller connected: ClientName"
-5. **Real-time updates** continue (charts, tables, etc.)
+1. **Instant notification** via WebSocket push (<100ms)
+2. **Blue lock badge** appears next to session ID: `🔒 ClientName`
+3. **Monitor mode** activates automatically
+4. **All controls** become read-only
+5. **Toast notification**: "External controller connected: ClientName"
+6. **Real-time updates** continue (charts, tables, etc.)
 
 When unlocked:
 1. Lock badge disappears
