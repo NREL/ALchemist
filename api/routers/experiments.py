@@ -51,31 +51,47 @@ async def add_experiment(
     session.add_experiment(
         inputs=experiment.inputs,
         output=experiment.output,
-        noise=experiment.noise
+        noise=experiment.noise,
+        iteration=experiment.iteration,
+        reason=experiment.reason
     )
     
     n_experiments = len(session.experiment_manager.df)
     logger.info(f"Added experiment to session {session_id}. Total: {n_experiments}")
     
-    # Auto-train if requested
+    # Auto-train if requested (need at least 5 points to train)
     model_trained = False
     training_metrics = None
     
-    if auto_train and n_experiments >= 5:  # Minimum data for training
+    if auto_train and n_experiments >= 5:
         try:
             # Use previous config or provided config
             backend = training_backend or (session.model_backend if session.model else "sklearn")
             kernel = training_kernel or "rbf"
             
+            # Note: Input/output transforms are now automatically applied by core Session.train_model()
+            # for BoTorch models. No need to specify them here unless overriding defaults.
             result = session.train_model(backend=backend, kernel=kernel)
             model_trained = True
             metrics = result.get("metrics", {})
+            hyperparameters = result.get("hyperparameters", {})
             training_metrics = {
                 "rmse": metrics.get("rmse"),
                 "r2": metrics.get("r2"),
                 "backend": backend
             }
             logger.info(f"Auto-trained model for session {session_id}: {training_metrics}")
+            
+            # Record in audit log if this is an optimization iteration
+            if experiment.iteration is not None and experiment.iteration > 0:
+                session.audit_log.lock_model(
+                    backend=backend,
+                    kernel=kernel,
+                    hyperparameters=hyperparameters,
+                    cv_metrics=metrics,
+                    iteration=experiment.iteration,
+                    notes=f"Auto-trained after iteration {experiment.iteration}"
+                )
         except Exception as e:
             logger.error(f"Auto-train failed for session {session_id}: {e}")
             # Don't fail the whole request, just log it

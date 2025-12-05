@@ -93,13 +93,17 @@ class AddExperimentRequest(BaseModel):
     inputs: Dict[str, Union[float, int, str]] = Field(..., description="Variable values")
     output: Optional[float] = Field(None, description="Target/output value")
     noise: Optional[float] = Field(None, description="Measurement uncertainty")
+    iteration: Optional[int] = Field(None, description="Iteration number (auto-assigned if None)")
+    reason: Optional[str] = Field(None, description="Reason for this experiment")
     
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "inputs": {"temperature": 350, "catalyst": "A"},
                 "output": 0.85,
-                "noise": 0.02
+                "noise": 0.02,
+                "iteration": 1,
+                "reason": "Initial Design"
             }
         }
     )

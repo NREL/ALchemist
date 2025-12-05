@@ -79,10 +79,16 @@ class OptimizationSession:
         self.model_backend = None
         self.acquisition = None
         
+        # Staged experiments (for workflow management)
+        self.staged_experiments = []  # List of experiment dicts awaiting evaluation
+        self.last_suggestions = []  # Most recent acquisition suggestions (for UI)
+        
         # Configuration
         self.config = {
             'random_state': 42,
-            'verbose': True
+            'verbose': True,
+            'auto_train': False,  # Auto-train model after adding experiments
+            'auto_train_threshold': 5  # Minimum experiments before auto-train
         }
         
         logger.info(f"OptimizationSession initialized: {self.metadata.session_id}")
@@ -288,6 +294,124 @@ class OptimizationSession:
             'feature_names': list(X.columns)
         }
     
+    # ============================================================
+    # Staged Experiments (Workflow Management)
+    # ============================================================
+    
+    def add_staged_experiment(self, inputs: Dict[str, Any]) -> None:
+        """
+        Add an experiment to the staging area (awaiting evaluation).
+        
+        Staged experiments are typically suggested by acquisition functions
+        but not yet evaluated. They can be retrieved, evaluated externally,
+        and then added to the dataset with add_experiment().
+        
+        Args:
+            inputs: Dictionary mapping variable names to values
+            
+        Example:
+            >>> # Generate suggestions and stage them
+            >>> suggestions = session.suggest_next(n_suggestions=3)
+            >>> for point in suggestions.to_dict('records'):
+            >>>     session.add_staged_experiment(point)
+            >>> 
+            >>> # Later, evaluate and add
+            >>> staged = session.get_staged_experiments()
+            >>> for point in staged:
+            >>>     output = run_experiment(**point)
+            >>>     session.add_experiment(point, output=output)
+            >>> session.clear_staged_experiments()
+        """
+        self.staged_experiments.append(inputs)
+        logger.debug(f"Staged experiment: {inputs}")
+        self.events.emit('experiment_staged', {'inputs': inputs})
+    
+    def get_staged_experiments(self) -> List[Dict[str, Any]]:
+        """
+        Get all staged experiments awaiting evaluation.
+        
+        Returns:
+            List of experiment input dictionaries
+        """
+        return self.staged_experiments.copy()
+    
+    def clear_staged_experiments(self) -> int:
+        """
+        Clear all staged experiments.
+        
+        Returns:
+            Number of experiments cleared
+        """
+        count = len(self.staged_experiments)
+        self.staged_experiments.clear()
+        if count > 0:
+            logger.info(f"Cleared {count} staged experiments")
+            self.events.emit('staged_experiments_cleared', {'count': count})
+        return count
+    
+    def move_staged_to_experiments(self, outputs: List[float], 
+                                   noises: Optional[List[float]] = None,
+                                   iteration: Optional[int] = None,
+                                   reason: Optional[str] = None) -> int:
+        """
+        Evaluate staged experiments and add them to the dataset in batch.
+        
+        Convenience method that pairs staged inputs with outputs and adds
+        them all to the experiment manager, then clears the staging area.
+        
+        Args:
+            outputs: List of output values (must match length of staged experiments)
+            noises: Optional list of measurement uncertainties
+            iteration: Iteration number for all experiments (auto-assigned if None)
+            reason: Reason for these experiments (e.g., 'Expected Improvement')
+            
+        Returns:
+            Number of experiments added
+            
+        Example:
+            >>> # Stage some experiments
+            >>> session.add_staged_experiment({'x': 1.0, 'y': 2.0})
+            >>> session.add_staged_experiment({'x': 3.0, 'y': 4.0})
+            >>> 
+            >>> # Evaluate them
+            >>> outputs = [run_experiment(**point) for point in session.get_staged_experiments()]
+            >>> 
+            >>> # Add to dataset and clear staging
+            >>> session.move_staged_to_experiments(outputs, reason='LogEI')
+        """
+        if len(outputs) != len(self.staged_experiments):
+            raise ValueError(
+                f"Number of outputs ({len(outputs)}) must match "
+                f"number of staged experiments ({len(self.staged_experiments)})"
+            )
+        
+        if noises is not None and len(noises) != len(self.staged_experiments):
+            raise ValueError(
+                f"Number of noise values ({len(noises)}) must match "
+                f"number of staged experiments ({len(self.staged_experiments)})"
+            )
+        
+        # Add each experiment
+        for i, inputs in enumerate(self.staged_experiments):
+            noise = noises[i] if noises is not None else None
+            self.add_experiment(
+                inputs=inputs,
+                output=outputs[i],
+                noise=noise,
+                iteration=iteration,
+                reason=reason
+            )
+        
+        count = len(self.staged_experiments)
+        self.clear_staged_experiments()
+        
+        logger.info(f"Moved {count} staged experiments to dataset")
+        return count
+    
+    # ============================================================
+    # Initial Design Generation
+    # ============================================================
+    
     def generate_initial_design(
         self,
         method: str = "lhs",
@@ -410,6 +534,27 @@ class OptimizationSession:
         # Extract calibration_enabled before passing kwargs to model constructor
         calibration_enabled = kwargs.pop('calibration_enabled', False)
         
+        # Validate and map transform types based on backend
+        # BoTorch uses: 'normalize', 'standardize'
+        # Sklearn uses: 'minmax', 'standard', 'robust', 'none'
+        if self.model_backend == 'sklearn':
+            # Map BoTorch transform types to sklearn equivalents
+            transform_map = {
+                'normalize': 'minmax',      # BoTorch normalize → sklearn minmax
+                'standardize': 'standard',  # BoTorch standardize → sklearn standard
+                'none': 'none'
+            }
+            if 'input_transform_type' in kwargs:
+                original = kwargs['input_transform_type']
+                kwargs['input_transform_type'] = transform_map.get(original, original)
+                if original != kwargs['input_transform_type']:
+                    logger.debug(f"Mapped input transform '{original}' → '{kwargs['input_transform_type']}' for sklearn")
+            if 'output_transform_type' in kwargs:
+                original = kwargs['output_transform_type']
+                kwargs['output_transform_type'] = transform_map.get(original, original)
+                if original != kwargs['output_transform_type']:
+                    logger.debug(f"Mapped output transform '{original}' → '{kwargs['output_transform_type']}' for sklearn")
+        
         # Import appropriate model class
         if self.model_backend == 'sklearn':
             from alchemist_core.models.sklearn_model import SklearnModel
@@ -427,6 +572,15 @@ class OptimizationSession:
             
         elif self.model_backend == 'botorch':
             from alchemist_core.models.botorch_model import BoTorchModel
+            
+            # Apply sensible defaults for BoTorch if not explicitly overridden
+            # Input normalization and output standardization are critical for performance
+            if 'input_transform_type' not in kwargs:
+                kwargs['input_transform_type'] = 'normalize'
+                logger.debug("Auto-applying input normalization for BoTorch model")
+            if 'output_transform_type' not in kwargs:
+                kwargs['output_transform_type'] = 'standardize'
+                logger.debug("Auto-applying output standardization for BoTorch model")
             
             # Build kernel options - BoTorch uses 'cont_kernel_type' not 'kernel_type'
             kernel_options = {'cont_kernel_type': kernel}
@@ -662,6 +816,9 @@ class OptimizationSession:
         
         logger.info(f"Suggested point: {suggestion_dict}")
         self.events.emit('acquisition_completed', {'suggestion': suggestion_dict})
+        
+        # Store suggestions for UI/API access
+        self.last_suggestions = result_df.to_dict('records')
         
         # Cache suggestion info for audit log
         self._last_acquisition_info = {

@@ -396,8 +396,12 @@ class SklearnModel(BaseModel):
         if return_std:
             pred_mean, pred_std = predictions
             
+            # Safety check: replace invalid/negative std with small positive value
+            # Sklearn GP can produce negative variances due to numerical issues
+            pred_std = np.maximum(pred_std, 1e-6)
+            
             # Apply calibration to standard deviation if enabled
-            if self.calibration_enabled:
+            if self.calibration_enabled and np.isfinite(self.calibration_factor):
                 pred_std = pred_std * self.calibration_factor
             
             # Inverse transform the mean predictions
@@ -636,11 +640,35 @@ class SklearnModel(BaseModel):
         y_pred = self.cv_cached_results['y_pred']
         y_std = self.cv_cached_results['y_std']
         
+        # Check for numerical issues (zero/negative variances)
+        if np.any(y_std <= 0) or np.any(~np.isfinite(y_std)):
+            logger.warning("Sklearn GP produced invalid uncertainties (zero/negative/inf). Disabling calibration.")
+            self.calibration_enabled = False
+            self.calibration_factor = 1.0
+            return
+        
         # Compute standardized residuals (z-scores)
-        z_scores = (y_true - y_pred) / y_std
+        # Add small epsilon to avoid division by zero
+        epsilon = 1e-10
+        z_scores = (y_true - y_pred) / (y_std + epsilon)
+        
+        # Check for numerical validity
+        if not np.all(np.isfinite(z_scores)):
+            logger.warning("Z-scores contain NaN/inf. Disabling calibration.")
+            self.calibration_enabled = False
+            self.calibration_factor = 1.0
+            return
         
         # Calibration factor = std(z)
         self.calibration_factor = np.std(z_scores, ddof=1)
+        
+        # Final check for valid calibration factor
+        if not np.isfinite(self.calibration_factor) or self.calibration_factor <= 0:
+            logger.warning(f"Invalid calibration factor: {self.calibration_factor}. Disabling calibration.")
+            self.calibration_enabled = False
+            self.calibration_factor = 1.0
+            return
+        
         self.calibration_enabled = True
         
         # Create calibrated copy of CV results for plotting

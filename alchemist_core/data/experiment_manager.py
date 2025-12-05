@@ -45,16 +45,23 @@ class ExperimentManager:
         
         # Add iteration tracking
         if iteration is not None:
-            # Use provided iteration and ensure _current_iteration reflects it
+            # Use provided iteration explicitly
             new_point['Iteration'] = int(iteration)
-            # Keep _current_iteration in sync with the latest explicit iteration
-            try:
-                self._current_iteration = int(iteration)
-            except Exception:
-                pass
         else:
-            # Use current iteration (doesn't increment until lock_acquisition)
-            new_point['Iteration'] = int(self._current_iteration)
+            # Auto-calculate next iteration based on existing data
+            # This ensures proper iteration tracking across all clients
+            if len(self.df) > 0 and 'Iteration' in self.df.columns:
+                max_iteration = int(self.df['Iteration'].max())
+                new_point['Iteration'] = max_iteration + 1
+            else:
+                # First experiment defaults to iteration 0
+                new_point['Iteration'] = 0
+        
+        # Keep _current_iteration in sync with latest iteration for backward compatibility
+        try:
+            self._current_iteration = int(new_point['Iteration'])
+        except Exception:
+            pass
         
         # Add reason
         new_point['Reason'] = reason if reason is not None else 'Manual'
