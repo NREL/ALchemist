@@ -268,6 +268,7 @@ class BoTorchAcquisition(BaseAcquisition):
                     "batch_limit": batch_limit,
                     "maxiter": max_iter,
                     "ftol": 1e-3,  # More relaxed convergence criteria
+                    "factr": None, # Required when ftol is specified
                 }
             else:
                 # Standard parameters for other acquisition functions

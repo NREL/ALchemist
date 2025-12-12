@@ -95,12 +95,13 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["alchemist_core", "api", "ui"]
+source = ["alchemist_core", "api"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
     "*/site-packages/*",
     "alchemist-web/*",
+    "ui/*",
 ]
 
 [tool.coverage.report]

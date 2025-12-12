@@ -85,8 +85,6 @@ def test_basic_workflow():
     print("✓ Predictions made")
     print(f"  - Test predictions: {predictions}")
     print(f"  - Uncertainties: {uncertainties}")
-    
-    return True
 
 
 def test_event_system():
@@ -126,7 +124,6 @@ def test_event_system():
     assert 'training_completed' in events_received
     
     print(f"✓ Events received: {set(events_received)}")
-    return True
 
 
 def test_error_handling():
@@ -140,8 +137,7 @@ def test_error_handling():
     # Try to train without data
     try:
         session.train_model()
-        print("✗ Should have raised ValueError")
-        return False
+        assert False, "Should have raised ValueError"
     except ValueError as e:
         print(f"✓ Correctly raised ValueError: {e}")
     
@@ -151,12 +147,9 @@ def test_error_handling():
     
     try:
         session.suggest_next()
-        print("✗ Should have raised ValueError")
-        return False
+        assert False, "Should have raised ValueError"
     except ValueError as e:
         print(f"✓ Correctly raised ValueError: {e}")
-    
-    return True
 
 
 def test_configuration():
@@ -174,7 +167,6 @@ def test_configuration():
     assert session.config['verbose'] == False
     
     print("✓ Configuration updated successfully")
-    return True
 
 
 if __name__ == "__main__":

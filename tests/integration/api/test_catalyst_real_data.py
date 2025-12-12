@@ -22,7 +22,7 @@ from api.main import app
 client = TestClient(app)
 
 # Load test data files
-TESTS_DIR = Path(__file__).parent.parent
+TESTS_DIR = Path(__file__).parent.parent.parent
 SEARCH_SPACE_FILE = TESTS_DIR / "catalyst_search_space.json"
 EXPERIMENTS_FILE = TESTS_DIR / "catalyst_experiments.csv"
 

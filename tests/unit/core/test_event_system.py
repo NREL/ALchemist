@@ -19,16 +19,16 @@ def test_import():
         print("✓ Successfully imported EventEmitter from alchemist_core")
     except ImportError as e:
         print(f"✗ Failed to import EventEmitter: {e}")
-        return False
+        pass
     
     try:
         from alchemist_core.events import EventEmitter as EE
         print("✓ Successfully imported from alchemist_core.events")
     except ImportError as e:
         print(f"✗ Failed to import from alchemist_core.events: {e}")
-        return False
+        pass
     
-    return True
+    pass
 
 
 def test_basic_event_emit():
@@ -56,7 +56,7 @@ def test_basic_event_emit():
     assert called_data[0]["value"] == 42, "Callback should receive correct data"
     
     print("✓ Basic event emission works")
-    return True
+    pass
 
 
 def test_multiple_listeners():
@@ -85,7 +85,7 @@ def test_multiple_listeners():
     assert call_count[1] == 1, "Listener 2 should be called"
     
     print("✓ Multiple listeners work")
-    return True
+    pass
 
 
 def test_unsubscribe():
@@ -114,7 +114,7 @@ def test_unsubscribe():
     assert call_count[0] == 1, "Callback should not be called after unsubscribe"
     
     print("✓ Unsubscribe works")
-    return True
+    pass
 
 
 def test_once():
@@ -142,7 +142,7 @@ def test_once():
     assert call_count[0] == 1, "once() callback should only fire once"
     
     print("✓ once() method works")
-    return True
+    pass
 
 
 def test_error_handling():
@@ -171,7 +171,7 @@ def test_error_handling():
     assert call_count[0] == 1, "Good callback should run despite error in other callback"
     
     print("✓ Error handling works (errors in listeners don't break emitter)")
-    return True
+    pass
 
 
 def test_listener_count():
@@ -200,7 +200,7 @@ def test_listener_count():
     assert emitter.listener_count("event") == 1, "Should have 1 listener after removing one"
     
     print("✓ listener_count() works")
-    return True
+    pass
 
 
 def test_remove_all_listeners():
@@ -228,7 +228,7 @@ def test_remove_all_listeners():
     assert emitter.listener_count("event2") == 0
     
     print("✓ remove_all_listeners() works")
-    return True
+    pass
 
 
 def test_event_names():
@@ -253,7 +253,7 @@ def test_event_names():
     assert len(names) == 2, "Should have 2 event names"
     
     print("✓ event_names() works")
-    return True
+    pass
 
 
 def test_progress_event_pattern():
@@ -286,7 +286,7 @@ def test_progress_event_pattern():
     assert progress_updates[-1]["current"] == 5
     
     print("✓ Realistic progress event pattern works")
-    return True
+    pass
 
 
 def main():

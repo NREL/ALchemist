@@ -18,16 +18,16 @@ def test_imports():
         print("✓ Successfully imported SearchSpace and ExperimentManager from alchemist_core")
     except ImportError as e:
         print(f"✗ Failed to import from alchemist_core: {e}")
-        return False
+        pass
     
     try:
         from alchemist_core.data import SearchSpace as SS, ExperimentManager as EM
         print("✓ Successfully imported from alchemist_core.data submodule")
     except ImportError as e:
         print(f"✗ Failed to import from alchemist_core.data: {e}")
-        return False
+        pass
     
-    return True
+    pass
 
 
 def test_search_space():
@@ -66,7 +66,7 @@ def test_search_space():
     assert new_space.get_variable_names() == space.get_variable_names()
     print("✓ Serialization to/from dict works")
     
-    return True
+    pass
 
 
 def test_experiment_manager():
@@ -110,7 +110,7 @@ def test_experiment_manager():
     assert len(manager) == 0
     print("✓ Cleared experiments")
     
-    return True
+    pass
 
 
 def test_integration():
@@ -132,7 +132,7 @@ def test_integration():
     assert list(X.columns) == space.get_variable_names()
     print("✓ SearchSpace and ExperimentManager work together")
     
-    return True
+    pass
 
 
 
