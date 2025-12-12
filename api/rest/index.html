@@ -1,0 +1,3144 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://nrel.github.io/ALchemist/api/rest/">
+      
+      
+        <link rel="prev" href="../../reproducibility/audit_logs/">
+      
+      
+        <link rel="next" href="../session/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/NEW_ICON.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>REST API - ALchemist Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rest-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ALchemist Documentation" class="md-header__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ALchemist Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              REST API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/NREL/ALchemist" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    ALchemist
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../use_cases/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Use Cases
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../setup/web_app/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../modeling/skopt/" class="md-tabs__link">
+          
+  
+  
+  Surrogate Modeling
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../visualizations/error_metrics/" class="md-tabs__link">
+          
+  
+  
+  Visualizations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../acquisition/skopt/" class="md-tabs__link">
+          
+  
+  
+  Acquisition &amp; Optimization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reproducibility/sessions/" class="md-tabs__link">
+          
+  
+  
+  Reproducibility
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+          
+  
+  
+  Educational Resources
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../ISSUES_LOG/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Issues &amp; Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ALchemist Documentation" class="md-nav__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    ALchemist Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/NREL/ALchemist" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    ALchemist
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../use_cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/web_app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/variable_space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting Up Variable Space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/initial_sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generating Initial Experiments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/load_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loading Experimental Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/data_visualization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surrogate Modeling
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Surrogate Modeling
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/skopt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scikit-optimize Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/botorch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BoTorch Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualizations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/error_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/contour_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contour plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/parity_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parity plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/qq_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Q-Q plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/calibration_curve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration curve
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/metrics_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acquisition &amp; Optimization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Acquisition &amp; Optimization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/skopt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scikit-optimize Acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/botorch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BoTorch Acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging &amp; Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7">
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reproducibility
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reproducibility/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reproducibility/audit_logs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Logs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#starting-the-api-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting the API Server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-the-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing the API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pagination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pagination
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtering-and-sorting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filtering and Sorting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sessions-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sessions API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-session-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Session Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save Session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#import-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delete Session
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variables-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variables API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Variables API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Variable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-all-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get All Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delete Variable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experiments-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Experiments API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Experiments API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Experiment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-multiple-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Multiple Experiments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-all-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get All Experiments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upload-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Experiments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-all-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delete All Experiments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#models-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Models API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Models API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#train-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Train Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-model-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Model Info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-predictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Predictions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acquisition-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acquisition API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Acquisition API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#suggest-next-experiments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suggest Next Experiments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualizations-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualizations API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualizations API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-parity-plot-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Parity Plot Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-q-q-plot-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Q-Q Plot Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-calibration-curve-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Calibration Curve Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#websocket-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WebSocket API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="WebSocket API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#real-time-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-Time Updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rate-limiting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate Limiting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cors-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CORS Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#session-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-from-core-session-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration from Core Session API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Session API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9">
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Educational Resources
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Educational Resources
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bayesian Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/interpreting_qqplot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interpreting Q-Q Plots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/interpreting_calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interpreting Calibration Curves
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ISSUES_LOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rest-api-reference">REST API Reference<a class="headerlink" href="#rest-api-reference" title="Permanent link">¶</a></h1>
+<p>The <strong>ALchemist REST API</strong> provides HTTP access to the Core Session API, enabling language-agnostic integration with Bayesian optimization workflows. Built with FastAPI, the API offers interactive documentation, type validation, and WebSocket support for real-time updates.</p>
+<hr>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¶</a></h2>
+<p><strong>Base URL</strong>: <code>http://localhost:8000/api/v1</code> (default)<br>
+<strong>API Version</strong>: v1<br>
+<strong>Content Type</strong>: <code>application/json</code><br>
+<strong>Interactive Docs</strong>: http://localhost:8000/api/docs (Swagger UI)<br>
+<strong>Alternative Docs</strong>: http://localhost:8000/api/redoc (ReDoc)<br>
+<strong>Web Application</strong>: http://localhost:8000</p>
+<p><strong>Architecture</strong>:
+</p><div class="highlight"><pre><span></span><code>HTTP Client → FastAPI REST API → Core Session API → BoTorch/Sklearn
+</code></pre></div><p></p>
+<hr>
+<h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">¶</a></h2>
+<h3 id="starting-the-api-server">Starting the API Server<a class="headerlink" href="#starting-the-api-server" title="Permanent link">¶</a></h3>
+<p><strong>Development mode</strong> (auto-reload):
+</p><div class="highlight"><pre><span></span><code>python<span class="w"> </span>run_api.py
+</code></pre></div><p></p>
+<p><strong>Production mode</strong> (with uvicorn):
+</p><div class="highlight"><pre><span></span><code>uvicorn<span class="w"> </span>api.main:app<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span><span class="w"> </span>--workers<span class="w"> </span><span class="m">4</span>
+</code></pre></div><p></p>
+<p><strong>With custom settings</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="nv">HOST</span><span class="o">=</span><span class="m">0</span>.0.0.0<span class="w"> </span><span class="nv">PORT</span><span class="o">=</span><span class="m">8080</span><span class="w"> </span>python<span class="w"> </span>run_api.py
+</code></pre></div><p></p>
+<h3 id="testing-the-api">Testing the API<a class="headerlink" href="#testing-the-api" title="Permanent link">¶</a></h3>
+<p><strong>Browser</strong>:</p>
+<ul>
+<li>
+<p>API Documentation: http://localhost:8000/docs</p>
+</li>
+<li>
+<p>Web Application: http://localhost:8000/app</p>
+</li>
+<li>
+<p>Use interactive Swagger UI to test endpoints</p>
+</li>
+</ul>
+<p><strong>cURL</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="c1"># Health check</span>
+curl<span class="w"> </span>http://localhost:8000/health
+
+<span class="c1"># Create session</span>
+curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/api/v1/sessions<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span>
+</code></pre></div><p></p>
+<p><strong>Python</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="n">BASE_URL</span> <span class="o">=</span> <span class="s2">"http://localhost:8000/api/v1"</span>
+
+<span class="c1"># Health check</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"http://localhost:8000/health"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>  <span class="c1"># {"status": "healthy"}</span>
+
+<span class="c1"># Create session</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions"</span><span class="p">)</span>
+<span class="n">session_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"session_id"</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Created session: </span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">¶</a></h2>
+<p><strong>Current version</strong>: No authentication (local development)</p>
+<p><strong>Future versions</strong>: Support for:</p>
+<ul>
+<li>
+<p>API keys (header-based)</p>
+</li>
+<li>
+<p>OAuth2 (for web deployment)</p>
+</li>
+<li>
+<p>JWT tokens</p>
+</li>
+</ul>
+<p><strong>For production</strong>: Use reverse proxy (nginx) with authentication layer</p>
+<hr>
+<h2 id="common-patterns">Common Patterns<a class="headerlink" href="#common-patterns" title="Permanent link">¶</a></h2>
+<h3 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">¶</a></h3>
+<p><strong>HTTP Status Codes</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>When Used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200</td>
+<td>OK</td>
+<td>Successful GET/PATCH request</td>
+</tr>
+<tr>
+<td>201</td>
+<td>Created</td>
+<td>Successful POST creating resource</td>
+</tr>
+<tr>
+<td>204</td>
+<td>No Content</td>
+<td>Successful DELETE</td>
+</tr>
+<tr>
+<td>400</td>
+<td>Bad Request</td>
+<td>Invalid input data</td>
+</tr>
+<tr>
+<td>404</td>
+<td>Not Found</td>
+<td>Session or resource doesn't exist</td>
+</tr>
+<tr>
+<td>422</td>
+<td>Unprocessable Entity</td>
+<td>Validation error (Pydantic)</td>
+</tr>
+<tr>
+<td>500</td>
+<td>Internal Server Error</td>
+<td>Server-side error</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Error Response Format</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"detail"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Session abc123 not found"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Validation Error</strong> (422):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"detail"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"loc"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"body"</span><span class="p">,</span><span class="w"> </span><span class="s2">"temperature"</span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"msg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"field required"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value_error.missing"</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="pagination">Pagination<a class="headerlink" href="#pagination" title="Permanent link">¶</a></h3>
+<p><strong>Large result sets</strong> (experiments, sessions):</p>
+<p><strong>Request</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="err">GET /sessions/{session_id}/experiments?skip=0&amp;limit=50</span>
+</code></pre></div><p></p>
+<p><strong>Parameters</strong>:</p>
+<ul>
+<li>
+<p><code>skip</code>: Number of items to skip (default: 0)</p>
+</li>
+<li>
+<p><code>limit</code>: Maximum items to return (default: 100, max: 1000)</p>
+</li>
+</ul>
+<p><strong>Response</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"items"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"total"</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"skip"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="filtering-and-sorting">Filtering and Sorting<a class="headerlink" href="#filtering-and-sorting" title="Permanent link">¶</a></h3>
+<p><strong>Experiments endpoint</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="err">GET /sessions/{session_id}/experiments?sort_by=yield&amp;order=desc</span>
+</code></pre></div><p></p>
+<p><strong>Parameters</strong>:</p>
+<ul>
+<li>
+<p><code>sort_by</code>: Column name to sort by</p>
+</li>
+<li>
+<p><code>order</code>: <code>asc</code> or <code>desc</code></p>
+</li>
+<li>
+<p><code>filter</code>: JSON filter expression (advanced)</p>
+</li>
+</ul>
+<hr>
+<h2 id="sessions-api">Sessions API<a class="headerlink" href="#sessions-api" title="Permanent link">¶</a></h2>
+<h3 id="create-session">Create Session<a class="headerlink" href="#create-session" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions</code></p>
+<p><strong>Purpose</strong>: Create a new optimization session</p>
+<p><strong>Request Body</strong> (optional):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"metadata"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Catalyst Screening"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Pd catalyst optimization"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"tags"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"catalysis"</span><span class="p">,</span><span class="w"> </span><span class="s2">"suzuki"</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (201 Created):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"550e8400-e29b-41d4-a716-446655440000"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"created_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-12T10:00:00Z"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"expires_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-13T10:00:00Z"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions"</span><span class="p">)</span>
+<span class="n">session_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"session_id"</span><span class="p">]</span>
+</code></pre></div><p></p>
+<h3 id="get-session-details">Get Session Details<a class="headerlink" href="#get-session-details" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}</code></p>
+<p><strong>Purpose</strong>: Get complete session information</p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"550e8400-..."</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"metadata"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"search_space"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"n_variables"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"variables"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">]</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"experiments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"count"</span><span class="p">:</span><span class="w"> </span><span class="mi">25</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"target_column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"yield"</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"model"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"trained"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"backend"</span><span class="p">:</span><span class="w"> </span><span class="s2">"botorch"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"kernel"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Matern"</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="save-session">Save Session<a class="headerlink" href="#save-session" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/save</code></p>
+<p><strong>Purpose</strong>: Persist session to server-side storage</p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Session persisted to server storage"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="export-session">Export Session<a class="headerlink" href="#export-session" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/export</code></p>
+<p><strong>Purpose</strong>: Download session as JSON file</p>
+<p><strong>Response</strong>: JSON file with <code>Content-Disposition: attachment</code></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/export"</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">'my_session.json'</span><span class="p">,</span> <span class="s1">'wb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="import-session">Import Session<a class="headerlink" href="#import-session" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/import</code></p>
+<p><strong>Purpose</strong>: Upload and create session from JSON file</p>
+<p><strong>Request</strong>: Multipart form data with file</p>
+<p><strong>Response</strong> (201 Created):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"new-session-id"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"created_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-12T10:00:00Z"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"expires_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-13T10:00:00Z"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="delete-session">Delete Session<a class="headerlink" href="#delete-session" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>DELETE /sessions/{session_id}</code></p>
+<p><strong>Purpose</strong>: Remove session from memory</p>
+<p><strong>Response</strong> (204 No Content)</p>
+<hr>
+<h2 id="variables-api">Variables API<a class="headerlink" href="#variables-api" title="Permanent link">¶</a></h2>
+<h3 id="add-variable">Add Variable<a class="headerlink" href="#add-variable" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/variables</code></p>
+<p><strong>Purpose</strong>: Add variable to search space</p>
+<p><strong>Request Body</strong> (continuous):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"temperature"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"real"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"bounds"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">20.0</span><span class="p">,</span><span class="w"> </span><span class="mf">100.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"unit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"°C"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Request Body</strong> (categorical):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"solvent"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"categorical"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"categories"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"THF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"DMF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"toluene"</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (201 Created):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"temperature"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"real"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"bounds"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">20.0</span><span class="p">,</span><span class="w"> </span><span class="mf">100.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"unit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"°C"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="c1"># Add continuous variable</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/variables"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"temperature"</span><span class="p">,</span>
+        <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"real"</span><span class="p">,</span>
+        <span class="s2">"bounds"</span><span class="p">:</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span>
+        <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"°C"</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+
+<span class="c1"># Add categorical variable</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/variables"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"solvent"</span><span class="p">,</span>
+        <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"categorical"</span><span class="p">,</span>
+        <span class="s2">"categories"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"THF"</span><span class="p">,</span> <span class="s2">"DMF"</span><span class="p">,</span> <span class="s2">"toluene"</span><span class="p">]</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="get-all-variables">Get All Variables<a class="headerlink" href="#get-all-variables" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/variables</code></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"variables"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"temperature"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"real"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"bounds"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">20.0</span><span class="p">,</span><span class="w"> </span><span class="mf">100.0</span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"unit"</span><span class="p">:</span><span class="w"> </span><span class="s2">"°C"</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"solvent"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"categorical"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"categories"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"THF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"DMF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"toluene"</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"count"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="delete-variable">Delete Variable<a class="headerlink" href="#delete-variable" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>DELETE /sessions/{session_id}/variables/{variable_name}</code></p>
+<p><strong>Response</strong> (204 No Content)</p>
+<hr>
+<h2 id="experiments-api">Experiments API<a class="headerlink" href="#experiments-api" title="Permanent link">¶</a></h2>
+<h3 id="add-experiment">Add Experiment<a class="headerlink" href="#add-experiment" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/experiments</code></p>
+<p><strong>Purpose</strong>: Add single experiment with results</p>
+<p><strong>Request Body</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mf">60.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"catalyst_loading"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"THF"</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="mf">85.3</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"noise"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.2</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (201 Created):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"experiment_id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="mf">85.3</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"added_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-12T10:15:00"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="add-multiple-experiments">Add Multiple Experiments<a class="headerlink" href="#add-multiple-experiments" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/experiments/batch</code></p>
+<p><strong>Purpose</strong>: Add multiple experiments at once</p>
+<p><strong>Request Body</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"experiments"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"THF"</span><span class="p">},</span>
+<span class="w">      </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="mf">85.3</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DMF"</span><span class="p">},</span>
+<span class="w">      </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="mf">72.1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (201 Created):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"added"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"total_experiments"</span><span class="p">:</span><span class="w"> </span><span class="mi">27</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="get-all-experiments">Get All Experiments<a class="headerlink" href="#get-all-experiments" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/experiments</code></p>
+<p><strong>Query Parameters</strong>:</p>
+<ul>
+<li>
+<p><code>skip</code>: Pagination offset (default: 0)</p>
+</li>
+<li>
+<p><code>limit</code>: Max results (default: 100)</p>
+</li>
+</ul>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"experiments"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mf">60.0</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"catalyst_loading"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"THF"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"yield"</span><span class="p">:</span><span class="w"> </span><span class="mf">85.3</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"total"</span><span class="p">:</span><span class="w"> </span><span class="mi">25</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"target_column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"yield"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="upload-csv">Upload CSV<a class="headerlink" href="#upload-csv" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/experiments/upload</code></p>
+<p><strong>Purpose</strong>: Upload experiments from CSV file</p>
+<p><strong>Request</strong>: Multipart form data</p>
+<p><strong>cURL Example</strong>:
+</p><div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:8000/api/v1/sessions/<span class="o">{</span>session_id<span class="o">}</span>/experiments/upload<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"file=@experiments.csv"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="s2">"target_column=yield"</span>
+</code></pre></div><p></p>
+<p><strong>Python Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">'experiments.csv'</span><span class="p">,</span> <span class="s1">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/experiments/upload"</span><span class="p">,</span>
+        <span class="n">files</span><span class="o">=</span><span class="p">{</span><span class="s1">'file'</span><span class="p">:</span> <span class="n">f</span><span class="p">},</span>
+        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">'target_column'</span><span class="p">:</span> <span class="s1">'yield'</span><span class="p">}</span>
+    <span class="p">)</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"added"</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"total_experiments"</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Successfully uploaded 50 experiments"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="export-experiments">Export Experiments<a class="headerlink" href="#export-experiments" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/experiments/export</code></p>
+<p><strong>Purpose</strong>: Download experiments as CSV</p>
+<p><strong>Response</strong>: CSV file with <code>Content-Disposition: attachment</code></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/experiments/export"</span>
+<span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">'experiments.csv'</span><span class="p">,</span> <span class="s1">'wb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="delete-all-experiments">Delete All Experiments<a class="headerlink" href="#delete-all-experiments" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>DELETE /sessions/{session_id}/experiments</code></p>
+<p><strong>Response</strong> (204 No Content)</p>
+<hr>
+<h2 id="models-api">Models API<a class="headerlink" href="#models-api" title="Permanent link">¶</a></h2>
+<h3 id="train-model">Train Model<a class="headerlink" href="#train-model" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/model/train</code></p>
+<p><strong>Purpose</strong>: Train Gaussian Process model</p>
+<p><strong>Request Body</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"backend"</span><span class="p">:</span><span class="w"> </span><span class="s2">"botorch"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kernel"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Matern"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kernel_params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"nu"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"target_column"</span><span class="p">:</span><span class="w"> </span><span class="s2">"yield"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"goal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"maximize"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"backend"</span><span class="p">:</span><span class="w"> </span><span class="s2">"botorch"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kernel"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Matern"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"hyperparameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"lengthscales"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.15</span><span class="p">,</span><span class="w"> </span><span class="mf">0.22</span><span class="p">,</span><span class="w"> </span><span class="mf">0.18</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"outputscale"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.45</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"noise"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.05</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"metrics"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"cv_rmse"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.2</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"cv_r2"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.93</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"cv_mae"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.1</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"mean_z"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.02</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"std_z"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.05</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"training_time_s"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.34</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/models/train"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"backend"</span><span class="p">:</span> <span class="s2">"botorch"</span><span class="p">,</span>
+        <span class="s2">"kernel"</span><span class="p">:</span> <span class="s2">"Matern"</span><span class="p">,</span>
+        <span class="s2">"target_column"</span><span class="p">:</span> <span class="s2">"yield"</span><span class="p">,</span>
+        <span class="s2">"goal"</span><span class="p">:</span> <span class="s2">"maximize"</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+<span class="n">metrics</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"metrics"</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"R² = </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">'cv_r2'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="get-model-info">Get Model Info<a class="headerlink" href="#get-model-info" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/model</code></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"trained"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"backend"</span><span class="p">:</span><span class="w"> </span><span class="s2">"botorch"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kernel"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Matern"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"hyperparameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"metrics"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"trained_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2025-12-12T10:30:00"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="get-predictions">Get Predictions<a class="headerlink" href="#get-predictions" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/model/predict</code></p>
+<p><strong>Purpose</strong>: Make predictions at new points</p>
+<p><strong>Request Body</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">65</span><span class="p">,</span><span class="w"> </span><span class="nt">"catalyst_loading"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"THF"</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">75</span><span class="p">,</span><span class="w"> </span><span class="nt">"catalyst_loading"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"DMF"</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"predictions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">65</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">},</span>
+<span class="w">      </span><span class="nt">"mean"</span><span class="p">:</span><span class="w"> </span><span class="mf">87.5</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"std"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.3</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"confidence_interval_95"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">82.9</span><span class="p">,</span><span class="w"> </span><span class="mf">92.1</span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mi">75</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">},</span>
+<span class="w">      </span><span class="nt">"mean"</span><span class="p">:</span><span class="w"> </span><span class="mf">79.2</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"std"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.1</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"confidence_interval_95"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">73.1</span><span class="p">,</span><span class="w"> </span><span class="mf">85.3</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="acquisition-api">Acquisition API<a class="headerlink" href="#acquisition-api" title="Permanent link">¶</a></h2>
+<h3 id="suggest-next-experiments">Suggest Next Experiments<a class="headerlink" href="#suggest-next-experiments" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>POST /sessions/{session_id}/acquisition/suggest</code></p>
+<p><strong>Purpose</strong>: Generate next experiment candidates</p>
+<p><strong>Request Body</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"strategy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EI"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"n_suggestions"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"goal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"maximize"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"xi"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.01</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Available Strategies</strong>:</p>
+<ul>
+<li>
+<p><code>EI</code> - Expected Improvement</p>
+</li>
+<li>
+<p><code>PI</code> - Probability of Improvement</p>
+</li>
+<li>
+<p><code>UCB</code> - Upper Confidence Bound</p>
+</li>
+<li>
+<p><code>qEI</code> - Batch Expected Improvement</p>
+</li>
+<li>
+<p><code>qUCB</code> - Batch Upper Confidence Bound</p>
+</li>
+<li>
+<p><code>qNIPV</code> - Negative Integrated Posterior Variance (exploration)</p>
+</li>
+</ul>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"suggestions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"temperature"</span><span class="p">:</span><span class="w"> </span><span class="mf">75.3</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"catalyst_loading"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.8</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"solvent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"THF"</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"n_suggestions"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<p><strong>Example</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/acquisition/suggest"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"strategy"</span><span class="p">:</span> <span class="s2">"EI"</span><span class="p">,</span>
+        <span class="s2">"n_suggestions"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">"goal"</span><span class="p">:</span> <span class="s2">"maximize"</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+<span class="n">suggestions</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"suggestions"</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cand</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Candidate </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">cand</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="visualizations-api">Visualizations API<a class="headerlink" href="#visualizations-api" title="Permanent link">¶</a></h2>
+<h3 id="get-parity-plot-data">Get Parity Plot Data<a class="headerlink" href="#get-parity-plot-data" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/visualizations/parity</code></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"actual"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">85.3</span><span class="p">,</span><span class="w"> </span><span class="mf">72.1</span><span class="p">,</span><span class="w"> </span><span class="mf">90.2</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"predicted"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">86.1</span><span class="p">,</span><span class="w"> </span><span class="mf">71.5</span><span class="p">,</span><span class="w"> </span><span class="mf">89.8</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"std"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">2.3</span><span class="p">,</span><span class="w"> </span><span class="mf">3.1</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"metrics"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"rmse"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.2</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"mae"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.1</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"r2"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.93</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="get-q-q-plot-data">Get Q-Q Plot Data<a class="headerlink" href="#get-q-q-plot-data" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/visualizations/qq_plot</code></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"theoretical_quantiles"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">-2.5</span><span class="p">,</span><span class="w"> </span><span class="mf">-2.0</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"sample_quantiles"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">-2.4</span><span class="p">,</span><span class="w"> </span><span class="mf">-1.9</span><span class="p">,</span><span class="w"> </span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"mean_z"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.02</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"std_z"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.05</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"calibration_status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"well_calibrated"</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<h3 id="get-calibration-curve-data">Get Calibration Curve Data<a class="headerlink" href="#get-calibration-curve-data" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>GET /sessions/{session_id}/visualizations/calibration</code></p>
+<p><strong>Response</strong> (200 OK):
+</p><div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"confidence_levels"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.68</span><span class="p">,</span><span class="w"> </span><span class="mf">0.90</span><span class="p">,</span><span class="w"> </span><span class="mf">0.95</span><span class="p">,</span><span class="w"> </span><span class="mf">0.99</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"observed_coverage"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.70</span><span class="p">,</span><span class="w"> </span><span class="mf">0.89</span><span class="p">,</span><span class="w"> </span><span class="mf">0.94</span><span class="p">,</span><span class="w"> </span><span class="mf">0.98</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"confidence_bands_lower"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.62</span><span class="p">,</span><span class="w"> </span><span class="mf">0.85</span><span class="p">,</span><span class="w"> </span><span class="mf">0.90</span><span class="p">,</span><span class="w"> </span><span class="mf">0.96</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"confidence_bands_upper"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.78</span><span class="p">,</span><span class="w"> </span><span class="mf">0.94</span><span class="p">,</span><span class="w"> </span><span class="mf">0.98</span><span class="p">,</span><span class="w"> </span><span class="mf">0.99</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="websocket-api">WebSocket API<a class="headerlink" href="#websocket-api" title="Permanent link">¶</a></h2>
+<h3 id="real-time-updates">Real-Time Updates<a class="headerlink" href="#real-time-updates" title="Permanent link">¶</a></h3>
+<p><strong>Endpoint</strong>: <code>WS /ws/{session_id}</code></p>
+<p><strong>Purpose</strong>: Subscribe to session events</p>
+<p><strong>Events</strong>:</p>
+<ul>
+<li>
+<p><code>experiment_added</code>: New experimental data</p>
+</li>
+<li>
+<p><code>model_trained</code>: Model training completed</p>
+</li>
+<li>
+<p><code>acquisition_generated</code>: New candidates available</p>
+</li>
+</ul>
+<p><strong>Example</strong> (Python with websockets):
+</p><div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">websockets</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">listen_to_session</span><span class="p">(</span><span class="n">session_id</span><span class="p">):</span>
+    <span class="n">uri</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"ws://localhost:8000/ws/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">websockets</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span> <span class="k">as</span> <span class="n">websocket</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="k">await</span> <span class="n">websocket</span><span class="o">.</span><span class="n">recv</span><span class="p">()</span>
+            <span class="n">event</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Event: </span><span class="si">{</span><span class="n">event</span><span class="p">[</span><span class="s1">'type'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Data: </span><span class="si">{</span><span class="n">event</span><span class="p">[</span><span class="s1">'data'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">listen_to_session</span><span class="p">(</span><span class="n">session_id</span><span class="p">))</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="rate-limiting">Rate Limiting<a class="headerlink" href="#rate-limiting" title="Permanent link">¶</a></h2>
+<p><strong>Current</strong>: No rate limiting (local development)</p>
+<p><strong>Future</strong>: Configurable rate limits for production:</p>
+<ul>
+<li>
+<p>100 requests/minute per IP (general)</p>
+</li>
+<li>
+<p>10 model training requests/hour per session</p>
+</li>
+<li>
+<p>1000 requests/hour for read-only endpoints</p>
+</li>
+</ul>
+<hr>
+<h2 id="cors-configuration">CORS Configuration<a class="headerlink" href="#cors-configuration" title="Permanent link">¶</a></h2>
+<p><strong>Default</strong> (development):
+</p><div class="highlight"><pre><span></span><code><span class="n">allow_origins</span><span class="o">=</span><span class="p">[</span><span class="s2">"http://localhost:5173"</span><span class="p">,</span> <span class="s2">"http://localhost:3000"</span><span class="p">]</span>
+</code></pre></div><p></p>
+<p><strong>Production</strong>: Configure allowed origins in environment:
+</p><div class="highlight"><pre><span></span><code><span class="nv">ALLOWED_ORIGINS</span><span class="o">=</span>https://myapp.com,https://app.mycompany.com
+</code></pre></div><p></p>
+<hr>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">¶</a></h2>
+<h3 id="session-lifecycle">Session Lifecycle<a class="headerlink" href="#session-lifecycle" title="Permanent link">¶</a></h3>
+<p><strong>Recommended pattern</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="c1"># 1. Create session</span>
+<span class="n">session</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions"</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+<span class="n">session_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">"session_id"</span><span class="p">]</span>
+
+<span class="c1"># 2. Define variables</span>
+<span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/variables"</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">var</span><span class="p">)</span>
+
+<span class="c1"># 3. Add experiments</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/experiments/batch"</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">experiments</span><span class="p">)</span>
+
+<span class="c1"># 4. Train model</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/model/train"</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">model_config</span><span class="p">)</span>
+
+<span class="c1"># 5. Get suggestions</span>
+<span class="n">suggestions</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/acquisition/suggest"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"strategy"</span><span class="p">:</span> <span class="s2">"EI"</span><span class="p">,</span> <span class="s2">"n_suggestions"</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+<span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+<span class="c1"># 6. Save session</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/save"</span><span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="error-handling_1">Error Handling<a class="headerlink" href="#error-handling_1" title="Permanent link">¶</a></h3>
+<p><strong>Always check status codes</strong>:
+</p><div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+<span class="k">elif</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">422</span><span class="p">:</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"detail"</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Validation errors: </span><span class="si">{</span><span class="n">errors</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div><p></p>
+<h3 id="performance-optimization">Performance Optimization<a class="headerlink" href="#performance-optimization" title="Permanent link">¶</a></h3>
+<p><strong>Batch operations</strong>:</p>
+<ul>
+<li>
+<p>Use <code>/experiments/batch</code> instead of multiple single adds</p>
+</li>
+<li>
+<p>Upload CSV for large datasets</p>
+</li>
+<li>
+<p>Minimize round-trips</p>
+</li>
+</ul>
+<p><strong>Caching</strong>:</p>
+<ul>
+<li>
+<p>Cache session_id after creation</p>
+</li>
+<li>
+<p>Reuse trained models</p>
+</li>
+<li>
+<p>Store experiment data locally</p>
+</li>
+</ul>
+<hr>
+<h2 id="migration-from-core-session-api">Migration from Core Session API<a class="headerlink" href="#migration-from-core-session-api" title="Permanent link">¶</a></h2>
+<p><strong>Convert Session API code to REST API</strong>:</p>
+<p><strong>Before</strong> (Core Session API):
+</p><div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">alchemist_core</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizationSession</span>
+
+<span class="n">session</span> <span class="o">=</span> <span class="n">OptimizationSession</span><span class="p">()</span>
+<span class="n">session</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s1">'temp'</span><span class="p">,</span> <span class="s1">'real'</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+<span class="n">session</span><span class="o">.</span><span class="n">add_experiment</span><span class="p">({</span><span class="s1">'temp'</span><span class="p">:</span> <span class="mi">60</span><span class="p">},</span> <span class="n">output</span><span class="o">=</span><span class="mf">85.3</span><span class="p">)</span>
+<span class="n">session</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s1">'botorch'</span><span class="p">)</span>
+<span class="n">next_point</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">)</span>
+</code></pre></div><p></p>
+<p><strong>After</strong> (REST API):
+</p><div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="n">BASE_URL</span> <span class="o">=</span> <span class="s2">"http://localhost:8000"</span>
+
+<span class="c1"># Create session</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions"</span><span class="p">)</span>
+<span class="n">session_id</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"session_id"</span><span class="p">]</span>
+
+<span class="c1"># Add variable</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/variables"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"temp"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"real"</span><span class="p">,</span> <span class="s2">"bounds"</span><span class="p">:</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">100</span><span class="p">]}</span>
+<span class="p">)</span>
+
+<span class="c1"># Add experiment</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/experiments"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"inputs"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"temp"</span><span class="p">:</span> <span class="mi">60</span><span class="p">},</span> <span class="s2">"output"</span><span class="p">:</span> <span class="mf">85.3</span><span class="p">}</span>
+<span class="p">)</span>
+
+<span class="c1"># Train model</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/model/train"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"backend"</span><span class="p">:</span> <span class="s2">"botorch"</span><span class="p">}</span>
+<span class="p">)</span>
+
+<span class="c1"># Get suggestions</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}</span><span class="s2">/sessions/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">/acquisition/suggest"</span><span class="p">,</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"strategy"</span><span class="p">:</span> <span class="s2">"EI"</span><span class="p">,</span> <span class="s2">"n_suggestions"</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="n">next_point</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"suggestions"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../session/">Core Session API</a> - Python interface (no HTTP)</li>
+<li><a href="../../setup/web_app/">Web Application</a> - Browser interface using this API</li>
+<li><a href="../../reproducibility/sessions/">Session Management</a> - Session lifecycle and storage</li>
+<li><a href="../../reproducibility/audit_logs/">Audit Logs</a> - Reproducibility tracking</li>
+</ul>
+<hr>
+<p><strong>Key Takeaway</strong>: The REST API provides language-agnostic access to ALchemist's Bayesian optimization capabilities. Use it for web applications, remote integrations, or non-Python clients.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.top", "navigation.tabs", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

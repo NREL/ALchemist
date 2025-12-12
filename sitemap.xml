@@ -2,70 +2,118 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://nrel.github.io/ALchemist/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/ISSUES_LOG/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/resources/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/use_cases/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/acquisition/botorch/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/acquisition/logging/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/acquisition/skopt/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/api/rest/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/api/session/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/background/bayesian_optimization/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/background/interpreting_calibration/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/background/interpreting_qqplot/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/background/kernels/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/modeling/botorch/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/modeling/performance/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/modeling/skopt/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/reproducibility/audit_logs/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/reproducibility/sessions/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/setup/data_visualization/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/setup/initial_sampling/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/setup/load_data/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/setup/variable_space/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/setup/web_app/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/visualizations/calibration_curve/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/visualizations/contour_plot/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
     </url>
     <url>
          <loc>https://nrel.github.io/ALchemist/visualizations/error_metrics/</loc>
-         <lastmod>2025-11-04</lastmod>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/visualizations/metrics_plot/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/visualizations/parity_plot/</loc>
+         <lastmod>2025-12-12</lastmod>
+    </url>
+    <url>
+         <loc>https://nrel.github.io/ALchemist/visualizations/qq_plot/</loc>
+         <lastmod>2025-12-12</lastmod>
     </url>
 </urlset>

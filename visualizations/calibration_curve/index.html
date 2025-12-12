@@ -1,0 +1,2938 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://nrel.github.io/ALchemist/visualizations/calibration_curve/">
+      
+      
+        <link rel="prev" href="../qq_plot/">
+      
+      
+        <link rel="next" href="../metrics_plot/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/NEW_ICON.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Calibration curve - ALchemist Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#calibration-curve" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ALchemist Documentation" class="md-header__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ALchemist Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Calibration curve
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/NREL/ALchemist" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    ALchemist
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../use_cases/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Use Cases
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../setup/web_app/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../modeling/skopt/" class="md-tabs__link">
+          
+  
+  
+  Surrogate Modeling
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../error_metrics/" class="md-tabs__link">
+          
+  
+  
+  Visualizations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../acquisition/skopt/" class="md-tabs__link">
+          
+  
+  
+  Acquisition &amp; Optimization
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reproducibility/sessions/" class="md-tabs__link">
+          
+  
+  
+  Reproducibility
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/rest/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../background/bayesian_optimization/" class="md-tabs__link">
+          
+  
+  
+  Educational Resources
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../ISSUES_LOG/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Issues &amp; Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ALchemist Documentation" class="md-nav__button md-logo" aria-label="ALchemist Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    ALchemist Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/NREL/ALchemist" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    ALchemist
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../use_cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/web_app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/variable_space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting Up Variable Space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/initial_sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generating Initial Experiments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/load_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loading Experimental Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/data_visualization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surrogate Modeling
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Surrogate Modeling
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/skopt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scikit-optimize Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/botorch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BoTorch Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modeling/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualizations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contour_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contour plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parity_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parity plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../qq_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Q-Q plot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration curve
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration curve
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-calibration-curve-shows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Calibration Curve Shows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-interpretation-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Interpretation Guide
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#understanding-coverage-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understanding Coverage Calibration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-the-calibration-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use the Calibration Curve
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="When to Use the Calibration Curve">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#essential-situations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Essential Situations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combined-with-other-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combined with Other Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessing-the-calibration-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the Calibration Curve
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Accessing the Calibration Curve">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-web-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In Web Application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#in-desktop-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In Desktop Application
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpreting-calibration-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpreting Calibration Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interpreting Calibration Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#perfect-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perfect Calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#over-confident-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Over-Confident Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#under-confident-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Under-Confident Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#confidence-bands-statistical-uncertainty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Confidence Bands (Statistical Uncertainty)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Confidence Bands (Statistical Uncertainty)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clopper-pearson-intervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clopper-Pearson Intervals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-size-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample Size Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sample Size Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#small-datasets-n-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Small Datasets (N &lt; 30)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-datasets-30-n-100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium Datasets (30 &lt; N &lt; 100)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#large-datasets-n-100" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Large Datasets (N &gt; 100)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automatic-calibration-in-alchemist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Calibration in ALchemist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Automatic Calibration in ALchemist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calibration-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration Method
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effect-on-calibration-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Effect on Calibration Curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relationship-to-q-q-plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationship to Q-Q Plot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-bayesian-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Bayesian Optimization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Bayesian Optimization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#expected-improvement-ei" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected Improvement (EI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upper-confidence-bound-ucb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upper Confidence Bound (UCB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety-constrained-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety-Constrained Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpreting-specific-confidence-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpreting Specific Confidence Levels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interpreting Specific Confidence Levels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#low-confidence-50-70" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low Confidence (50%-70%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-confidence-80-90" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium Confidence (80%-90%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-confidence-95-99" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High Confidence (95%-99%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-calibration-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Calibration Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Calibration Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-curve-below-diagonal-at-all-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Curve Below Diagonal at All Levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-curve-above-diagonal-at-all-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Curve Above Diagonal at All Levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-good-at-center-poor-at-extremes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Good at Center, Poor at Extremes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-sudden-jumps-or-non-monotonic-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Sudden Jumps or Non-Monotonic Curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Guidelines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Practical Guidelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#acceptable-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceptable Calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-recalibrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Recalibrate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Topics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Topics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coverage-vs-sharpness-trade-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage vs. Sharpness Trade-off
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bayesian-confidence-intervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bayesian Confidence Intervals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics_plot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acquisition &amp; Optimization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Acquisition &amp; Optimization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/skopt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scikit-optimize Acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/botorch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BoTorch Acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../acquisition/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging &amp; Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7">
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reproducibility
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reproducibility/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reproducibility/audit_logs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Logs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8">
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Session API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9">
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Educational Resources
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Educational Resources
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bayesian Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/interpreting_qqplot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interpreting Q-Q Plots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/interpreting_calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interpreting Calibration Curves
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ISSUES_LOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="calibration-curve">Calibration Curve<a class="headerlink" href="#calibration-curve" title="Permanent link">¶</a></h1>
+<p>The <strong>calibration curve</strong> in ALchemist measures whether your Gaussian Process model's predicted confidence intervals have the correct <strong>coverage</strong>. It answers the question: "When the model says a measurement is 90% likely to fall within an interval, does it actually fall within that interval 90% of the time?"</p>
+<hr>
+<h2 id="what-the-calibration-curve-shows">What the Calibration Curve Shows<a class="headerlink" href="#what-the-calibration-curve-shows" title="Permanent link">¶</a></h2>
+<p><strong>X-axis</strong>: Expected confidence level (0 to 1, or 0% to 100%)<br>
+<strong>Y-axis</strong>: Observed coverage from cross-validation predictions</p>
+<p><strong>Key elements:</strong></p>
+<ul>
+<li>
+<p><strong>Blue curve</strong>: Actual coverage at each confidence level</p>
+</li>
+<li>
+<p><strong>Diagonal line</strong>: Perfect calibration reference (y = x)</p>
+</li>
+<li>
+<p><strong>Shaded regions</strong>: 95% and 68% confidence bands (Clopper-Pearson)</p>
+</li>
+<li>
+<p><strong>Diagnostic text</strong>: Summary statistics and calibration status</p>
+</li>
+</ul>
+<hr>
+<h2 id="quick-interpretation-guide">Quick Interpretation Guide<a class="headerlink" href="#quick-interpretation-guide" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Shape</th>
+<th>Status</th>
+<th>What It Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>On diagonal</td>
+<td>y ≈ x</td>
+<td>✓ Well-calibrated</td>
+<td>Coverage matches expectations</td>
+</tr>
+<tr>
+<td>Below diagonal</td>
+<td>y &lt; x</td>
+<td>Over-confident</td>
+<td>Intervals too narrow, poor coverage</td>
+</tr>
+<tr>
+<td>Above diagonal</td>
+<td>y &gt; x</td>
+<td>Under-confident</td>
+<td>Intervals too wide, conservative</td>
+</tr>
+<tr>
+<td>Matches band</td>
+<td>Within shaded area</td>
+<td>✓ Acceptable</td>
+<td>Within statistical uncertainty</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="understanding-coverage-calibration">Understanding Coverage Calibration<a class="headerlink" href="#understanding-coverage-calibration" title="Permanent link">¶</a></h2>
+<p>For each confidence level α (e.g., 0.90 for 90%), the coverage is:</p>
+<div class="arithmatex">\[
+\text{Coverage}(\alpha) = \frac{1}{n}\sum_{i=1}^{n} \mathbb{1}\left[y_i \in [\hat{\mu}_i - z_{\alpha}\hat{\sigma}_i,\ \hat{\mu}_i + z_{\alpha}\hat{\sigma}_i]\right]
+\]</div>
+<p>Where:</p>
+<ul>
+<li>
+<p><span class="arithmatex">\(y_i\)</span> = true experimental value</p>
+</li>
+<li>
+<p><span class="arithmatex">\(\hat{\mu}_i\)</span> = predicted mean from cross-validation</p>
+</li>
+<li>
+<p><span class="arithmatex">\(\hat{\sigma}_i\)</span> = predicted standard deviation</p>
+</li>
+<li>
+<p><span class="arithmatex">\(z_{\alpha}\)</span> = z-score for confidence level α (e.g., 1.96 for 95%)</p>
+</li>
+<li>
+<p><span class="arithmatex">\(\mathbb{1}[\cdot]\)</span> = indicator function (1 if true, 0 if false)</p>
+</li>
+</ul>
+<p><strong>Perfect calibration</strong>: Coverage(α) = α for all α ∈ [0, 1]</p>
+<hr>
+<h2 id="when-to-use-the-calibration-curve">When to Use the Calibration Curve<a class="headerlink" href="#when-to-use-the-calibration-curve" title="Permanent link">¶</a></h2>
+<h3 id="essential-situations">Essential Situations<a class="headerlink" href="#essential-situations" title="Permanent link">¶</a></h3>
+<p><strong>Before making optimization decisions:</strong></p>
+<ul>
+<li>
+<p>Verify confidence intervals are trustworthy</p>
+</li>
+<li>
+<p>Assess risk tolerance (safety-critical applications)</p>
+</li>
+<li>
+<p>Validate uncertainty-based acquisition functions</p>
+</li>
+</ul>
+<p><strong>After model training:</strong></p>
+<ul>
+<li>
+<p>Check calibration across all confidence levels</p>
+</li>
+<li>
+<p>Compare different modeling backends</p>
+</li>
+<li>
+<p>Evaluate kernel choices</p>
+</li>
+</ul>
+<p><strong>During active learning:</strong></p>
+<ul>
+<li>
+<p>Monitor if calibration degrades as data grows</p>
+</li>
+<li>
+<p>Ensure reliability of new predictions</p>
+</li>
+<li>
+<p>Detect if recalibration is needed</p>
+</li>
+</ul>
+<h3 id="combined-with-other-diagnostics">Combined with Other Diagnostics<a class="headerlink" href="#combined-with-other-diagnostics" title="Permanent link">¶</a></h3>
+<p>Use calibration curve alongside:</p>
+<ul>
+<li>
+<p><strong><a href="../qq_plot/">Q-Q plot</a></strong>: Check z-score distribution (Std(z) ≈ 1)</p>
+</li>
+<li>
+<p><strong><a href="../parity_plot/">Parity plot</a></strong>: Assess prediction accuracy</p>
+</li>
+<li>
+<p><strong>Metrics plot</strong>: Track overall performance</p>
+</li>
+</ul>
+<hr>
+<h2 id="accessing-the-calibration-curve">Accessing the Calibration Curve<a class="headerlink" href="#accessing-the-calibration-curve" title="Permanent link">¶</a></h2>
+<h3 id="in-web-application">In Web Application<a class="headerlink" href="#in-web-application" title="Permanent link">¶</a></h3>
+<ol>
+<li>Train a model in the GPR Panel</li>
+<li>Click "Show Model Visualizations"</li>
+<li>Select "Calibration Curve" from plot type buttons</li>
+<li>Toggle between calibrated/uncalibrated results</li>
+</ol>
+<h3 id="in-desktop-application">In Desktop Application<a class="headerlink" href="#in-desktop-application" title="Permanent link">¶</a></h3>
+<ol>
+<li>Train model in Model panel</li>
+<li>Open Visualizations dialog</li>
+<li>Calibration curve available in visualization options</li>
+<li>Customize and export for reports</li>
+</ol>
+<hr>
+<h2 id="interpreting-calibration-patterns">Interpreting Calibration Patterns<a class="headerlink" href="#interpreting-calibration-patterns" title="Permanent link">¶</a></h2>
+<h3 id="perfect-calibration">Perfect Calibration<a class="headerlink" href="#perfect-calibration" title="Permanent link">¶</a></h3>
+<p></p><div class="highlight"><pre><span></span><code>Curve follows diagonal within confidence bands
+All predicted confidence levels match observed coverage
+</code></pre></div>
+<strong>Example</strong>: 95% intervals contain true value 94-96% of the time<br>
+<strong>Action</strong>: Model is ready for optimization, no changes needed<p></p>
+<h3 id="over-confident-model">Over-Confident Model<a class="headerlink" href="#over-confident-model" title="Permanent link">¶</a></h3>
+<p></p><div class="highlight"><pre><span></span><code>Curve below diagonal across multiple confidence levels
+Observed coverage &lt; expected confidence level
+</code></pre></div>
+<strong>Example</strong>: 90% intervals only contain true value 75% of the time<br>
+<strong>Impact</strong>:<p></p>
+<ul>
+<li>
+<p>Higher risk of missing optimal regions</p>
+</li>
+<li>
+<p>Acquisition functions overly exploitative</p>
+</li>
+<li>
+<p>May converge prematurely</p>
+</li>
+</ul>
+<p><strong>Actions</strong>:
+1. Use automatic calibration (enabled by default)
+2. Increase noise parameter if applicable
+3. Try more flexible kernel (Matern ν=1.5)
+4. Collect more diverse training data</p>
+<h3 id="under-confident-model">Under-Confident Model<a class="headerlink" href="#under-confident-model" title="Permanent link">¶</a></h3>
+<p></p><div class="highlight"><pre><span></span><code>Curve above diagonal across multiple confidence levels
+Observed coverage &gt; expected confidence level
+</code></pre></div>
+<strong>Example</strong>: 90% intervals contain true value 98% of the time<br>
+<strong>Impact</strong>:<p></p>
+<ul>
+<li>
+<p>Wasted experimental budget (over-exploration)</p>
+</li>
+<li>
+<p>Slower convergence to optimum</p>
+</li>
+<li>
+<p>Conservative but safer</p>
+</li>
+</ul>
+<p><strong>Actions</strong>:
+1. Often acceptable (conservative is safer than aggressive)
+2. If inefficient, reduce explicit noise values
+3. Try less flexible kernel (Matern ν=2.5, RBF)
+4. Check that lengthscales aren't manually fixed too large</p>
+<hr>
+<h2 id="confidence-bands-statistical-uncertainty">Confidence Bands (Statistical Uncertainty)<a class="headerlink" href="#confidence-bands-statistical-uncertainty" title="Permanent link">¶</a></h2>
+<p>The shaded regions show expected variability due to finite sample size.</p>
+<h3 id="clopper-pearson-intervals">Clopper-Pearson Intervals<a class="headerlink" href="#clopper-pearson-intervals" title="Permanent link">¶</a></h3>
+<p>For each confidence level α with n samples and k successes:</p>
+<div class="arithmatex">\[
+\text{Lower bound} = \text{Beta}^{-1}\left(\frac{\alpha_{\text{band}}}{2}; k, n-k+1\right)
+\]</div>
+<div class="arithmatex">\[
+\text{Upper bound} = \text{Beta}^{-1}\left(1 - \frac{\alpha_{\text{band}}}{2}; k+1, n-k\right)
+\]</div>
+<p><strong>Shaded regions</strong>:</p>
+<ul>
+<li>
+<p>Dark band: 68% confidence (≈1σ)</p>
+</li>
+<li>
+<p>Light band: 95% confidence (≈2σ)</p>
+</li>
+</ul>
+<p><strong>Interpretation</strong>:</p>
+<ul>
+<li>
+<p>If curve is <strong>within bands</strong>: Deviations likely due to chance</p>
+</li>
+<li>
+<p>If curve is <strong>outside bands</strong>: Genuine calibration issue</p>
+</li>
+</ul>
+<hr>
+<h2 id="sample-size-considerations">Sample Size Considerations<a class="headerlink" href="#sample-size-considerations" title="Permanent link">¶</a></h2>
+<h3 id="small-datasets-n-30">Small Datasets (N &lt; 30)<a class="headerlink" href="#small-datasets-n-30" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Very wide confidence bands</p>
+</li>
+<li>
+<p>High variability expected</p>
+</li>
+<li>
+<p>Difficult to distinguish poor calibration from sampling noise</p>
+</li>
+<li>
+<p>Focus on overall trend, don't over-interpret</p>
+</li>
+</ul>
+<h3 id="medium-datasets-30-n-100">Medium Datasets (30 &lt; N &lt; 100)<a class="headerlink" href="#medium-datasets-30-n-100" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Moderate confidence bands</p>
+</li>
+<li>
+<p>Systematic deviations become detectable</p>
+</li>
+<li>
+<p>Curves outside 95% band indicate real issues</p>
+</li>
+<li>
+<p>Sufficient for calibration assessment</p>
+</li>
+</ul>
+<h3 id="large-datasets-n-100">Large Datasets (N &gt; 100)<a class="headerlink" href="#large-datasets-n-100" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Narrow confidence bands</p>
+</li>
+<li>
+<p>High confidence in calibration assessment</p>
+</li>
+<li>
+<p>Even small deviations from diagonal are meaningful</p>
+</li>
+<li>
+<p>Clear detection of calibration problems</p>
+</li>
+</ul>
+<hr>
+<h2 id="automatic-calibration-in-alchemist">Automatic Calibration in ALchemist<a class="headerlink" href="#automatic-calibration-in-alchemist" title="Permanent link">¶</a></h2>
+<p>When miscalibration is detected, ALchemist automatically applies correction:</p>
+<h3 id="calibration-method">Calibration Method<a class="headerlink" href="#calibration-method" title="Permanent link">¶</a></h3>
+<ol>
+<li>Compute standardized residuals from cross-validation: <span class="arithmatex">\(z_i = \frac{y_i - \hat{\mu}_i}{\hat{\sigma}_i}\)</span></li>
+<li>Calculate empirical standard deviation: <span class="arithmatex">\(\text{Std}(z)\)</span></li>
+<li>Apply scaling to future predictions: <span class="arithmatex">\(\sigma_{\text{calibrated}} = \sigma_{\text{raw}} \times \text{Std}(z)\)</span></li>
+</ol>
+<h3 id="effect-on-calibration-curve">Effect on Calibration Curve<a class="headerlink" href="#effect-on-calibration-curve" title="Permanent link">¶</a></h3>
+<p><strong>Over-confident (Std(z) &gt; 1)</strong>:</p>
+<ul>
+<li>
+<p>Raw curve below diagonal</p>
+</li>
+<li>
+<p>Calibrated curve shifts upward toward diagonal</p>
+</li>
+<li>
+<p>Intervals widened by factor Std(z)</p>
+</li>
+</ul>
+<p><strong>Under-confident (Std(z) &lt; 1)</strong>:</p>
+<ul>
+<li>
+<p>Raw curve above diagonal</p>
+</li>
+<li>
+<p>Calibrated curve shifts downward toward diagonal</p>
+</li>
+<li>
+<p>Intervals narrowed by factor Std(z)</p>
+</li>
+</ul>
+<h3 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">¶</a></h3>
+<p>Toggle between calibrated/uncalibrated views to see:</p>
+<ul>
+<li>
+<p>Raw model performance</p>
+</li>
+<li>
+<p>Impact of automatic correction</p>
+</li>
+<li>
+<p>Improvement in coverage</p>
+</li>
+</ul>
+<hr>
+<h2 id="relationship-to-q-q-plot">Relationship to Q-Q Plot<a class="headerlink" href="#relationship-to-q-q-plot" title="Permanent link">¶</a></h2>
+<p>Calibration curve and Q-Q plot are complementary:</p>
+<table>
+<thead>
+<tr>
+<th>Diagnostic</th>
+<th>What It Checks</th>
+<th>Key Metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Q-Q Plot</strong></td>
+<td>Distribution of z-scores</td>
+<td>Std(z) ≈ 1.0</td>
+</tr>
+<tr>
+<td><strong>Calibration Curve</strong></td>
+<td>Coverage at confidence levels</td>
+<td>Coverage(α) ≈ α</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Connection</strong>:</p>
+<ul>
+<li>
+<p>If Std(z) = 1.0 → Calibration curve should be near diagonal</p>
+</li>
+<li>
+<p>If Std(z) &gt; 1.0 → Calibration curve below diagonal (over-confident)</p>
+</li>
+<li>
+<p>If Std(z) &lt; 1.0 → Calibration curve above diagonal (under-confident)</p>
+</li>
+</ul>
+<p><strong>Why use both?</strong></p>
+<ul>
+<li>
+<p>Q-Q plot: Global assessment, single metrics</p>
+</li>
+<li>
+<p>Calibration curve: Level-specific assessment, shows where issues occur</p>
+</li>
+</ul>
+<hr>
+<h2 id="integration-with-bayesian-optimization">Integration with Bayesian Optimization<a class="headerlink" href="#integration-with-bayesian-optimization" title="Permanent link">¶</a></h2>
+<p>Calibration directly impacts optimization efficiency:</p>
+<h3 id="expected-improvement-ei">Expected Improvement (EI)<a class="headerlink" href="#expected-improvement-ei" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Relies on correct σ for exploration/exploitation balance</p>
+</li>
+<li>
+<p>Poor calibration → suboptimal decisions</p>
+</li>
+</ul>
+<h3 id="upper-confidence-bound-ucb">Upper Confidence Bound (UCB)<a class="headerlink" href="#upper-confidence-bound-ucb" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Formula: <span class="arithmatex">\(\text{UCB} = \mu + \kappa \sigma\)</span></p>
+</li>
+<li>
+<p>Miscalibrated σ → wrong balance between mean and uncertainty</p>
+</li>
+</ul>
+<h3 id="safety-constrained-optimization">Safety-Constrained Optimization<a class="headerlink" href="#safety-constrained-optimization" title="Permanent link">¶</a></h3>
+<ul>
+<li>
+<p>Often requires 95% or 99% confidence intervals</p>
+</li>
+<li>
+<p>Poor calibration at high confidence levels → safety violations or excessive conservatism</p>
+</li>
+</ul>
+<p><strong>Bottom line</strong>: Well-calibrated intervals are critical for successful and safe optimization.</p>
+<hr>
+<h2 id="interpreting-specific-confidence-levels">Interpreting Specific Confidence Levels<a class="headerlink" href="#interpreting-specific-confidence-levels" title="Permanent link">¶</a></h2>
+<h3 id="low-confidence-50-70">Low Confidence (50%-70%)<a class="headerlink" href="#low-confidence-50-70" title="Permanent link">¶</a></h3>
+<p><strong>Region</strong>: Central part of curve<br>
+<strong>Importance</strong>: Typical working range for acquisition functions<br>
+<strong>Good calibration here</strong>: Essential for efficient exploration</p>
+<h3 id="medium-confidence-80-90">Medium Confidence (80%-90%)<a class="headerlink" href="#medium-confidence-80-90" title="Permanent link">¶</a></h3>
+<p><strong>Region</strong>: Upper-middle of curve<br>
+<strong>Importance</strong>: Safety margins for constraints<br>
+<strong>Deviations</strong>: Impact risk assessment in constrained optimization</p>
+<h3 id="high-confidence-95-99">High Confidence (95%-99%)<a class="headerlink" href="#high-confidence-95-99" title="Permanent link">¶</a></h3>
+<p><strong>Region</strong>: Far right of curve<br>
+<strong>Importance</strong>: Critical for safety-critical applications<br>
+<strong>Statistical note</strong>: Fewer samples at extremes, wider confidence bands</p>
+<hr>
+<h2 id="common-calibration-issues">Common Calibration Issues<a class="headerlink" href="#common-calibration-issues" title="Permanent link">¶</a></h2>
+<h3 id="issue-curve-below-diagonal-at-all-levels">Issue: Curve Below Diagonal at All Levels<a class="headerlink" href="#issue-curve-below-diagonal-at-all-levels" title="Permanent link">¶</a></h3>
+<p><strong>Diagnosis</strong>: Systematically over-confident<br>
+<strong>Root causes</strong>:</p>
+<ul>
+<li>
+<p>Insufficient training data diversity</p>
+</li>
+<li>
+<p>Overfitting to training data</p>
+</li>
+<li>
+<p>Noise parameter too small</p>
+</li>
+<li>
+<p>Overly complex kernel</p>
+</li>
+</ul>
+<p><strong>Solutions</strong>:
+1. Use automatic calibration
+2. Collect more varied training data
+3. Increase noise constraints
+4. Simplify kernel or regularize hyperparameters</p>
+<h3 id="issue-curve-above-diagonal-at-all-levels">Issue: Curve Above Diagonal at All Levels<a class="headerlink" href="#issue-curve-above-diagonal-at-all-levels" title="Permanent link">¶</a></h3>
+<p><strong>Diagnosis</strong>: Systematically under-confident<br>
+<strong>Root causes</strong>:</p>
+<ul>
+<li>
+<p>Noise parameter too large</p>
+</li>
+<li>
+<p>Overly conservative kernel</p>
+</li>
+<li>
+<p>Lengthscales fixed too large</p>
+</li>
+</ul>
+<p><strong>Solutions</strong>:
+1. Assess if this is acceptable (conservative is safer)
+2. Reduce explicit noise if set manually
+3. Allow lengthscale optimization
+4. Try less flexible kernel</p>
+<h3 id="issue-good-at-center-poor-at-extremes">Issue: Good at Center, Poor at Extremes<a class="headerlink" href="#issue-good-at-center-poor-at-extremes" title="Permanent link">¶</a></h3>
+<p><strong>Diagnosis</strong>: Non-uniform calibration<br>
+<strong>Root causes</strong>:</p>
+<ul>
+<li>
+<p>Sample size effects (fewer points at extremes)</p>
+</li>
+<li>
+<p>Non-Gaussian error distribution</p>
+</li>
+<li>
+<p>Heteroscedastic noise</p>
+</li>
+</ul>
+<p><strong>Solutions</strong>:
+1. Check if deviations are within confidence bands (may be statistical noise)
+2. Try output transforms (log, Box-Cox)
+3. Consider heteroscedastic GP if available
+4. Collect more data to reduce uncertainty</p>
+<h3 id="issue-sudden-jumps-or-non-monotonic-curve">Issue: Sudden Jumps or Non-Monotonic Curve<a class="headerlink" href="#issue-sudden-jumps-or-non-monotonic-curve" title="Permanent link">¶</a></h3>
+<p><strong>Diagnosis</strong>: Small sample size or data artifacts<br>
+<strong>Root causes</strong>:</p>
+<ul>
+<li>
+<p>Insufficient cross-validation samples</p>
+</li>
+<li>
+<p>Outliers or data quality issues</p>
+</li>
+<li>
+<p>Too few unique predictions</p>
+</li>
+</ul>
+<p><strong>Solutions</strong>:
+1. Increase dataset size
+2. Check for and address outliers
+3. Verify data quality and preprocessing
+4. Use smoothing or binning for visualization only</p>
+<hr>
+<h2 id="practical-guidelines">Practical Guidelines<a class="headerlink" href="#practical-guidelines" title="Permanent link">¶</a></h2>
+<h3 id="acceptable-calibration">Acceptable Calibration<a class="headerlink" href="#acceptable-calibration" title="Permanent link">¶</a></h3>
+<p><strong>Strict (safety-critical)</strong>:</p>
+<ul>
+<li>
+<p>Curve within 68% confidence band at all levels</p>
+</li>
+<li>
+<p>Maximum deviation &lt; 5% from diagonal</p>
+</li>
+</ul>
+<p><strong>Moderate (standard optimization)</strong>:</p>
+<ul>
+<li>
+<p>Curve within 95% confidence band at most levels</p>
+</li>
+<li>
+<p>Maximum deviation &lt; 10% from diagonal</p>
+</li>
+</ul>
+<p><strong>Relaxed (exploratory)</strong>:</p>
+<ul>
+<li>
+<p>Overall trend near diagonal</p>
+</li>
+<li>
+<p>No systematic bias &gt; 15%</p>
+</li>
+</ul>
+<h3 id="when-to-recalibrate">When to Recalibrate<a class="headerlink" href="#when-to-recalibrate" title="Permanent link">¶</a></h3>
+<p><strong>During active learning</strong>:</p>
+<ul>
+<li>
+<p>After adding 20-30% more data</p>
+</li>
+<li>
+<p>If acquisition functions seem unreliable</p>
+</li>
+<li>
+<p>When optimization stagnates unexpectedly</p>
+</li>
+</ul>
+<p><strong>After model changes</strong>:</p>
+<ul>
+<li>
+<p>Switching kernels or backends</p>
+</li>
+<li>
+<p>Changing hyperparameter constraints</p>
+</li>
+<li>
+<p>Applying new preprocessing</p>
+</li>
+</ul>
+<hr>
+<h2 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">¶</a></h2>
+<h3 id="coverage-vs-sharpness-trade-off">Coverage vs. Sharpness Trade-off<a class="headerlink" href="#coverage-vs-sharpness-trade-off" title="Permanent link">¶</a></h3>
+<p><strong>Coverage</strong>: Frequency of intervals containing true value<br>
+<strong>Sharpness</strong>: Width of confidence intervals</p>
+<p><strong>Ideal</strong>: High coverage with narrow intervals<br>
+<strong>Trade-off</strong>: Can always increase coverage by widening intervals, but this reduces utility</p>
+<p><strong>ALchemist approach</strong>:
+1. Optimize model for best predictions (sharpness)
+2. Apply calibration to ensure correct coverage
+3. Balance achieved automatically</p>
+<h3 id="bayesian-confidence-intervals">Bayesian Confidence Intervals<a class="headerlink" href="#bayesian-confidence-intervals" title="Permanent link">¶</a></h3>
+<p>GP predictions naturally provide Bayesian credible intervals:</p>
+<div class="arithmatex">\[
+y_{\text{new}} \sim \mathcal{N}(\mu_*, \sigma_*^2)
+\]</div>
+<p><strong>Interpretation</strong>:</p>
+<ul>
+<li>
+<p>95% credible interval: <span class="arithmatex">\([\mu_* - 1.96\sigma_*, \mu_* + 1.96\sigma_*]\)</span></p>
+</li>
+<li>
+<p>Probability that true value is in interval (given model assumptions)</p>
+</li>
+</ul>
+<p><strong>Calibration check</strong>: Do these intervals have frequentist coverage?</p>
+<hr>
+<h2 id="troubleshooting-checklist">Troubleshooting Checklist<a class="headerlink" href="#troubleshooting-checklist" title="Permanent link">¶</a></h2>
+<p><strong>Before investigating calibration issues</strong>:</p>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Dataset has at least 30 samples</li>
+<li class="task-list-item"><input type="checkbox" disabled> Cross-validation completed successfully</li>
+<li class="task-list-item"><input type="checkbox" disabled> No obvious outliers in data</li>
+<li class="task-list-item"><input type="checkbox" disabled> Data preprocessing appropriate (scaling, transforms)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Hyperparameters optimized (not manually fixed)</li>
+</ul>
+<p><strong>If calibration is poor after checks</strong>:</p>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Try automatic calibration (enabled by default)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Compare different kernels (Matern ν=1.5, ν=2.5, RBF)</li>
+<li class="task-list-item"><input type="checkbox" disabled> Adjust noise parameter constraints</li>
+<li class="task-list-item"><input type="checkbox" disabled> Collect more diverse training data</li>
+<li class="task-list-item"><input type="checkbox" disabled> Check for data quality issues</li>
+</ul>
+<p><strong>If calibration remains problematic</strong>:</p>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Verify Q-Q plot also shows miscalibration</li>
+<li class="task-list-item"><input type="checkbox" disabled> Check parity plot for systematic biases</li>
+<li class="task-list-item"><input type="checkbox" disabled> Consider consulting Gaussian Process literature</li>
+<li class="task-list-item"><input type="checkbox" disabled> Reach out to ALchemist support with diagnostics</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">¶</a></h2>
+<ul>
+<li><a href="../../background/interpreting_calibration/">Interpreting Calibration Curves (Educational Guide)</a> - Comprehensive theory and examples</li>
+<li><a href="../qq_plot/">Q-Q Plot</a> - Complementary z-score distribution diagnostic</li>
+<li><a href="../parity_plot/">Parity Plot</a> - Prediction accuracy assessment</li>
+<li><a href="../../modeling/performance/">Model Performance</a> - Overall model quality guide</li>
+</ul>
+<hr>
+<p><strong>Key Takeaway</strong>: The calibration curve tells you whether you can trust your model's confidence intervals. Well-calibrated uncertainties enable confident decision-making and efficient Bayesian optimization.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.top", "navigation.tabs", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
