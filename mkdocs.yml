@@ -10,26 +10,26 @@ theme:
     text: Inter
     code: JetBrains Mono
   palette:
+    # Light Mode (default)
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
     # Dark Mode
     - scheme: slate
       toggle:
         icon: material/weather-sunny
         name: Light mode
-    # Light Mode
-    - scheme: default
-      toggle:
-        icon: material/weather-night
-        name: Dark mode
   features:
     - navigation.top
-    - navigation.tabs
-    - navigation.expand
     - toc.integrate
     - content.code.copy
 
 nav:
   - Home: index.md
+  - Use Cases: use_cases.md
   - Getting Started:
+      - Web Application: setup/web_app.md
       - Setting Up Variable Space: setup/variable_space.md
       - Generating Initial Experiments: setup/initial_sampling.md
       - Loading Experimental Data: setup/load_data.md
@@ -39,17 +39,33 @@ nav:
       - BoTorch Backend: modeling/botorch.md
       - Model Performance: modeling/performance.md
   - Visualizations:
-      - Error metrics: visualizations/error_metrics.md
       - Contour plot: visualizations/contour_plot.md
+      - Parity plot: visualizations/parity_plot.md
+      - Q-Q plot: visualizations/qq_plot.md
+      - Calibration curve: visualizations/calibration_curve.md
+      - Metrics evolution: visualizations/metrics_plot.md
   - Acquisition & Optimization:
       - scikit-optimize Acquisition: acquisition/skopt.md
       - BoTorch Acquisition: acquisition/botorch.md
       - Logging & Tracking: acquisition/logging.md
-  - Issues & Troubleshooting: ISSUES_LOG.md
-  - Educational Resources:
+  - Python API:
+      - Overview: api/python_overview.md
+      - Usage Guide: api/session.md
+      - OptimizationSession: api/session_class.md
+      - SearchSpace: api/search_space.md
+      - Models: api/models.md
+      - Acquisition: api/acquisition.md
+  - REST API:
+      - Overview: api/rest.md
+  - Reproducibility:
+      - Sessions: reproducibility/sessions.md
+      - Audit Logs: reproducibility/audit_logs.md
+  - Background:
       - Bayesian Optimization: background/bayesian_optimization.md
       - Kernels: background/kernels.md
-
+      - Q-Q Plots: background/interpreting_qqplot.md
+      - Calibration Curves: background/interpreting_calibration.md
+  - Troubleshooting: ISSUES_LOG.md
 markdown_extensions:
   - admonition
   - toc:
@@ -64,7 +80,22 @@ markdown_extensions:
   - pymdownx.blocks.caption
 
 plugins:
+  - search
   - glightbox
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_source: false
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            heading_level: 2
+            members_order: source
+            merge_init_into_class: true
+            show_if_no_docstring: false
 
 extra_javascript:
   - javascripts/mathjax.js

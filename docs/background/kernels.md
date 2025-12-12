@@ -19,7 +19,9 @@ where $\mathbf{K}_{ij} = k(x_i, x_j)$.
 **Functionally, the kernel controls:**
 
 - The smoothness and complexity of the functions the GP can model.
+
 - How information from observed data points influences predictions at new points.
+
 - The ability to capture periodicity, trends, or other structural properties.
 
 ---
@@ -35,12 +37,15 @@ k_{\text{RBF}}(x, x') = \sigma^2 \exp\left( -\frac{||x - x'||^2}{2\ell^2} \right
 $$
 
 - $\sigma^2$ is the signal variance (controls overall scale).
+
 - $\ell$ is the lengthscale (controls how quickly correlation decays with distance).
 
 **Properties:**
 
 - Produces very smooth functions.
+
 - Good default for many problems.
+
 - Implemented in both scikit-optimize and BoTorch.
 
 **References:**  
@@ -62,12 +67,15 @@ $$
     - $\nu = 1.5$: Once differentiable
     - $\nu = 2.5$: Twice differentiable
     - $\nu \to \infty$: Recovers the RBF kernel
+
 - $K_\nu$ is a modified Bessel function.
 
 **Properties:**
 
 - Allows control over function roughness.
+
 - Lower $\nu$ allows modeling rougher, less smooth functions.
+
 - Implemented in both scikit-optimize and BoTorch.
 
 **References:**  
@@ -85,12 +93,15 @@ k_{\text{RQ}}(x, x') = \sigma^2 \left( 1 + \frac{||x - x'||^2}{2\alpha \ell^2} \
 $$
 
 - $\alpha$ controls the relative weighting of large-scale and small-scale variations.
+
 - As $\alpha \to \infty$, the kernel approaches the RBF kernel.
 
 **Properties:**
 
 - Can model functions with varying smoothness.
+
 - Useful when the function exhibits both short- and long-range correlations.
+
 - Currently implemented in the scikit-optimize backend.
 
 **References:**  
@@ -117,6 +128,7 @@ ARD refers to the process where the model learns a separate lengthscale for each
 **Benefits:**
 
 - Helps identify which variables are important for predicting the output.
+
 - Improves interpretability and can lead to more efficient optimization.
 
 **Both scikit-optimize and BoTorch support anisotropic kernels and ARD by default.**
@@ -126,13 +138,17 @@ ARD refers to the process where the model learns a separate lengthscale for each
 ## Choosing a Kernel
 
 - **RBF:** Good default for smooth, well-behaved functions.
+
 - **Matern:** Use when you expect the function to be less smooth or want to control smoothness. Lower $\nu$ for rougher functions, higher $\nu$ for smoother.
+
 - **Rational Quadratic:** Use when you suspect the function has varying smoothness or both short- and long-range correlations.
 
 **Tips:**
 
 - If unsure, start with Matern ($\nu=2.5$ or $1.5$) or RBF.
+
 - Try different kernels and compare cross-validation metrics (RMSE, MAE, etc.).
+
 - Use ARD to let the model determine variable relevance.
 
 ---

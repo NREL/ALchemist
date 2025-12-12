@@ -9,9 +9,13 @@ This log tracks known issues, user-reported bugs, and observations from internal
 If you encounter a problem or have feedback, please [open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or email [ccoatney@nrel.gov](mailto:ccoatney@nrel.gov) with the following information:
 
 - **Brief description of the issue**
+
 - **Steps to reproduce (if applicable)**
+
 - **Your operating system and environment**
+
 - **Any error messages or screenshots**
+
 - **Date observed**
 
 ---

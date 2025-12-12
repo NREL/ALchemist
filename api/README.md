@@ -71,7 +71,7 @@ requests.post(
     f"{BASE_URL}/sessions/{session_id}/variables",
     json={
         "name": "temperature",
-        "type": "continuous",
+        "type": "real",
         "bounds": [100, 500],
         "unit": "°C"
     }
@@ -81,7 +81,7 @@ requests.post(
     f"{BASE_URL}/sessions/{session_id}/variables",
     json={
         "name": "pressure",
-        "type": "continuous",
+        "type": "real",
         "bounds": [1, 10],
         "unit": "bar"
     }
@@ -177,8 +177,8 @@ predictions = response.json()["predictions"]
 ```json
 {
   "name": "temperature",
-  "type": "continuous",  // or "discrete", "categorical"
-  "bounds": [100, 500],  // for continuous/discrete
+  "type": "real",  // or "integer", "categorical"
+  "bounds": [100, 500],  // for real/integer
   "categories": null,    // for categorical: ["low", "medium", "high"]
   "unit": "°C",
   "description": "Reaction temperature"

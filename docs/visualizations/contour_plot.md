@@ -34,19 +34,58 @@ The **Contour Plot** feature in ALchemist lets you visualize your surrogate mode
 
 - **Interactive Controls:**  
   Changing the X or Y axis or adjusting fixed values for other variables will update the plot in real time.
+
 - **Legend:**  
   The plot includes a legend for experimental points and the next suggested point if displayed.
+
 - **Hyperparameters Display:**  
   The bottom of the Visualizations dialog shows the learned kernel hyperparameters from the trained model.
+
+---
+
+## Web Application
+
+The contour plot is also available in the **ALchemist web application**:
+
+1. Navigate to **GPR Panel**
+2. Train a model
+3. Click **Show Model Visualizations**
+4. Select **Contour Plot** from plot type buttons
+5. Use dropdown menus to select X and Y axis variables
+6. Adjust sliders for fixed values (if > 2 variables)
+7. Plot updates dynamically
+
+**Web UI features**:
+
+- Interactive variable selection
+
+- Real-time updates
+
+- Responsive design
+
+- Hover tooltips showing values
+
+- Download button for export
 
 ---
 
 ## Tips
 
 - Use customization options to match your figure style to journal or presentation requirements.
-- Generate multiple contour plots for different variable pairs and fixed values to explore the model’s predictions.
+
+- Generate multiple contour plots for different variable pairs and fixed values to explore the model's predictions.
+
 - Contour plots are useful for diagnosing model behavior, visualizing optima, and communicating results.
+
+- In web UI, create multiple plots to compare different variable combinations side-by-side.
 
 ---
 
-For more on model evaluation and error metrics, see the [Error Metrics Visualization](error_metrics.md) section.
+## Further Reading
+
+- [Parity Plot](parity_plot.md) - Verify model prediction accuracy
+- [Q-Q Plot](qq_plot.md) - Check model calibration
+- [Model Performance](../modeling/performance.md) - Comprehensive model evaluation
+- [Web Application Guide](../setup/web_app.md) - Complete web UI documentation
+
+For more on model evaluation and error metrics, see the [Metrics Evolution](metrics_plot.md) section.

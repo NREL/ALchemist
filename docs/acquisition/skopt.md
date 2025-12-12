@@ -9,7 +9,9 @@ The **scikit-optimize** (skopt) backend in ALchemist provides a range of acquisi
 The Acquisition panel in ALchemist allows you to:
 
 - Choose from several acquisition functions, each balancing exploration and exploitation in different ways.
+
 - Customize parameters such as exploration/exploitation trade-offs.
+
 - Run the selected strategy to suggest the next experiment based on your trained model.
 
 ---
@@ -40,7 +42,9 @@ See [scikit-optimize Backend](../modeling/skopt.md) for details on model trainin
   **Parameters:** ξ (xi) and κ (kappa).
 
 **Customization:**  
+
 - Choose to **maximize** or **minimize** your objective.
+
 - Adjust ξ (xi) and κ (kappa) parameters using sliders as appropriate for the selected acquisition function.
 
 ---
@@ -77,6 +81,7 @@ In addition to acquisition functions, you can use the **Model Prediction Optimum
 - **Parameter Tuning:**  
   - Increase ξ (xi) or κ (kappa) for more exploration; decrease for more exploitation.
   - GP Hedge is useful if you are unsure which acquisition function to use.
+
 - **Publication Quality:**  
   All results and suggested points are integrated with ALchemist's visualization tools for easy analysis and export.
 

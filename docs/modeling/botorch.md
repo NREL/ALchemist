@@ -19,6 +19,7 @@ When you select the **botorch** backend in the Model panel, you are training a G
 You can choose the kernel type for the continuous variables:
 
 - **Matern:** Default, with a tunable smoothness parameter (`nu`).
+
 - **RBF:** Radial Basis Function kernel.
 
 For the Matern kernel, you can select the `nu` parameter (0.5, 1.5, or 2.5), which controls the smoothness of the function.
@@ -28,31 +29,62 @@ For the Matern kernel, you can select the `nu` parameter (0.5, 1.5, or 2.5), whi
 ### 2. Categorical Variables
 
 - Categorical variables are automatically detected and encoded.
+
 - BoTorch uses the `MixedSingleTaskGP` model to handle mixed spaces, encoding categorical variables as required.
 
 ### 3. Noise Handling
 
 - If your experimental data includes a `Noise` column, these values are used for regularization.
+
 - If not, the model uses its internal noise estimation.
 
 ### 4. Model Training and Evaluation
 
 - The model is trained on your current experiment data.
+
 - Cross-validation is performed to estimate model performance (RMSE, MAE, MAPE, R²).
+
 - Learned kernel hyperparameters (lengthscales, outputscale, etc.) are displayed after training.
 
-### 5. Advanced Options
+### 5. Input and Output Transforms
+
+**Smart Defaults (v0.3.0+):**
+
+BoTorch models in ALchemist now automatically apply input normalization and output standardization for improved performance:
+
+- **Input Normalization**: Scales inputs to [0, 1] range, improving numerical stability
+
+- **Output Standardization**: Centers outputs to zero mean and unit variance, helping with optimization
+
+These transforms are applied automatically unless explicitly overridden. This typically improves model R² from ~0.0001 to 0.3-0.9 for typical problems.
+
+**Manual Override:**
+
+You can explicitly specify transform types when needed:
+
+- `input_transform_type`: "normalize" (default), "standardize", or "none"
+
+- `output_transform_type`: "standardize" (default) or "none"
+
+### 6. Advanced Options
 
 - You can select the kernel type and Matern `nu` parameter in the Model panel.
-- BoTorch uses sensible defaults for other training parameters.
+
+- BoTorch uses sensible defaults for training iterations and transforms.
+
+- ARD lengthscales are extracted and displayed after training for feature importance analysis.
 
 ---
 
 ## How It Works
 
 - The model uses your variable space and experiment data to fit a GP regression model using PyTorch.
+
+- Input/output transforms are automatically applied for better performance.
+
 - The trained model is used for Bayesian optimization, suggesting new experiments via acquisition functions.
-- All preprocessing (encoding, noise handling) is handled automatically.
+
+- All preprocessing (encoding, transforms, noise handling) is handled automatically.
 
 ---
 

@@ -31,23 +31,23 @@ class OptimizationSession:
     5. Iterate
     
     Example:
-        >>> from alchemist_core import OptimizationSession
-        >>> 
-        >>> # Create session with search space
-        >>> session = OptimizationSession()
-        >>> session.add_variable('temperature', 'real', bounds=(300, 500))
-        >>> session.add_variable('pressure', 'real', bounds=(1, 10))
-        >>> session.add_variable('catalyst', 'categorical', categories=['A', 'B', 'C'])
-        >>> 
-        >>> # Load experimental data
-        >>> session.load_data('experiments.csv', target_column='yield')
-        >>> 
-        >>> # Train model
-        >>> session.train_model(backend='botorch', kernel='Matern')
-        >>> 
-        >>> # Suggest next experiment
-        >>> next_point = session.suggest_next(strategy='EI', goal='maximize')
-        >>> print(next_point)
+        > from alchemist_core import OptimizationSession
+        > 
+        > # Create session with search space
+        > session = OptimizationSession()
+        > session.add_variable('temperature', 'real', bounds=(300, 500))
+        > session.add_variable('pressure', 'real', bounds=(1, 10))
+        > session.add_variable('catalyst', 'categorical', categories=['A', 'B', 'C'])
+        > 
+        > # Load experimental data
+        > session.load_data('experiments.csv', target_column='yield')
+        > 
+        > # Train model
+        > session.train_model(backend='botorch', kernel='Matern')
+        > 
+        > # Suggest next experiment
+        > next_point = session.suggest_next(strategy='EI', goal='maximize')
+        > print(next_point)
     """
     
     def __init__(self, search_space: Optional[SearchSpace] = None, 
@@ -109,8 +109,8 @@ class OptimizationSession:
                 - For 'categorical': categories=[list of values] or values=[list]
         
         Example:
-            >>> session.add_variable('temp', 'real', bounds=(300, 500))
-            >>> session.add_variable('catalyst', 'categorical', categories=['A', 'B'])
+            > session.add_variable('temp', 'real', bounds=(300, 500))
+            > session.add_variable('catalyst', 'categorical', categories=['A', 'B'])
         """
         # Convert user-friendly API to internal format
         params = kwargs.copy()
@@ -202,7 +202,7 @@ class OptimizationSession:
             noise_column: Optional column with measurement noise/uncertainty
         
         Example:
-            >>> session.load_data('experiments.csv', target_column='yield')
+            > session.load_data('experiments.csv', target_column='yield')
         """
         # Load the CSV
         import pandas as pd
@@ -251,7 +251,7 @@ class OptimizationSession:
             reason: Reason for this experiment (e.g., 'Manual', 'Expected Improvement')
         
         Example:
-            >>> session.add_experiment(
+            > session.add_experiment(
             ...     inputs={'temperature': 350, 'catalyst': 'A'},
             ...     output=0.85,
             ...     reason='Manual'
@@ -310,17 +310,17 @@ class OptimizationSession:
             inputs: Dictionary mapping variable names to values
             
         Example:
-            >>> # Generate suggestions and stage them
-            >>> suggestions = session.suggest_next(n_suggestions=3)
-            >>> for point in suggestions.to_dict('records'):
-            >>>     session.add_staged_experiment(point)
-            >>> 
-            >>> # Later, evaluate and add
-            >>> staged = session.get_staged_experiments()
-            >>> for point in staged:
-            >>>     output = run_experiment(**point)
-            >>>     session.add_experiment(point, output=output)
-            >>> session.clear_staged_experiments()
+            > # Generate suggestions and stage them
+            > suggestions = session.suggest_next(n_suggestions=3)
+            > for point in suggestions.to_dict('records'):
+            >     session.add_staged_experiment(point)
+            > 
+            > # Later, evaluate and add
+            > staged = session.get_staged_experiments()
+            > for point in staged:
+            >     output = run_experiment(**point)
+            >     session.add_experiment(point, output=output)
+            > session.clear_staged_experiments()
         """
         self.staged_experiments.append(inputs)
         logger.debug(f"Staged experiment: {inputs}")
@@ -369,15 +369,15 @@ class OptimizationSession:
             Number of experiments added
             
         Example:
-            >>> # Stage some experiments
-            >>> session.add_staged_experiment({'x': 1.0, 'y': 2.0})
-            >>> session.add_staged_experiment({'x': 3.0, 'y': 4.0})
-            >>> 
-            >>> # Evaluate them
-            >>> outputs = [run_experiment(**point) for point in session.get_staged_experiments()]
-            >>> 
-            >>> # Add to dataset and clear staging
-            >>> session.move_staged_to_experiments(outputs, reason='LogEI')
+            > # Stage some experiments
+            > session.add_staged_experiment({'x': 1.0, 'y': 2.0})
+            > session.add_staged_experiment({'x': 3.0, 'y': 4.0})
+            > 
+            > # Evaluate them
+            > outputs = [run_experiment(**point) for point in session.get_staged_experiments()]
+            > 
+            > # Add to dataset and clear staging
+            > session.move_staged_to_experiments(outputs, reason='LogEI')
         """
         if len(outputs) != len(self.staged_experiments):
             raise ValueError(
@@ -444,16 +444,16 @@ class OptimizationSession:
             List of dictionaries with variable names and values (no outputs)
         
         Example:
-            >>> # Generate initial design
-            >>> points = session.generate_initial_design('lhs', n_points=10)
-            >>> 
-            >>> # Run experiments and add results
-            >>> for point in points:
-            >>>     output = run_experiment(**point)  # Your experiment function
-            >>>     session.add_experiment(point, output=output)
-            >>> 
-            >>> # Now ready to train model
-            >>> session.train_model()
+            > # Generate initial design
+            > points = session.generate_initial_design('lhs', n_points=10)
+            > 
+            > # Run experiments and add results
+            > for point in points:
+            >     output = run_experiment(**point)  # Your experiment function
+            >     session.add_experiment(point, output=output)
+            > 
+            > # Now ready to train model
+            > session.train_model()
         """
         if len(self.search_space.variables) == 0:
             raise ValueError(
@@ -513,8 +513,8 @@ class OptimizationSession:
             Dictionary with training results and hyperparameters
         
         Example:
-            >>> results = session.train_model(backend='botorch', kernel='Matern')
-            >>> print(results['metrics'])
+            > results = session.train_model(backend='botorch', kernel='Matern')
+            > print(results['metrics'])
         """
         df = self.experiment_manager.get_data()
         if df is None or df.empty:
@@ -752,8 +752,8 @@ class OptimizationSession:
             DataFrame with suggested experiment(s)
         
         Example:
-            >>> next_point = session.suggest_next(strategy='EI', goal='maximize')
-            >>> print(next_point)
+            > next_point = session.suggest_next(strategy='EI', goal='maximize')
+            > print(next_point)
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
@@ -842,11 +842,11 @@ class OptimizationSession:
             Tuple of (predictions, uncertainties)
         
         Example:
-            >>> test_points = pd.DataFrame({
+            > test_points = pd.DataFrame({
             ...     'temperature': [350, 400],
             ...     'catalyst': ['A', 'B']
             ... })
-            >>> predictions, uncertainties = session.predict(test_points)
+            > predictions, uncertainties = session.predict(test_points)
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
@@ -879,9 +879,9 @@ class OptimizationSession:
             callback: Callback function
         
         Example:
-            >>> def on_training_done(data):
+            > def on_training_done(data):
             ...     print(f"Training completed with R² = {data['metrics']['r2']}")
-            >>> session.on('training_completed', on_training_done)
+            > session.on('training_completed', on_training_done)
         """
         self.events.on(event, callback)
     
@@ -897,7 +897,7 @@ class OptimizationSession:
             **kwargs: Configuration parameters to update
         
         Example:
-            >>> session.set_config(random_state=123, verbose=False)
+            > session.set_config(random_state=123, verbose=False)
         """
         self.config.update(kwargs)
         logger.info(f"Updated config: {kwargs}")
@@ -921,8 +921,8 @@ class OptimizationSession:
             Created AuditEntry
             
         Example:
-            >>> session.add_experiment({'temp': 100, 'pressure': 5}, output=85.2)
-            >>> session.lock_data(notes="Initial screening dataset")
+            > session.add_experiment({'temp': 100, 'pressure': 5}, output=85.2)
+            > session.lock_data(notes="Initial screening dataset")
         """
         # Set search space in audit log (once)
         if self.audit_log.search_space_definition is None:
@@ -962,8 +962,8 @@ class OptimizationSession:
             ValueError: If no model has been trained
             
         Example:
-            >>> session.train_model(backend='sklearn', kernel='matern')
-            >>> session.lock_model(notes="Best cross-validation performance")
+            > session.train_model(backend='sklearn', kernel='matern')
+            > session.lock_model(notes="Best cross-validation performance")
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
@@ -1055,8 +1055,8 @@ class OptimizationSession:
             Created AuditEntry
             
         Example:
-            >>> suggestions = session.suggest_next(strategy='EI', n_suggestions=3)
-            >>> session.lock_acquisition(
+            > suggestions = session.suggest_next(strategy='EI', n_suggestions=3)
+            > session.lock_acquisition(
             ...     strategy='EI',
             ...     parameters={'xi': 0.01, 'goal': 'maximize'},
             ...     suggestions=suggestions,
@@ -1124,7 +1124,7 @@ class OptimizationSession:
             filepath: Path to save session file (.json extension recommended)
             
         Example:
-            >>> session.save_session("~/ALchemist_Sessions/catalyst_study_nov2025.json")
+            > session.save_session("~/ALchemist_Sessions/catalyst_study_nov2025.json")
         """
         filepath = Path(filepath)
         
@@ -1223,7 +1223,7 @@ class OptimizationSession:
             OptimizationSession with restored state
             
         Example:
-            >>> session = OptimizationSession.load_session("my_session.json")
+            > session = OptimizationSession.load_session("my_session.json")
         """
         filepath = Path(filepath)
         
@@ -1313,7 +1313,7 @@ class OptimizationSession:
             tags: New tags (optional)
             
         Example:
-            >>> session.update_metadata(
+            > session.update_metadata(
             ...     name="Catalyst Screening - Final",
             ...     description="Optimized Pt/Pd ratios",
             ...     tags=["catalyst", "platinum", "palladium", "final"]
@@ -1345,7 +1345,7 @@ class OptimizationSession:
             **kwargs: Configuration parameters to update
         
         Example:
-            >>> session.set_config(random_state=123, verbose=False)
+            > session.set_config(random_state=123, verbose=False)
         """
         self.config.update(kwargs)
         logger.info(f"Updated config: {kwargs}")

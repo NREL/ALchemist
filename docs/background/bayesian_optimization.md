@@ -9,7 +9,9 @@ Bayesian Optimization (BO) is a method for efficiently optimizing complex system
 In many real-world problems, the objective function (the thing you want to optimize) is:
 
 - **Expensive to evaluate:** Each experiment or simulation may require significant time, materials, or computational resources.
+
 - **Black-box in nature:** You may not have an explicit mathematical formula for the objective function, only the ability to measure its output for given inputs.
+
 - **Noisy:** Experimental results may vary due to measurement errors or uncontrollable factors.
 
 Traditional optimization methods, such as grid search or brute-force sampling, are inefficient in these scenarios because they require a large number of evaluations. Bayesian Optimization, on the other hand, is designed to minimize the number of evaluations by intelligently selecting the most informative experiments to perform.
@@ -48,7 +50,9 @@ The surrogate model (e.g., a GP) is trained on a small set of initial data point
 
 ### 3. Evaluate the Acquisition Function
 The acquisition function is a mathematical rule that determines the next point to evaluate. It uses the surrogate model's predictions and uncertainties to balance two competing goals:
+
 - **Exploration:** Testing regions of the search space with high uncertainty to learn more about the objective function.
+
 - **Exploitation:** Testing regions likely to yield high objective values based on current knowledge.
 
 #### Common Acquisition Functions
@@ -85,8 +89,11 @@ Steps 3–5 are repeated until the objective is optimized or resources are exhau
 ## Why Probabilistic Modeling Matters
 
 The use of probabilistic models like GPs is what makes Bayesian Optimization so effective. By modeling uncertainty, GPs allow the optimization process to:
+
 - **Focus on promising regions:** Exploit areas likely to yield high objective values.
+
 - **Explore unknown regions:** Avoid getting stuck in local optima by testing areas with high uncertainty.
+
 - **Adapt to noisy data:** Account for variability in experimental results.
 
 This probabilistic approach ensures that every experiment contributes valuable information, making Bayesian Optimization highly efficient.

@@ -30,7 +30,9 @@ You can add a new experiment directly from the UI:
    Click **Save & Close** to add the point to your experiment table. You can also choose to save the updated data to file and retrain the model immediately by checking the corresponding boxes.
 
 **Note:**  
+
 - There may be issues with type compatibility (e.g., numbers being saved as strings). If you encounter problems, check your CSV file and ensure numeric columns are formatted correctly.
+
 - Sometimes, changes made directly in the table (tksheet widget) may not update the internal experiment data until you save or reload. Use the provided dialogs for best results.
 
 ---
@@ -39,6 +41,7 @@ You can add a new experiment directly from the UI:
 
 - **Click "Save Experiments":**  
   Saves the current experiment table to a `.csv` file.  
+
 - **Tip:**  
   Always save your data before closing the application to avoid losing changes.
 
@@ -47,6 +50,7 @@ You can add a new experiment directly from the UI:
 ## Retraining the Model
 
 - When adding a new point, you can check **Retrain model** to automatically update the surrogate model with the new data.
+
 - If retraining does not seem to trigger, you may need to retrain manually from the model panel.
 
 ---
@@ -55,8 +59,10 @@ You can add a new experiment directly from the UI:
 
 - **Type Compatibility:**  
   Data entered via the table or add-point dialog may sometimes be interpreted as strings. If you see errors or unexpected behavior, check your data types in the CSV file.
+
 - **Table Edits:**  
   Editing data directly in the table does not always update the internal experiment manager. For reliable results, use the add-point dialog or reload your data after editing.
+
 - **Noise Column:**  
   The noise column is optional. If present, it should be numeric. You can toggle its visibility in the Preferences menu.
 

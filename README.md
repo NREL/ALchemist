@@ -2,167 +2,109 @@
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
-ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.
+ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—using intuitive graphical interfaces, programmatic APIs, or autonomous optimization workflows.
 
-**NREL Software Record:** SWR-25-102
+**NLR Software Record:** SWR-25-102
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 Full user guide and documentation:  
 [https://nrel.github.io/ALchemist/](https://nrel.github.io/ALchemist/)
 
 ---
 
-## 🚀 Overview
+## Overview
 
-ALchemist accelerates discovery and optimization by combining:
+**Key Features:**
 
-- **Flexible variable space definition:** Real, integer, and categorical variables with bounds or discrete values.
-- **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-optimize backends.
-- **Advanced acquisition strategies:** Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.
-- **Modern web interface:** React-based UI with FastAPI backend for seamless active learning workflows.
-- **Autonomous optimization:** Human-out-of-the-loop optimization for real-time process control.
-- **Experiment tracking:** CSV logging, reproducible random seeds, and error tracking.
-- **Extensibility:** Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.
+- **Flexible variable space definition**: Real, integer, and categorical variables with bounds or discrete values
+- **Probabilistic surrogate modeling**: Gaussian process regression via BoTorch or scikit-learn backends
+- **Advanced acquisition strategies**: Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance
+- **Modern web interface**: React-based UI with FastAPI backend for seamless active learning workflows
+- **Desktop GUI**: CustomTkinter desktop application for offline optimization
+- **Session management**: Save/load optimization sessions with audit logs for reproducibility
+- **Multiple interfaces**: No-code GUI, Python Session API, or REST API for different use cases
+- **Autonomous optimization**: Human-out-of-the-loop operation for real-time process control
+- **Experiment tracking**: CSV logging, reproducible random seeds, and comprehensive audit trails
+- **Extensibility**: Abstract interfaces for models and acquisition functions enable future backend and workflow expansion
+**Architecture:**
 
-### Use Cases
+ALchemist is built on a clean, modular architecture:
 
-- **Interactive Optimization**: Desktop GUI or web UI for manual experiment design
-- **Programmatic Workflows**: Python Session API for scripts and notebooks
-- **Autonomous Operation**: REST API for real-time process control (reactors, synthesis, etc.)
-- **Remote Collaboration**: Web-based interface accessible from any device
+- **Core Session API**: Headless Bayesian optimization engine (`alchemist_core`) that powers all interfaces
+- **Desktop Application**: CustomTkinter GUI using the Core Session API, designed for human-in-the-loop and offline optimization
+- **REST API**: FastAPI server providing a thin wrapper around the Core Session API for remote access
+- **Web Application**: React UI consuming the REST API, supporting both interactive and autonomous optimization workflows
+
+Session files (JSON format) are fully interoperable between desktop and web applications, enabling seamless workflow transitions.
 
 ---
 
-## 🧭 Quick Start
+## Use Cases
 
-### Installation
+- **Interactive Optimization**: Use desktop or web GUI for manual experiment design and human-in-the-loop optimization
+- **Programmatic Workflows**: Import the Session API in Python scripts or Jupyter notebooks for batch processing
+- **Autonomous Optimization**: Use the REST API to integrate ALchemist with automated laboratory equipment for real-time process control
+- **Remote Monitoring**: Web dashboard provides read-only monitoring mode when ALchemist is being remote-controlled
+
+For detailed application examples, see [Use Cases](https://nrel.github.io/ALchemist/use_cases/) in the documentation.
+
+---
+
+## Installation
 
 **Requirements:** Python 3.11 or higher
 
-We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage your Python environments.
+**Recommended (Optional):** We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage Python environments:
 
-**1. Create a new environment:**
 ```bash
 conda create -n alchemist-env python=3.11
 conda activate alchemist-env
 ```
 
-**2. Install ALchemist:**
+**Basic Installation:**
 
-*Option A: From PyPI (recommended):*
 ```bash
 pip install alchemist-nrel
 ```
 
-*Option B: From GitHub:*
+**From GitHub:**
+> *Note: This installs the latest unreleased version. The web application is not pre-built with this method because static build files are not included in the repository.*
+
 ```bash
 pip install git+https://github.com/NREL/ALchemist.git
 ```
 
-*Option C: Development install (for contributors):*
-```bash
-git clone https://github.com/NREL/ALchemist.git
-cd ALchemist
-pip install -e .
-```
+For advanced installation options, Docker deployment, and development setup, see the [Advanced Installation Guide](https://nrel.github.io/ALchemist/#advanced-installation) in the documentation.
 
-All dependencies are specified in `pyproject.toml` and will be installed automatically.
+---
 
-**Note:** The web UI is pre-built and included in the package. You do **not** need Node.js/npm to use ALchemist unless you're developing the frontend.
+## Running ALchemist
 
-### Running ALchemist
-
-**Web Application (Recommended):**
+**Web Application:**
 ```bash
 alchemist-web
-# Opens at http://localhost:8000
 ```
+Opens at [http://localhost:8000/app](http://localhost:8000/app)
 
 **Desktop Application:**
 ```bash
 alchemist
-# Launches CustomTkinter GUI
 ```
 
-**Development Mode (Frontend Developers):**
-```bash
-# Terminal 1: Backend with hot-reload
-python run_api.py
-
-# Terminal 2: Frontend with hot-reload
-cd alchemist-web
-npm install  # First time only
-npm run dev
-# Opens at http://localhost:5173
-```
-
-**Docker Deployment:**
-```bash
-docker pull ghcr.io/nrel/alchemist:latest
-docker run -p 8000:8000 ghcr.io/nrel/alchemist:latest
-
-# Or build from source:
-cd docker
-docker-compose up --build
-```
-
-For step-by-step instructions, see the [Getting Started](https://nrel.github.io/ALchemist/) section of the documentation.
-
-### Programmatic Control from External Applications
-
-Integrate ALchemist into your own Qt, Tkinter, or web applications for autonomous optimization:
-
-```python
-# Use pre-built connection panel templates
-from templates.connection_panels.qt import AlchemistConnector
-
-connector = AlchemistConnector()
-connector.connected.connect(lambda sid, info: start_optimization(sid))
-```
-
-See [`templates/connection_panels/`](templates/connection_panels/) for ready-to-use UI components that let you:
-- Connect to ALchemist sessions from custom applications
-- Control optimization programmatically
-- Monitor progress in the web dashboard
-- Perfect for hardware control, reactor optimization, etc.
-
-Quick start: [`templates/connection_panels/QUICK_START.md`](templates/connection_panels/QUICK_START.md)
+For detailed usage instructions, see [Getting Started](https://nrel.github.io/ALchemist/) in the documentation.
 
 ---
 
-## 📁 Project Structure
+## Development Status
 
-```
-ALchemist/
-├── alchemist_core/       # Core Python library
-├── alchemist-web/        # React frontend application
-├── api/                  # FastAPI backend
-├── docker/               # Docker configuration files
-├── scripts/              # Build and development scripts
-├── tests/                # Test suite
-├── docs/                 # Documentation (MkDocs)
-├── memory/               # Development notes and references
-└── run_api.py           # API server entry point
-```
+ALchemist is under active development at NLR as part of the DataHub project within the ChemCatBio consortium.
 
 ---
 
-## 🛠️ Development Status
-
-ALchemist is under active development at NREL as part of the DataHub project within the ChemCatBio consortium. It is designed to be approachable for non-ML researchers and extensible for advanced users. Planned features include:
-
-- Enhanced initial sampling and DoE methods
-- Additional model types and acquisition strategies
-- Improved visualization tools
-- GUI reimplementation in PySide6 for broader compatibility
-- Support for multi-output models and multi-objective optimization
-
----
-
-## 🐞 Issues & Troubleshooting
+## Issues & Troubleshooting
 
 If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or contact ccoatney@nrel.gov.
 
@@ -172,13 +114,13 @@ We appreciate your feedback and bug reports to help improve ALchemist!
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the BSD 3-Clause License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🔗 Repository
+## Repository
 
 [https://github.com/NREL/ALchemist](https://github.com/NREL/ALchemist)
 

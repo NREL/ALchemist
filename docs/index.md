@@ -1,84 +1,148 @@
-#![ALchemist](assets/NEW_LOGO.png){ width="400"}
+#![ALchemist](assets/NEW_LOGO_LIGHT.png){ width="400"}
 
 **ALchemist: Active Learning Toolkit for Chemical and Materials Research**
 
-ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—without writing code—using an intuitive graphical interface.
+ALchemist is a modular Python toolkit that brings active learning and Bayesian optimization to experimental design in chemical and materials research. It is designed for scientists and engineers who want to efficiently explore or optimize high-dimensional variable spaces—using intuitive graphical interfaces, programmatic APIs, or autonomous optimization workflows.
+
+**NLR Software Record:** SWR-25-102
 
 ---
 
 ## Key Features
 
 - **Flexible variable space definition:** Real, integer, and categorical variables with bounds or discrete values.
-- **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-optimize backends.
+
+- **Probabilistic surrogate modeling:** Gaussian process regression via BoTorch or scikit-learn backends.
+
 - **Advanced acquisition strategies:** Efficient sampling using qEI, qPI, qUCB, and qNegIntegratedPosteriorVariance.
-- **Intuitive GUI workflow:** No coding required—define variables, generate initial experiments, load data, train models, and suggest new experiments.
-- **Experiment tracking:** CSV logging, reproducible random seeds, and error tracking.
+
+- **Modern web interface:** React-based UI with FastAPI backend for seamless active learning workflows.
+
+- **Desktop GUI:** CustomTkinter desktop application for offline optimization.
+
+- **Session management:** Save/load optimization sessions with audit logs for reproducibility.
+
+- **Multiple interfaces:** No-code GUI, Python Session API, or REST API for different use cases.
+
+- **Autonomous optimization:** Human-out-of-the-loop operation for real-time process control.
+
+- **Experiment tracking:** CSV logging, reproducible random seeds, and comprehensive audit trails.
+
 - **Extensibility:** Abstract interfaces for models and acquisition functions enable future backend and workflow expansion.
+
+---
+
+## Architecture
+
+ALchemist is built on a clean, modular architecture:
+
+- **Core Session API**: Headless Bayesian optimization engine (`alchemist_core`) that powers all interfaces
+
+- **Desktop Application**: CustomTkinter GUI using the Core Session API, designed for human-in-the-loop and offline optimization
+
+- **REST API**: FastAPI server providing a thin wrapper around the Core Session API for remote access
+
+- **Web Application**: React UI consuming the REST API, supporting both interactive and autonomous optimization workflows
+
+**Session Compatibility**: Optimization sessions are fully interoperable between desktop and web applications. Session files (JSON format) can be created, edited, and loaded in either interface, enabling seamless workflow transitions.
+
+**Use Cases**:
+
+- **Interactive Optimization**: Use desktop or web GUI for manual experiment design and human-in-the-loop optimization
+
+- **Programmatic Workflows**: Import the Session API in Python scripts or Jupyter notebooks for batch processing
+
+- **Autonomous Optimization**: Use the REST API to integrate ALchemist with automated laboratory equipment for real-time process control
+
+- **Remote Monitoring**: Web dashboard provides read-only monitoring mode when ALchemist is being remote-controlled
 
 ---
 
 ## Installation
 
-We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage your Python environments for ALchemist.
+We recommend using [Anaconda](https://www.anaconda.com/products/distribution) to manage your Python environments.
+
+**Requirements:** Python 3.11 or higher
 
 **1. Create a new environment:**
 ```bash
-conda create -n alchemist-env python=3.12
+conda create -n alchemist-env python=3.11
 conda activate alchemist-env
 ```
 
 **2. Install ALchemist:**
 
-*Option A: Install directly from GitHub:*
+**From PyPI (recommended):**
 ```bash
-python -m pip install git+https://github.com/NREL/ALchemist.git
+pip install alchemist-nrel
 ```
 
-*Option B: Clone and install (recommended for development):*
+This installs the latest stable release with pre-built web application files. Both desktop and web applications are ready to use immediately.
+
+### Running ALchemist
+
+**Web Application:**
 ```bash
-git clone https://github.com/NREL/ALchemist.git
-cd ALchemist
-python -m pip install -e .
+alchemist-web
 ```
+Open your browser to http://localhost:8000
 
-All dependencies are specified in `pyproject.toml` and will be installed automatically.
-
-After installation, launch the graphical user interface by running:
-
+**Desktop Application:**
 ```bash
 alchemist
 ```
+The desktop GUI launches directly.
+
 ---
 
-## Docker Deployment (Advanced)
+## Advanced Installation
 
-ALchemist can be deployed as a Docker container for the REST API server.
+### Latest Development Version
 
-### Quick Start with Docker
+**Desktop app only (GitHub install):**
+```bash
+pip install git+https://github.com/NREL/ALchemist.git
+```
+
+This installs the latest unreleased version. 
+> *Note: The web application is not available with this method because static build files are not included in the repository.*
+
+**Web and desktop apps (clone and build):**
+```bash
+git clone https://github.com/NREL/ALchemist.git
+cd ALchemist
+pip install -e .
+cd alchemist-web
+npm install
+npm run build
+```
+
+This builds the web application from source, giving you the latest unreleased version of both apps.
+
+### Docker Deployment
+
+ALchemist can be deployed as a Docker container for production environments.
 
 **Prerequisites**: [Docker Desktop](https://docs.docker.com/desktop/) installed and running
 
-**1. Build and start the container:**
+**Quick start:**
 ```bash
+git clone https://github.com/NREL/ALchemist.git
+cd ALchemist/docker
 docker-compose up -d
 ```
 
-**2. Access the API:**
-- Interactive Docs: http://localhost:8000/api/docs
+**Access the application:**
+
+- Web UI: http://localhost:8000/app
+
+- API Docs: http://localhost:8000/docs
+
 - Health Check: http://localhost:8000/health
 
-**3. Stop the container:**
+**Stop the container:**
 ```bash
 docker-compose down
-```
-
-For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
-
-### Testing the Deployment
-
-Run the test script to verify everything works:
-```bash
-python tests/test_docker.py
 ```
 
 ---

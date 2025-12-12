@@ -7,7 +7,9 @@ When starting an active learning workflow, it's important to generate an initial
 ## Why Generate Initial Points?
 
 - **No Prior Data:** If you are starting from scratch, you need a set of initial experiments to train your first surrogate model.
+
 - **Supplement Existing Data:** If you have some data, but it is sparse or not well-distributed, you can generate additional points to improve coverage.
+
 - **Efficient Model Convergence:** Good initial coverage of the variable space helps the model learn faster and reduces the risk of missing important regions.
 
 ---
@@ -37,7 +39,9 @@ When starting an active learning workflow, it's important to generate an initial
 ## Tips
 
 - **Coverage Matters:** More points give better coverage, but also require more experiments. Balance your resources and modeling needs.
+
 - **Quasi-Random vs. Random:** Quasi-random methods (LHS, Sobol, etc.) are generally preferred for initial sampling, especially in higher dimensions.
+
 - **Supplementing Data:** You can generate initial points even if you already have some data, to fill gaps or improve distribution.
 
 ---
