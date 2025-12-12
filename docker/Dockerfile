@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . .
 
 # Build and install ALchemist
-# The build_hooks.py will automatically build the React frontend
+# The build_tools/build_hooks.py will automatically build the React frontend
 RUN pip install --no-cache-dir --upgrade pip build && \
     python -m build && \
     pip install --no-cache-dir dist/*.whl

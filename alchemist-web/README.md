@@ -27,7 +27,7 @@ Make sure the ALchemist FastAPI backend is running:
 
 ```bash
 # From the ALchemist root directory
-python run_api.py
+python -m api.run_api
 ```
 
 The API should be accessible at http://localhost:8000

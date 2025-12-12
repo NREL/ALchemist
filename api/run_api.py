@@ -2,10 +2,10 @@
 Startup script for ALchemist FastAPI server.
 
 Usage:
-    python run_api.py              # Development mode with auto-reload
-    python run_api.py --production # Production mode (no reload)
-    python run_api.py --dev        # Explicitly start in development mode
-    alchemist-web                  # Entry point (production mode by default)
+    python -m api.run_api              # Development mode with auto-reload
+    python -m api.run_api --production # Production mode (no reload)
+    python -m api.run_api --dev        # Explicitly start in development mode
+    alchemist-web                      # Entry point (production mode by default)
 """
 
 def main():
@@ -15,10 +15,10 @@ def main():
     
     # For the alchemist-web entry point, default to production mode
     # Only use dev mode if explicitly requested
-    is_script_call = any(arg.endswith('run_api.py') for arg in sys.argv)
+    is_script_call = any(arg.endswith('run_api.py') or 'api.run_api' in arg for arg in sys.argv)
     
     if is_script_call:
-        # Called as: python run_api.py
+        # Called as: python -m api.run_api
         # Default to dev mode unless --production flag is present
         production = "--production" in sys.argv or "--prod" in sys.argv
     else:

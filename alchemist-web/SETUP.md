@@ -40,7 +40,7 @@ Make sure the FastAPI backend is running:
 
 ```bash
 # In a separate terminal, from the ALchemist root directory
-python run_api.py
+python -m api.run_api
 ```
 
 You should see output like:

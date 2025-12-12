@@ -7,7 +7,7 @@ This directory contains Docker-related files for containerized deployment of ALc
 **`Dockerfile`**
 - Docker image definition based on Python 3.11-slim
 - Includes Node.js for building React frontend during image build
-- Automatically builds frontend via `build_hooks.py`
+- Automatically builds frontend via `build_tools/build_hooks.py`
 - Installs ALchemist from wheel with bundled UI
 
 **`docker-compose.yml`**
@@ -65,8 +65,8 @@ docker-compose down
 The Dockerfile:
 1. Installs Node.js and npm (needed for frontend build)
 2. Copies the entire project into the container
-3. Runs `python -m build` which triggers `build_hooks.py`
-4. `build_hooks.py` automatically runs `npm ci && npm run build`
+3. Runs `python -m build` which triggers `build_tools/build_hooks.py`
+4. `build_tools/build_hooks.py` automatically runs `npm ci && npm run build`
 5. Frontend is bundled into `api/static/` and included in the wheel
 6. Installs the wheel with pre-built UI
 7. Cleans up build artifacts to reduce image size

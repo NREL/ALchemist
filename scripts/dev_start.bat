@@ -19,7 +19,7 @@ REM Get project root directory
 set "PROJECT_ROOT=%~dp0.."
 
 REM Start backend in a new window
-start "ALchemist Backend" cmd /k "cd /d "%PROJECT_ROOT%" && python run_api.py"
+start "ALchemist Backend" cmd /k "cd /d "%PROJECT_ROOT%" && python -m api.run_api"
 
 REM Give backend a moment to start
 timeout /t 3 /nobreak > nul

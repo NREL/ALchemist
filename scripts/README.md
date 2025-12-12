@@ -45,11 +45,11 @@ scripts\build_production.bat
 ```
 
 **When to use:** 
-- Testing production mode locally: `python run_api.py --production`
+- Testing production mode locally: `python -m api.run_api --production`
 - Preparing Docker builds
 - Manual production deployments
 
-**Note:** For PyPI releases, this happens automatically via `build_hooks.py`
+**Note:** For PyPI releases, this happens automatically via `build_tools/build_hooks.py`
 
 ---
 
@@ -127,7 +127,7 @@ python scripts/bump_version.py 0.3.2 --tag --push
 | Task | Command |
 |------|---------|
 | **Daily development** | `./scripts/dev_start.sh` |
-| **Test production locally** | `./scripts/build_production.sh` → `python run_api.py --production` |
+| **Test production locally** | `./scripts/build_production.sh` → `python -m api.run_api --production` |
 | **Run tests** | `pytest` or `./scripts/run_tests_coverage.sh` |
 | **Verify build** | `python scripts/test_build.py` |
 | **Release** | `python scripts/bump_version.py X.Y.Z --tag --push` |

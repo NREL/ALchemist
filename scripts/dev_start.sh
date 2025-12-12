@@ -32,7 +32,7 @@ trap cleanup SIGINT SIGTERM
 # Start backend in background
 echo "Starting backend..."
 cd "$PROJECT_ROOT"
-python run_api.py &
+python -m api.run_api &
 BACKEND_PID=$!
 
 # Give backend a moment to start

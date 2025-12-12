@@ -95,7 +95,7 @@ def main():
             subprocess.run(['rm', '-rf', str(full_path)])
     
     # Check if build_hooks.py exists
-    build_hooks = root / 'build_hooks.py'
+    build_hooks = root / 'build_tools' / 'build_hooks.py'
     if not build_hooks.exists():
         print(f"\n✗ ERROR: build_hooks.py not found at {build_hooks}")
         return False

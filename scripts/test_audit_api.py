@@ -158,7 +158,7 @@ if __name__ == "__main__":
         print(f"\n✗ Test failed: {e}")
     except requests.exceptions.ConnectionError:
         print("\n✗ Could not connect to API. Make sure the server is running:")
-        print("   python run_api.py")
+        print("   python -m api.run_api")
     except Exception as e:
         print(f"\n✗ Unexpected error: {e}")
         import traceback

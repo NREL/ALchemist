@@ -4,10 +4,11 @@
 include README.md
 include LICENSE
 include RELEASE_BUILD_GUIDE.md
-include RELEASE_NOTES_*.md
 
-# Include build hook
-include build_hooks.py
+# Include build tools
+include build_tools/build_hooks.py
+include build_tools/setup.py
+include build_tools/__init__.py
 
 # Include frontend source (for building from sdist) - but NOT node_modules or build artifacts
 recursive-include alchemist-web/src *
@@ -23,7 +24,6 @@ include alchemist-web/eslint.config.js
 include alchemist-web/index.html
 
 # Include run scripts
-include run_api.py
 include main.py
 
 # Exclude unnecessary files from sdist

@@ -49,7 +49,7 @@ dependencies = [
 
 [project.scripts]
 alchemist = "main:main"
-alchemist-web = "run_api:main"
+alchemist-web = "api.run_api:main"
 
 [project.optional-dependencies]
 test = [
@@ -68,7 +68,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "run_api"]
+py-modules = ["main"]
 
 [tool.setuptools.packages.find]
 include = ["ui*", "alchemist_core*", "api*"]

@@ -12,7 +12,7 @@ from setuptools import setup
 # Try to import custom build hook, but don't fail if it's not available
 # (e.g., during editable installs)
 try:
-    from build_hooks import BuildWithFrontend
+    from packaging.build_hooks import BuildWithFrontend
     cmdclass = {'build_py': BuildWithFrontend}
 except (ImportError, ModuleNotFoundError):
     # No custom build hook for editable installs

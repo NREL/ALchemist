@@ -12,7 +12,7 @@ npm run dev
 
 # In separate terminal - start backend
 cd ..
-python run_api.py
+python -m api.run_api
 ```
 
 ## 📁 Key Files Reference
@@ -190,7 +190,7 @@ Check that FastAPI has CORS enabled for localhost:5173 in `api/main.py`
 Check browser console for validation errors
 
 ### API returns 404
-- Check backend is running: `python run_api.py`
+- Check backend is running: `python -m api.run_api`
 - Check API base URL in `.env.development`
 - Check session ID is valid
 

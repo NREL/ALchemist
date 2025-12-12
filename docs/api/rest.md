@@ -30,7 +30,7 @@ HTTP Client → FastAPI REST API → Core Session API → BoTorch/Sklearn
 
 **Development mode** (auto-reload):
 ```bash
-python run_api.py
+python -m api.run_api
 ```
 
 **Production mode** (with uvicorn):
@@ -40,7 +40,7 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
 
 **With custom settings**:
 ```bash
-HOST=0.0.0.0 PORT=8080 python run_api.py
+HOST=0.0.0.0 PORT=8080 python -m api.run_api
 ```
 
 ### Testing the API
