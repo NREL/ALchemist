@@ -5,13 +5,13 @@
       
       
       
-        <link rel="canonical" href="https://nrel.github.io/ALchemist/reproducibility/audit_logs/">
+        <link rel="canonical" href="https://nrel.github.io/ALchemist/api/search_space/">
       
       
-        <link rel="prev" href="../sessions/">
+        <link rel="prev" href="../session_class/">
       
       
-        <link rel="next" href="../../background/bayesian_optimization/">
+        <link rel="next" href="../models/">
       
       
         
@@ -22,7 +22,7 @@
     
     
       
-        <title>Audit Logs - ALchemist Documentation</title>
+        <title>SearchSpace - ALchemist Documentation</title>
       
     
     
@@ -85,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#audit-logs" class="md-skip">
+        <a href="#searchspace" class="md-skip">
           Skip to content
         </a>
       
@@ -121,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Audit Logs
+              SearchSpace
             
           </span>
         </div>
@@ -984,18 +984,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
@@ -1016,7 +1018,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1034,7 +1036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/python_overview/" class="md-nav__link">
+      <a href="../python_overview/" class="md-nav__link">
         
   
   
@@ -1062,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/session/" class="md-nav__link">
+      <a href="../session/" class="md-nav__link">
         
   
   
@@ -1090,7 +1092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/session_class/" class="md-nav__link">
+      <a href="../session_class/" class="md-nav__link">
         
   
   
@@ -1115,10 +1117,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../api/search_space/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SearchSpace
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1134,6 +1163,214 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#class-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Class Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;SearchSpace
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="&nbsp;SearchSpace">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.add_variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;add_variable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.from_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.from_skopt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_skopt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.to_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;to_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.to_skopt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;to_skopt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.to_ax_space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;to_ax_space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.to_botorch_bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;to_botorch_bounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.get_variable_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_variable_names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.get_categorical_variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_categorical_variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.get_integer_variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_integer_variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.save_to_json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;save_to_json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.load_from_json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;load_from_json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alchemist_core.data.search_space.SearchSpace.from_json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1146,7 +1383,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/" class="md-nav__link">
+      <a href="../models/" class="md-nav__link">
         
   
   
@@ -1174,7 +1411,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/acquisition/" class="md-nav__link">
+      <a href="../acquisition/" class="md-nav__link">
         
   
   
@@ -1256,7 +1493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/rest/" class="md-nav__link">
+      <a href="../rest/" class="md-nav__link">
         
   
   
@@ -1288,20 +1525,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9">
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
@@ -1322,7 +1557,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1340,7 +1575,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sessions/" class="md-nav__link">
+      <a href="../../reproducibility/sessions/" class="md-nav__link">
         
   
   
@@ -1365,37 +1600,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Audit Logs
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../reproducibility/audit_logs/" class="md-nav__link">
         
   
   
@@ -1411,87 +1619,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#using-audit-logs-in-the-application" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Audit Logs in the Application
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Using Audit Logs in the Application">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#the-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Workflow
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#exporting-the-audit-log" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Exporting the Audit Log
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-use-audit-logs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Use Audit Logs?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#advanced-programmatic-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Advanced: Programmatic Access
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1717,180 +1844,361 @@
   
 
 
-<h1 id="audit-logs">Audit Logs<a class="headerlink" href="#audit-logs" title="Permanent link">¶</a></h1>
-<p><strong>Audit logs</strong> track your optimization decisions for reproducible research. The log records which data you used, which models you trained, and which experiments you decided to run—creating a complete, verifiable history of your project.</p>
+<h1 id="searchspace">SearchSpace<a class="headerlink" href="#searchspace" title="Permanent link">¶</a></h1>
+<p>Manages the variable space for Bayesian optimization, including real, integer, and categorical variables.</p>
 <hr>
-<h2 id="using-audit-logs-in-the-application">Using Audit Logs in the Application<a class="headerlink" href="#using-audit-logs-in-the-application" title="Permanent link">¶</a></h2>
-<h3 id="the-workflow">The Workflow<a class="headerlink" href="#the-workflow" title="Permanent link">¶</a></h3>
-<p><strong>1. Train your model:</strong></p>
-<ul>
-<li>
-<p>Add your experimental data</p>
-</li>
-<li>
-<p>Train a Gaussian Process model</p>
-</li>
-<li>
-<p>Check diagnostics (parity plot, Q-Q plot, etc.)</p>
-</li>
-</ul>
-<p><strong>2. Run acquisition:</strong></p>
-<ul>
-<li>
-<p>Choose your acquisition strategy (Expected Improvement, UCB, etc.)</p>
-</li>
-<li>
-<p>Generate candidate experiments</p>
-</li>
-<li>
-<p>Review the suggestions</p>
-</li>
-</ul>
-<p><strong>3. Add to audit log:</strong></p>
-<ul>
-<li>
-<p><strong>Desktop App:</strong> When you're happy with a suggestion, click "Log to Audit Trail" in the notification window</p>
-</li>
-<li>
-<p><strong>Web App:</strong> Click "Stage to Audit Log" in the Acquisition panel</p>
-</li>
-<li>
-<p>This marks it as a pending experiment you plan to run</p>
-</li>
-<li>
-<p>The log records: model used, acquisition settings, suggested point</p>
-</li>
-</ul>
-<p><strong>4. Add the experiment:</strong></p>
-<ul>
-<li>
-<p>Run the experiment in your lab</p>
-</li>
-<li>
-<p>Use "Add Point" dialog to enter the results</p>
-</li>
-<li>
-<p>Or import from CSV</p>
-</li>
-</ul>
-<p><strong>5. Save your session:</strong></p>
-<ul>
-<li>
-<p>The audit log is saved with your session</p>
-</li>
-<li>
-<p>Complete record of your optimization decisions</p>
-</li>
-</ul>
-<h3 id="exporting-the-audit-log">Exporting the Audit Log<a class="headerlink" href="#exporting-the-audit-log" title="Permanent link">¶</a></h3>
-<p>The audit log is stored in your session file. To review or share it:</p>
-<p><strong>Desktop App:</strong></p>
-<ul>
-<li>
-<p>File → Export Audit Log</p>
-</li>
-<li>
-<p>Saves as a Markdown file with a readable report</p>
-</li>
-</ul>
-<p><strong>Web App:</strong></p>
-<ul>
-<li>
-<p>Click the export icon in the top toolbar</p>
-</li>
-<li>
-<p>Downloads audit log as Markdown</p>
-</li>
-</ul>
-<p><strong>What's included:</strong></p>
-<ul>
-<li>
-<p>Timeline of all decisions</p>
-</li>
-<li>
-<p>Model configurations used</p>
-</li>
-<li>
-<p>Acquisition strategies and parameters</p>
-</li>
-<li>
-<p>Suggested experiments and results</p>
-</li>
-<li>
-<p>Notes you've added along the way</p>
-</li>
-</ul>
-<hr>
-<h2 id="why-use-audit-logs">Why Use Audit Logs?<a class="headerlink" href="#why-use-audit-logs" title="Permanent link">¶</a></h2>
-<p><strong>For reproducible research:</strong></p>
-<ul>
-<li>
-<p>Prove you followed your methodology</p>
-</li>
-<li>
-<p>Show reviewers exactly what you did</p>
-</li>
-<li>
-<p>Document decisions weren't cherry-picked</p>
-</li>
-<li>
-<p>Support publications with verifiable records</p>
-</li>
-</ul>
-<p><strong>For your records:</strong></p>
-<ul>
-<li>
-<p>Remember what worked and what didn't</p>
-</li>
-<li>
-<p>Track multiple optimization attempts</p>
-</li>
-<li>
-<p>Share methodology with colleagues</p>
-</li>
-<li>
-<p>Keep lab notebook records</p>
-</li>
-</ul>
-<p><strong>For collaboration:</strong></p>
-<ul>
-<li>
-<p>Share decision rationale with team members</p>
-</li>
-<li>
-<p>Document protocol compliance</p>
-</li>
-<li>
-<p>Enable others to reproduce your work</p>
-</li>
-</ul>
-<hr>
-<h2 id="advanced-programmatic-access">Advanced: Programmatic Access<a class="headerlink" href="#advanced-programmatic-access" title="Permanent link">¶</a></h2>
-<p>For users writing Python scripts:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">alchemist_core</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizationSession</span>
+<h2 id="class-reference">Class Reference<a class="headerlink" href="#class-reference" title="Permanent link">¶</a></h2>
 
-<span class="n">session</span> <span class="o">=</span> <span class="n">OptimizationSession</span><span class="p">()</span>
 
-<span class="c1"># Add data and train model</span>
-<span class="n">session</span><span class="o">.</span><span class="n">add_experiment</span><span class="p">({</span><span class="s1">'temp'</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s1">'pressure'</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span> <span class="n">output</span><span class="o">=</span><span class="mf">75.3</span><span class="p">)</span>
-<span class="n">session</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s1">'botorch'</span><span class="p">)</span>
+<div class="doc doc-object doc-class">
 
-<span class="c1"># Stage acquisition to audit log</span>
-<span class="n">candidates</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">n_candidates</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="n">session</span><span class="o">.</span><span class="n">lock_acquisition</span><span class="p">(</span>
-    <span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span>
-    <span class="n">candidates</span><span class="o">=</span><span class="n">candidates</span><span class="p">,</span>
-    <span class="n">notes</span><span class="o">=</span><span class="s2">"Batch 3 - targeting optimal region"</span>
-<span class="p">)</span>
 
-<span class="c1"># Access audit log entries</span>
-<span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">session</span><span class="o">.</span><span class="n">audit_log</span><span class="o">.</span><span class="n">entries</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">entry_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-<span class="c1"># Export audit log</span>
-<span class="n">session</span><span class="o">.</span><span class="n">audit_log</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s1">'audit_log.json'</span><span class="p">)</span>
-</code></pre></div>
-<p>Audit logs are automatically saved with your session file.</p>
+<h3 id="alchemist_core.data.search_space.SearchSpace" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">alchemist_core</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">search_space</span><span class="o">.</span><span class="n">SearchSpace</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace" class="headerlink" title="Permanent link">¶</a></h3>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Class for storing and managing the search space in a consistent way across backends.
+Provides methods for conversions to different formats required by different backends.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.add_variable" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">add_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">var_type</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.add_variable" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add a variable to the search space.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variable name</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>var_type</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>"real", "integer", or "categorical"</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>**kwargs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional parameters (min, max, values)</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.from_dict" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.from_dict" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load search space from a list of dictionaries (used with JSON/CSV loading).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.from_skopt" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">from_skopt</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.from_skopt" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load search space from skopt dimensions.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.to_dict" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_dict</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.to_dict" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert search space to a list of dictionaries.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.to_skopt" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_skopt</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.to_skopt" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get skopt dimensions for scikit-learn.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.to_ax_space" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_ax_space</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.to_ax_space" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert to Ax parameter format.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.to_botorch_bounds" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">to_botorch_bounds</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.to_botorch_bounds" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create bounds in BoTorch format.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.get_variable_names" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">get_variable_names</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.get_variable_names" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get list of all variable names.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.get_categorical_variables" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">get_categorical_variables</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.get_categorical_variables" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get list of categorical variable names.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.get_integer_variables" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">get_integer_variables</span><span class="p">()</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.get_integer_variables" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get list of integer variable names.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.save_to_json" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">save_to_json</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.save_to_json" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Save search space to a JSON file.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.load_from_json" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">load_from_json</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span></code>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.load_from_json" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load search space from a JSON file.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="alchemist_core.data.search_space.SearchSpace.from_json" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">from_json</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#alchemist_core.data.search_space.SearchSpace.from_json" class="headerlink" title="Permanent link">¶</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Class method to create a SearchSpace from a JSON file.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><hr>
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong><a href="../session_class/">OptimizationSession</a></strong> - Uses SearchSpace for variable management</li>
+</ul>
 
 
 

@@ -5,13 +5,13 @@
       
       
       
-        <link rel="canonical" href="https://nrel.github.io/ALchemist/background/interpreting_calibration/">
+        <link rel="canonical" href="https://nrel.github.io/ALchemist/api/python_overview/">
       
       
-        <link rel="prev" href="../interpreting_qqplot/">
+        <link rel="prev" href="../../acquisition/logging/">
       
       
-        <link rel="next" href="../../ISSUES_LOG/">
+        <link rel="next" href="../session/">
       
       
         
@@ -22,7 +22,7 @@
     
     
       
-        <title>Calibration Curves - ALchemist Documentation</title>
+        <title>Overview - ALchemist Documentation</title>
       
     
     
@@ -85,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#interpreting-calibration-curves-for-uncertainty-assessment" class="md-skip">
+        <a href="#python-api-overview" class="md-skip">
           Skip to content
         </a>
       
@@ -121,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Calibration Curves
+              Overview
             
           </span>
         </div>
@@ -984,18 +984,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
@@ -1016,7 +1018,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1031,10 +1033,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../api/python_overview/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1050,6 +1079,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#python-api-vs-rest-api-vs-webdesktop-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API vs REST API vs Web/Desktop App
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-differences-from-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Differences from REST API
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1062,7 +1166,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/session/" class="md-nav__link">
+      <a href="../session/" class="md-nav__link">
         
   
   
@@ -1090,7 +1194,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/session_class/" class="md-nav__link">
+      <a href="../session_class/" class="md-nav__link">
         
   
   
@@ -1118,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/search_space/" class="md-nav__link">
+      <a href="../search_space/" class="md-nav__link">
         
   
   
@@ -1146,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/models/" class="md-nav__link">
+      <a href="../models/" class="md-nav__link">
         
   
   
@@ -1174,7 +1278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/acquisition/" class="md-nav__link">
+      <a href="../acquisition/" class="md-nav__link">
         
   
   
@@ -1256,7 +1360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/rest/" class="md-nav__link">
+      <a href="../rest/" class="md-nav__link">
         
   
   
@@ -1398,20 +1502,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10">
         
           
           <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
@@ -1432,7 +1534,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1450,7 +1552,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bayesian_optimization/" class="md-nav__link">
+      <a href="../../background/bayesian_optimization/" class="md-nav__link">
         
   
   
@@ -1478,7 +1580,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../kernels/" class="md-nav__link">
+      <a href="../../background/kernels/" class="md-nav__link">
         
   
   
@@ -1506,7 +1608,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../interpreting_qqplot/" class="md-nav__link">
+      <a href="../../background/interpreting_qqplot/" class="md-nav__link">
         
   
   
@@ -1531,37 +1633,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Calibration Curves
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../background/interpreting_calibration/" class="md-nav__link">
         
   
   
@@ -1577,392 +1652,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-is-coverage-calibration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What is Coverage Calibration?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-coverage-calibration-matters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Coverage Calibration Matters
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#understanding-the-calibration-curve" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Understanding the Calibration Curve
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Understanding the Calibration Curve">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#components-of-the-visualization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Components of the Visualization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#reading-the-plot" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reading the Plot
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#interpreting-coverage-patterns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Interpreting Coverage Patterns
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Interpreting Coverage Patterns">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#well-calibrated-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Well-Calibrated Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#over-confident-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Over-Confident Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#under-confident-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Under-Confident Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mixed-calibration-issues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mixed Calibration Issues 🔄
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sample-size-considerations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sample Size Considerations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sample Size Considerations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#small-datasets-n-30" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Small Datasets (N &lt; 30) 🔍
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#medium-datasets-30-n-100" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Medium Datasets (30 &lt; N &lt; 100)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#large-datasets-n-100" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Large Datasets (N &gt; 100) 🎯
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#calibration-status-indicators" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Calibration Status Indicators
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#using-calibration-with-q-q-plots" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using Calibration with Q-Q Plots
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Using Calibration with Q-Q Plots">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#q-q-plot-strengths" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Q-Q Plot Strengths:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#calibration-curve-strengths" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Calibration Curve Strengths:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#combined-analysis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Combined Analysis:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#practical-guidelines" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Practical Guidelines
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Practical Guidelines">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#when-to-trust-your-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Trust Your Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#when-to-improve-calibration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Improve Calibration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#when-to-collect-more-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Collect More Data
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#calibration-in-active-learning-context" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Calibration in Active Learning Context
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Calibration in Active Learning Context">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#acquisition-function-performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Acquisition Function Performance:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimization-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimization Strategy:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#stopping-criteria" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Stopping Criteria:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alchemists-automatic-calibration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ALchemist's Automatic Calibration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#further-reading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Further Reading
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2022,553 +1711,133 @@
   
 
 
-<h1 id="interpreting-calibration-curves-for-uncertainty-assessment">Interpreting Calibration Curves for Uncertainty Assessment<a class="headerlink" href="#interpreting-calibration-curves-for-uncertainty-assessment" title="Permanent link">¶</a></h1>
-<p>A <strong>calibration curve</strong> (also called a reliability diagram) is a diagnostic tool that helps you evaluate whether your Gaussian Process model's predicted confidence intervals have the correct coverage. In ALchemist, the calibration curve complements the Q-Q plot to provide a comprehensive view of your model's uncertainty quality.</p>
+<h1 id="python-api-overview">Python API Overview<a class="headerlink" href="#python-api-overview" title="Permanent link">¶</a></h1>
+<p>The <strong>ALchemist Python API</strong> (<code>alchemist_core</code>) is the core library for Bayesian optimization in Python. Import it directly in scripts, Jupyter notebooks, or Python applications for offline, programmatic optimization workflows.</p>
 <hr>
-<h2 id="what-is-coverage-calibration">What is Coverage Calibration?<a class="headerlink" href="#what-is-coverage-calibration" title="Permanent link">¶</a></h2>
-<p>When a Gaussian Process provides a prediction with uncertainty, it defines confidence intervals at various levels:</p>
-<ul>
-<li>
-<p><strong>68% confidence interval</strong>: μ ± 1σ should contain 68% of true values</p>
-</li>
-<li>
-<p><strong>95% confidence interval</strong>: μ ± 1.96σ should contain 95% of true values</p>
-</li>
-<li>
-<p><strong>99% confidence interval</strong>: μ ± 2.58σ should contain 99% of true values</p>
-</li>
-</ul>
-<p><strong>Well-calibrated coverage</strong> means that the empirical (observed) coverage matches the nominal (claimed) coverage. For example, if your model claims 95% confidence, then 95% of experimental observations should actually fall within those bounds.</p>
-<hr>
-<h2 id="why-coverage-calibration-matters">Why Coverage Calibration Matters<a class="headerlink" href="#why-coverage-calibration-matters" title="Permanent link">¶</a></h2>
-<p>Accurate coverage is essential for:</p>
-<ul>
-<li>
-<p><strong>Reliable decision-making</strong>: Knowing when predictions are trustworthy</p>
-</li>
-<li>
-<p><strong>Risk management</strong>: Avoiding over-confident predictions in safety-critical applications</p>
-</li>
-<li>
-<p><strong>Efficient exploration</strong>: Balancing exploration and exploitation in optimization</p>
-</li>
-<li>
-<p><strong>Experimental planning</strong>: Determining when more data is needed vs. when to act on predictions</p>
-</li>
-</ul>
-<hr>
-<h2 id="understanding-the-calibration-curve">Understanding the Calibration Curve<a class="headerlink" href="#understanding-the-calibration-curve" title="Permanent link">¶</a></h2>
-<h3 id="components-of-the-visualization">Components of the Visualization<a class="headerlink" href="#components-of-the-visualization" title="Permanent link">¶</a></h3>
-<p>ALchemist's calibration curve display includes:</p>
-<ol>
-<li><strong>Line plot</strong>: Nominal coverage (x-axis) vs. empirical coverage (y-axis)</li>
-<li><strong>Perfect calibration line</strong>: Diagonal reference (y = x)</li>
-<li><strong>Metrics table</strong>: Coverage values at standard confidence levels</li>
-<li><strong>Color-coded status</strong>: Visual indicators for calibration quality</li>
-</ol>
-<h3 id="reading-the-plot">Reading the Plot<a class="headerlink" href="#reading-the-plot" title="Permanent link">¶</a></h3>
-<p><strong>X-axis (Nominal Coverage)</strong>: The confidence level claimed by the model (e.g., 0.68 = 68% confidence)</p>
-<p><strong>Y-axis (Empirical Coverage)</strong>: The actual fraction of observations that fall within the predicted intervals</p>
-<p><strong>Perfect calibration</strong>: Points lie on the diagonal line (y = x)</p>
-<hr>
-<h2 id="interpreting-coverage-patterns">Interpreting Coverage Patterns<a class="headerlink" href="#interpreting-coverage-patterns" title="Permanent link">¶</a></h2>
-<h3 id="well-calibrated-model">Well-Calibrated Model<a class="headerlink" href="#well-calibrated-model" title="Permanent link">¶</a></h3>
-<p><strong>What it looks like:</strong></p>
-<ul>
-<li>
-<p>Points closely follow the diagonal line</p>
-</li>
-<li>
-<p>Empirical ≈ Nominal at all confidence levels</p>
-</li>
-<li>
-<p>Status indicators show "Good" (green)</p>
-</li>
-</ul>
-<p><strong>Metrics example:</strong>
-</p><div class="highlight"><pre><span></span><code>Confidence   Nominal   Empirical   Status
-68%          0.68      0.67        ✓ Good
-95%          0.95      0.94        ✓ Good
-99%          0.99      0.98        ✓ Good
-99.7%        0.997     0.995       ✓ Good
-</code></pre></div><p></p>
-<p><strong>What it means:</strong></p>
-<ul>
-<li>
-<p>Model uncertainties accurately reflect prediction errors</p>
-</li>
-<li>
-<p>Confidence intervals have correct coverage</p>
-</li>
-<li>
-<p>Safe to trust model predictions and uncertainties</p>
-</li>
-<li>
-<p>Acquisition functions will make optimal decisions</p>
-</li>
-</ul>
-<hr>
-<h3 id="over-confident-model">Over-Confident Model<a class="headerlink" href="#over-confident-model" title="Permanent link">¶</a></h3>
-<p><strong>What it looks like:</strong></p>
-<ul>
-<li>
-<p>Curve <strong>below</strong> the diagonal line</p>
-</li>
-<li>
-<p>Empirical coverage &lt; Nominal coverage</p>
-</li>
-<li>
-<p>Status indicators show "Under-conf" (orange/red)</p>
-</li>
-</ul>
-<p><strong>Metrics example:</strong>
-</p><div class="highlight"><pre><span></span><code>Confidence   Nominal   Empirical   Status
-68%          0.68      0.55        Under-conf
-95%          0.95      0.82        Under-conf
-99%          0.99      0.91        Under-conf
-99.7%        0.997     0.95        Under-conf
-</code></pre></div><p></p>
-<p><strong>What it means:</strong></p>
-<ul>
-<li>
-<p>Model is <strong>too confident</strong> in its predictions</p>
-</li>
-<li>
-<p>Claimed "95% confidence" only captures 82% of observations</p>
-</li>
-<li>
-<p>Prediction intervals are too narrow</p>
-</li>
-<li>
-<p>Risk of missing optimal regions by over-exploiting</p>
-</li>
-</ul>
-<p><strong>Why it happens:</strong></p>
-<ul>
-<li>
-<p>Model underestimates noise in the data</p>
-</li>
-<li>
-<p>Kernel is too restrictive (overfit to training data)</p>
-</li>
-<li>
-<p>Insufficient data for problem complexity</p>
-</li>
-<li>
-<p>Lengthscales too small (overfitting local variations)</p>
-</li>
-</ul>
-<p><strong>How to fix:</strong>
-1. <strong>Increase noise parameter</strong>: If using noise column, increase values
-2. <strong>Regularization</strong>: Add explicit noise term to model
-3. <strong>Change kernel</strong>: Try more flexible kernel (Matern ν=1.5 instead of ν=2.5)
-4. <strong>Collect more data</strong>: Especially in high-variance regions
-5. <strong>Apply calibration</strong>: ALchemist automatically applies calibration corrections
-6. <strong>Check data quality</strong>: Look for outliers or measurement errors</p>
-<hr>
-<h3 id="under-confident-model">Under-Confident Model<a class="headerlink" href="#under-confident-model" title="Permanent link">¶</a></h3>
-<p><strong>What it looks like:</strong></p>
-<ul>
-<li>
-<p>Curve <strong>above</strong> the diagonal line</p>
-</li>
-<li>
-<p>Empirical coverage &gt; Nominal coverage</p>
-</li>
-<li>
-<p>Status indicators show "Over-conf" (blue)</p>
-</li>
-</ul>
-<p><strong>Metrics example:</strong>
-</p><div class="highlight"><pre><span></span><code>Confidence   Nominal   Empirical   Status
-68%          0.68      0.78        Over-conf
-95%          0.95      0.99        Over-conf
-99%          0.99      1.00        Over-conf
-99.7%        0.997     1.00        Over-conf
-</code></pre></div><p></p>
-<p><strong>What it means:</strong></p>
-<ul>
-<li>
-<p>Model is <strong>too cautious</strong> with its predictions</p>
-</li>
-<li>
-<p>Claimed "95% confidence" actually captures 99% of observations</p>
-</li>
-<li>
-<p>Prediction intervals are too wide</p>
-</li>
-<li>
-<p>Risk of over-exploring, wasting experiments on unnecessary regions</p>
-</li>
-</ul>
-<p><strong>Why it happens:</strong></p>
-<ul>
-<li>
-<p>Model overestimates noise in the data</p>
-</li>
-<li>
-<p>Kernel is too flexible (underfit)</p>
-</li>
-<li>
-<p>Lengthscales too large (over-smoothing)</p>
-</li>
-<li>
-<p>Prior distributions too broad</p>
-</li>
-</ul>
-<p><strong>How to fix:</strong>
-1. <strong>Decrease noise parameter</strong>: Reduce explicit noise values
-2. <strong>Tighter kernel</strong>: Try less flexible kernel (Matern ν=2.5 or RBF)
-3. <strong>Optimize hyperparameters</strong>: Ensure lengthscales are optimized, not fixed too large
-4. <strong>Check preprocessing</strong>: Ensure data is properly scaled
-5. <strong>More aggressive optimization</strong>: Increase training iterations</p>
-<p><strong>Note</strong>: Under-confidence is generally less problematic than over-confidence, but wastes experimental resources.</p>
-<hr>
-<h3 id="mixed-calibration-issues">Mixed Calibration Issues 🔄<a class="headerlink" href="#mixed-calibration-issues" title="Permanent link">¶</a></h3>
-<p><strong>What it looks like:</strong></p>
-<ul>
-<li>
-<p>Curve crosses the diagonal line</p>
-</li>
-<li>
-<p>Some confidence levels over-confident, others under-confident</p>
-</li>
-<li>
-<p>Inconsistent status indicators</p>
-</li>
-</ul>
-<p><strong>Metrics example:</strong>
-</p><div class="highlight"><pre><span></span><code>Confidence   Nominal   Empirical   Status
-68%          0.68      0.62        Under-conf
-95%          0.95      0.96        Good
-99%          0.99      1.00        Over-conf
-99.7%        0.997     1.00        Over-conf
-</code></pre></div><p></p>
-<p><strong>What it means:</strong></p>
-<ul>
-<li>
-<p>Uncertainty estimates have non-normal distribution</p>
-</li>
-<li>
-<p>May indicate model misspecification</p>
-</li>
-<li>
-<p>Different behavior in tails vs. center of distribution</p>
-</li>
-</ul>
-<p><strong>How to fix:</strong>
-1. <strong>Check data distribution</strong>: Look for outliers or bimodality
-2. <strong>Transform outputs</strong>: Consider log or Box-Cox transformation
-3. <strong>Different kernel</strong>: Experiment with alternative kernel families
-4. <strong>Stratified sampling</strong>: Ensure training data covers full range</p>
-<hr>
-<h2 id="sample-size-considerations">Sample Size Considerations<a class="headerlink" href="#sample-size-considerations" title="Permanent link">¶</a></h2>
-<h3 id="small-datasets-n-30">Small Datasets (N &lt; 30) 🔍<a class="headerlink" href="#small-datasets-n-30" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>High variability in empirical coverage estimates</p>
-</li>
-<li>
-<p>Coverage metrics less reliable</p>
-</li>
-<li>
-<p>±10% deviation from nominal is common</p>
-</li>
-<li>
-<p>Focus on overall trends rather than exact values</p>
-</li>
-</ul>
-<p><strong>Interpretation guidance:</strong>
-</p><div class="highlight"><pre><span></span><code>Empirical coverage of 0.85 for nominal 0.95 is acceptable with N=20
-Same coverage would be concerning with N=100
-</code></pre></div><p></p>
-<h3 id="medium-datasets-30-n-100">Medium Datasets (30 &lt; N &lt; 100)<a class="headerlink" href="#medium-datasets-30-n-100" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>Moderate reliability in coverage estimates</p>
-</li>
-<li>
-<p>±5% deviation becoming significant</p>
-</li>
-<li>
-<p>Clear patterns indicate real issues</p>
-</li>
-</ul>
-<h3 id="large-datasets-n-100">Large Datasets (N &gt; 100) 🎯<a class="headerlink" href="#large-datasets-n-100" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>High confidence in calibration assessment</p>
-</li>
-<li>
-<p>Even small deviations (±3%) may indicate issues</p>
-</li>
-<li>
-<p>Coverage metrics are highly reliable</p>
-</li>
-</ul>
-<p><strong>ALchemist displays a warning for N &lt; 30:</strong>
-</p><div class="highlight"><pre><span></span><code>Note: Small sample size (N=25). Coverage estimates may be unreliable.
-</code></pre></div><p></p>
-<hr>
-<h2 id="calibration-status-indicators">Calibration Status Indicators<a class="headerlink" href="#calibration-status-indicators" title="Permanent link">¶</a></h2>
-<p>ALchemist uses color-coded status indicators for quick assessment:</p>
+<h2 id="python-api-vs-rest-api-vs-webdesktop-app">Python API vs REST API vs Web/Desktop App<a class="headerlink" href="#python-api-vs-rest-api-vs-webdesktop-app" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
-<th>Status</th>
-<th>Color</th>
-<th>Criterion</th>
-<th>Interpretation</th>
+<th>Feature</th>
+<th>Python API</th>
+<th>REST API</th>
+<th>Web/Desktop App</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>✓ Good</td>
-<td>Green</td>
-<td>|Empirical - Nominal| &lt; 0.05</td>
-<td>Well-calibrated</td>
+<td><strong>Interface</strong></td>
+<td>Python import</td>
+<td>HTTP requests</td>
+<td>Browser/GUI</td>
 </tr>
 <tr>
-<td>Under-conf</td>
-<td>Orange</td>
-<td>Empirical &lt; Nominal - 0.05</td>
-<td>Too confident (narrow intervals)</td>
+<td><strong>Use Case</strong></td>
+<td>Scripts, notebooks</td>
+<td>Remote access, web apps</td>
+<td>No-code interface</td>
 </tr>
 <tr>
-<td>Over-conf</td>
-<td>Blue</td>
-<td>Empirical &gt; Nominal + 0.05</td>
-<td>Too cautious (wide intervals)</td>
+<td><strong>Requires Server</strong></td>
+<td>No</td>
+<td>Yes</td>
+<td>Yes (web) / No (desktop)</td>
+</tr>
+<tr>
+<td><strong>Language</strong></td>
+<td>Python only</td>
+<td>Any (HTTP)</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><strong>Offline</strong></td>
+<td>Yes</td>
+<td>No</td>
+<td>Desktop only</td>
+</tr>
+<tr>
+<td><strong>Best For</strong></td>
+<td>Automation, analysis</td>
+<td>Integration, remote</td>
+<td>Interactive exploration</td>
 </tr>
 </tbody>
 </table>
-<p>These thresholds are adjustable based on sample size and application requirements.</p>
 <hr>
-<h2 id="using-calibration-with-q-q-plots">Using Calibration with Q-Q Plots<a class="headerlink" href="#using-calibration-with-q-q-plots" title="Permanent link">¶</a></h2>
-<p>The calibration curve and <a href="../interpreting_qqplot/">Q-Q plot</a> provide complementary information:</p>
-<h3 id="q-q-plot-strengths">Q-Q Plot Strengths:<a class="headerlink" href="#q-q-plot-strengths" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>Tests normality assumption</p>
-</li>
-<li>
-<p>Detects bias (Mean(z) ≠ 0)</p>
-</li>
-<li>
-<p>Shows over/under-confidence via Std(z)</p>
-</li>
-<li>
-<p>Visual pattern recognition</p>
-</li>
-</ul>
-<h3 id="calibration-curve-strengths">Calibration Curve Strengths:<a class="headerlink" href="#calibration-curve-strengths" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>Quantifies coverage at specific confidence levels</p>
-</li>
-<li>
-<p>Easier to interpret numerically</p>
-</li>
-<li>
-<p>Less sensitive to distributional assumptions</p>
-</li>
-<li>
-<p>Direct link to decision-making thresholds</p>
-</li>
-</ul>
-<h3 id="combined-analysis">Combined Analysis:<a class="headerlink" href="#combined-analysis" title="Permanent link">¶</a></h3>
-<p><strong>Both good</strong>: Model is well-calibrated and uncertainties are reliable</p>
-<p><strong>Q-Q bad, Calibration good</strong>: Non-normal errors but coverage is correct (acceptable for many applications)</p>
-<p><strong>Q-Q good, Calibration bad</strong>: Distribution is normal but variance is miscalibrated (systematic scaling issue)</p>
-<p><strong>Both bad</strong>: Significant model misspecification (investigate data and model choices)</p>
+<h2 id="core-classes">Core Classes<a class="headerlink" href="#core-classes" title="Permanent link">¶</a></h2>
+<p>The Python API is organized around these main classes:</p>
+<p><strong>Orchestration</strong>:
+- <strong><a href="../session_class/">OptimizationSession</a></strong> - Main class coordinating all optimization workflows</p>
+<p><strong>Data &amp; Space</strong>:
+- <strong><a href="../search_space/">SearchSpace</a></strong> - Variable space definition and management
+- <strong><a href="../session_class/#alchemist_core.data.experiment_manager.ExperimentManager">ExperimentManager</a></strong> - Experimental data storage</p>
+<p><strong>Modeling</strong>:
+- <strong><a href="../models/#alchemist_core.models.botorch_model.BoTorchModel">BoTorchModel</a></strong> - PyTorch-based Gaussian Process models
+- <strong><a href="../models/#alchemist_core.models.sklearn_model.SklearnModel">SklearnModel</a></strong> - Scikit-learn Gaussian Process models</p>
+<p><strong>Acquisition</strong>:
+- <strong><a href="../acquisition/#alchemist_core.acquisition.botorch_acquisition.BoTorchAcquisition">BoTorchAcquisition</a></strong> - BoTorch acquisition functions
+- <strong><a href="../acquisition/#alchemist_core.acquisition.skopt_acquisition.SkoptAcquisition">SkoptAcquisition</a></strong> - Scikit-optimize acquisition functions</p>
 <hr>
-<h2 id="practical-guidelines">Practical Guidelines<a class="headerlink" href="#practical-guidelines" title="Permanent link">¶</a></h2>
-<h3 id="when-to-trust-your-model">When to Trust Your Model<a class="headerlink" href="#when-to-trust-your-model" title="Permanent link">¶</a></h3>
-<p>Proceed with confidence if:</p>
+<h2 id="quick-example">Quick Example<a class="headerlink" href="#quick-example" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">alchemist_core</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizationSession</span>
+
+<span class="n">session</span> <span class="o">=</span> <span class="n">OptimizationSession</span><span class="p">()</span>
+<span class="n">session</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s1">'temperature'</span><span class="p">,</span> <span class="s1">'real'</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+<span class="n">session</span><span class="o">.</span><span class="n">add_variable</span><span class="p">(</span><span class="s1">'pressure'</span><span class="p">,</span> <span class="s1">'real'</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+<span class="c1"># Generate design, add data, train, optimize</span>
+<span class="n">points</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">generate_initial_design</span><span class="p">(</span><span class="s1">'lhs'</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<span class="c1"># ... run experiments and add results ...</span>
+<span class="n">session</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s1">'botorch'</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="s1">'Matern'</span><span class="p">)</span>
+<span class="n">candidates</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">n_suggestions</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">)</span>
+</code></pre></div>
+<p>For complete workflows and detailed examples, see the <a href="../session_class/">OptimizationSession API Reference</a>.</p>
+<hr>
+<h2 id="documentation-structure">Documentation Structure<a class="headerlink" href="#documentation-structure" title="Permanent link">¶</a></h2>
 <ul>
-<li>
-<p>All coverage metrics within ±5% of nominal (for N &gt; 30)</p>
-</li>
-<li>
-<p>Status indicators show "Good" or mild "Over-conf"</p>
-</li>
-<li>
-<p>Calibration curve closely follows diagonal</p>
-</li>
-<li>
-<p>Q-Q plot also shows good calibration</p>
-</li>
-</ul>
-<h3 id="when-to-improve-calibration">When to Improve Calibration<a class="headerlink" href="#when-to-improve-calibration" title="Permanent link">¶</a></h3>
-<p>Take corrective action if:</p>
-<ul>
-<li>
-<p>Multiple "Under-conf" indicators (model too confident)</p>
-</li>
-<li>
-<p>Large deviations (&gt;10%) from nominal coverage</p>
-</li>
-<li>
-<p>Consistent pattern across all confidence levels</p>
-</li>
-<li>
-<p>Sample size is adequate (N &gt; 30) for reliable assessment</p>
-</li>
-</ul>
-<h3 id="when-to-collect-more-data">When to Collect More Data<a class="headerlink" href="#when-to-collect-more-data" title="Permanent link">¶</a></h3>
-<p>Consider more experiments if:</p>
-<ul>
-<li>
-<p>Sample size is small (N &lt; 30) with unclear patterns</p>
-</li>
-<li>
-<p>High variance in coverage estimates</p>
-</li>
-<li>
-<p>Model appears underfit (high RMSE, low R²)</p>
-</li>
-<li>
-<p>Coverage is acceptable but prediction accuracy is poor</p>
-</li>
+<li><strong><a href="../session_class/">OptimizationSession</a></strong> - Auto-generated API reference from docstrings</li>
+<li><strong><a href="../search_space/">SearchSpace</a></strong> - Variable management reference</li>
+<li><strong><a href="../models/">Models</a></strong> - Gaussian Process model reference</li>
+<li><strong><a href="../acquisition/">Acquisition</a></strong> - Acquisition function reference</li>
 </ul>
 <hr>
-<h2 id="calibration-in-active-learning-context">Calibration in Active Learning Context<a class="headerlink" href="#calibration-in-active-learning-context" title="Permanent link">¶</a></h2>
-<p>During Bayesian optimization, calibration affects:</p>
-<h3 id="acquisition-function-performance">Acquisition Function Performance:<a class="headerlink" href="#acquisition-function-performance" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p><strong>Expected Improvement</strong>: Relies on accurate σ for exploration/exploitation balance</p>
-</li>
-<li>
-<p><strong>UCB</strong>: Directly uses σ in the acquisition formula</p>
-</li>
-<li>
-<p><strong>Probability of Improvement</strong>: Needs correct uncertainty quantification</p>
-</li>
-</ul>
-<h3 id="optimization-strategy">Optimization Strategy:<a class="headerlink" href="#optimization-strategy" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p><strong>Over-confident model</strong>: May converge prematurely to local optima (too much exploitation)</p>
-</li>
-<li>
-<p><strong>Under-confident model</strong>: May waste experiments exploring known regions (too much exploration)</p>
-</li>
-<li>
-<p><strong>Well-calibrated model</strong>: Optimal balance, efficient convergence</p>
-</li>
-</ul>
-<h3 id="stopping-criteria">Stopping Criteria:<a class="headerlink" href="#stopping-criteria" title="Permanent link">¶</a></h3>
-<ul>
-<li>
-<p>Calibrated uncertainties help determine when optimization has converged</p>
-</li>
-<li>
-<p>Under-confident models may never reach stopping criteria</p>
-</li>
-<li>
-<p>Over-confident models may stop too early</p>
-</li>
-</ul>
-<hr>
-<h2 id="alchemists-automatic-calibration">ALchemist's Automatic Calibration<a class="headerlink" href="#alchemists-automatic-calibration" title="Permanent link">¶</a></h2>
-<p>ALchemist implements automatic uncertainty calibration:</p>
-<ol>
-<li><strong>Cross-validation</strong>: Computes z-scores from CV predictions</li>
-<li><strong>Calibration factor</strong>: Calculates <code>s = Std(z)</code> from residuals</li>
-<li><strong>Scaling</strong>: Multiplies predicted σ by calibration factor</li>
-<li><strong>Application</strong>: Automatically applied to future predictions</li>
-</ol>
-<p><strong>Effect:</strong></p>
-<ul>
-<li>
-<p>If Std(z) = 1.5 (over-confident), future σ predictions are scaled by 1.5×</p>
-</li>
-<li>
-<p>If Std(z) = 0.7 (under-confident), future σ predictions are scaled by 0.7×</p>
-</li>
-<li>
-<p>Brings model toward better calibration without retraining</p>
-</li>
-</ul>
-<p><strong>Toggle:</strong></p>
-<ul>
-<li>
-<p>Calibrated vs. uncalibrated results viewable in visualization panel</p>
-</li>
-<li>
-<p>Compare to see calibration impact on your specific dataset</p>
-</li>
-</ul>
-<hr>
-<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">¶</a></h2>
+<h2 id="key-differences-from-rest-api">Key Differences from REST API<a class="headerlink" href="#key-differences-from-rest-api" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
-<th>Pattern</th>
-<th>Coverage vs. Diagonal</th>
-<th>Issue</th>
-<th>Primary Fix</th>
+<th>Aspect</th>
+<th>Python API</th>
+<th>REST API</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>On diagonal</td>
-<td>Aligned</td>
-<td>✓ None</td>
-<td>-</td>
+<td><strong>Import</strong></td>
+<td><code>from alchemist_core import OptimizationSession</code></td>
+<td>Not applicable</td>
 </tr>
 <tr>
-<td>Below diagonal</td>
-<td>Empirical &lt; Nominal</td>
-<td>Over-confident</td>
-<td>Increase noise/uncertainty</td>
+<td><strong>Session</strong></td>
+<td>Python object in memory</td>
+<td>Server-side, accessed by ID</td>
 </tr>
 <tr>
-<td>Above diagonal</td>
-<td>Empirical &gt; Nominal</td>
-<td>Under-confident</td>
-<td>Reduce noise, tighter kernel</td>
+<td><strong>Method Call</strong></td>
+<td><code>session.add_variable(...)</code></td>
+<td><code>POST /sessions/{id}/variables</code></td>
 </tr>
 <tr>
-<td>Crosses diagonal</td>
-<td>Mixed</td>
-<td>Model misspecification</td>
-<td>Check data, try different kernel</td>
+<td><strong>Return Type</strong></td>
+<td>Python objects (DataFrame, dict)</td>
+<td>JSON over HTTP</td>
 </tr>
 <tr>
-<td>High scatter</td>
-<td>Variable</td>
-<td>Small sample</td>
-<td>Collect more data</td>
+<td><strong>Concurrency</strong></td>
+<td>Single process</td>
+<td>Multi-client via HTTP</td>
 </tr>
 </tbody>
 </table>
-<hr>
-<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">¶</a></h2>
-<ul>
-<li>
-<p><a href="../interpreting_qqplot/">Q-Q Plot Interpretation</a> - Complementary diagnostic for normality</p>
-</li>
-<li>
-<p><a href="../../modeling/performance/">Model Performance</a> - Overall model quality assessment</p>
-</li>
-<li>
-<p><a href="../../visualizations/calibration_curve/">Calibration Curve Visualization</a> - How to generate and use the plot in ALchemist</p>
-</li>
-</ul>
-<p>For theoretical background on uncertainty calibration:</p>
-<ul>
-<li>
-<p>Guo et al. (2017), "On Calibration of Modern Neural Networks"</p>
-</li>
-<li>
-<p>Kuleshov et al. (2018), "Accurate Uncertainties for Deep Learning Using Calibrated Regression"</p>
-</li>
-<li>
-<p>DeGroot &amp; Fienberg (1983), "The Comparison and Evaluation of Forecasters"</p>
-</li>
-</ul>
 
 
 
