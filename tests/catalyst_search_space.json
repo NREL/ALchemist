@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Temperature",
+    "type": "Real",
+    "min": 350.0,
+    "max": 450.0
+  },
+  {
+    "name": "Catalyst",
+    "type": "Categorical",
+    "values": [
+      "High SAR",
+      "Low SAR"
+    ]
+  },
+  {
+    "name": "Metal Loading",
+    "type": "Real",
+    "min": 0.0,
+    "max": 5.0
+  },
+  {
+    "name": "Zinc Fraction",
+    "type": "Real",
+    "min": 0.0,
+    "max": 1.0
+  }
+]

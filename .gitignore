@@ -17,11 +17,11 @@ alchemist-web/build/
 alchemist_nrel-*/  # Temporary build directory created by setuptools
 
 # User's private project data (not for public repo)
-tests/catalyst_experiments.csv
-tests/test_autonomous_api.py
-tests/catalyst_search_space.json
-tests/test_catalyst_workflow.py
-test_core.ipynb
+#tests/catalyst_experiments.csv
+#tests/test_autonomous_api.py
+#tests/catalyst_search_space.json
+#tests/test_catalyst_workflow.py
+#test_core.ipynb
 logo-development.pptx
 
 # Python-related
