@@ -137,7 +137,8 @@ def main():
     print(f"Bumping version to {new_version}")
     print("="*60 + "\n")
     
-    root = Path(__file__).parent
+    # Resolve to repository root (script lives in scripts/)
+    root = Path(__file__).resolve().parent.parent
     
     # Update files
     success = True
