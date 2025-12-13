@@ -90,8 +90,13 @@ def main():
         json={"experiments": experiments}
     )
     response.raise_for_status()
-    n_added = response.json()["n_added"]
-    print(f"   ✓ Added {n_added} experiments")
+    batch_result = response.json()
+    n_added = batch_result.get("n_added", len(experiments))
+    total_experiments = batch_result.get("n_experiments")
+    if total_experiments is not None and total_experiments >= n_added:
+        print(f"   ✓ Added {n_added} experiments (total: {total_experiments})")
+    else:
+        print(f"   ✓ Added {n_added} experiments")
     
     # Get data summary
     response = requests.get(f"{BASE_URL}/sessions/{session_id}/experiments/summary")
