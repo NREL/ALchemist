@@ -7,7 +7,7 @@ FROM python:3.11-slim
 # Set metadata labels
 LABEL maintainer="caleb.coatney@nrel.gov"
 LABEL description="ALchemist Active Learning Toolkit - REST API Server"
-LABEL version="0.3.0"
+LABEL version="0.3.1"
 
 # Set working directory inside the container
 WORKDIR /app
@@ -28,8 +28,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy the entire project
 COPY . .
 
-# Build and install ALchemist
-# The build_tools/build_hooks.py will automatically build the React frontend
+# Build the React frontend first
+WORKDIR /app/alchemist-web
+RUN npm install && \
+    npm run build
+
+# Copy built frontend to API static directory
+WORKDIR /app
+RUN mkdir -p api/static && \
+    cp -r alchemist-web/dist/* api/static/
+
+# Build and install ALchemist package
 RUN pip install --no-cache-dir --upgrade pip build && \
     python -m build && \
     pip install --no-cache-dir dist/*.whl
