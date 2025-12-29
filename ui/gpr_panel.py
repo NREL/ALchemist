@@ -505,14 +505,17 @@ class GaussianProcessPanel(ctk.CTkFrame):
             print(f"  RMSE = {session_metrics.get('rmse', 'N/A'):.3f}")
             print("Learned hyperparameters:", self.main_app.learned_hyperparameters)
             
-            # Initialize visualizations
+            # Initialize visualization with model results
+            # Get target column name from experiment manager
+            target_col = self.main_app.experiment_manager.target_columns[0]
+            
             self.visualizations = Visualizations(
                 parent=self,
                 search_space=self.main_app.search_space,
                 gpr_model=self.main_app.gpr_model,
                 exp_df=self.main_app.exp_df,
-                encoded_X=self.main_app.exp_df.drop(columns='Output'),
-                encoded_y=self.main_app.exp_df['Output']
+                encoded_X=self.main_app.exp_df.drop(columns=target_col),
+                encoded_y=self.main_app.exp_df[target_col]
             )
             self.visualizations.rmse_values = self.main_app.rmse_values
             self.visualizations.mae_values = self.main_app.mae_values
@@ -532,13 +535,16 @@ class GaussianProcessPanel(ctk.CTkFrame):
     # VISUALIZATIONS
     # ==========================
     def initialize_visualizations(self):
+        # Get target column name from experiment manager
+        target_col = self.main_app.experiment_manager.target_columns[0]
+        
         self.visualizations = Visualizations(
             parent=self,
             search_space=self.main_app.search_space,
             gpr_model=self.main_app.gpr_model,
             exp_df=self.main_app.exp_df,
-            encoded_X=self.main_app.exp_df.drop(columns='Output'),
-            encoded_y=self.main_app.exp_df['Output']
+            encoded_X=self.main_app.exp_df.drop(columns=target_col),
+            encoded_y=self.main_app.exp_df[target_col]
         )
         self.visualizations.rmse_values = self.main_app.rmse_values
         self.visualizations.mae_values = self.main_app.mae_values

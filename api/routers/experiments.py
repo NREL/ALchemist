@@ -227,19 +227,84 @@ async def list_experiments(
     )
 
 
+@router.post("/{session_id}/experiments/preview")
+async def preview_csv_columns(
+    session_id: str,
+    file: UploadFile = File(...),
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Preview CSV file columns before uploading to check for target columns.
+    
+    Returns:
+        - available_columns: List of all columns in CSV
+        - has_output: Whether 'Output' column exists
+        - recommended_target: Suggested target column if 'Output' missing
+    """
+    # Save uploaded file temporarily
+    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.csv') as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    try:
+        # Read CSV to get column names
+        df = pd.read_csv(tmp_path)
+        columns = df.columns.tolist()
+        
+        # Check for 'Output' column
+        has_output = 'Output' in columns
+        
+        # Filter out metadata columns
+        metadata_cols = {'Iteration', 'Reason', 'Noise'}
+        available_targets = [col for col in columns if col not in metadata_cols]
+        
+        # Recommend target column
+        recommended = None
+        if not has_output:
+            # Look for common target column names
+            common_names = ['output', 'y', 'target', 'yield', 'response']
+            for name in common_names:
+                if name in [col.lower() for col in available_targets]:
+                    recommended = [col for col in available_targets if col.lower() == name][0]
+                    break
+            
+            # If no common name found, use first numeric column
+            if not recommended and available_targets:
+                # Check if first available column is numeric
+                if pd.api.types.is_numeric_dtype(df[available_targets[0]]):
+                    recommended = available_targets[0]
+        
+        return {
+            "columns": columns,
+            "available_targets": available_targets,
+            "has_output": has_output,
+            "recommended_target": recommended,
+            "n_rows": len(df)
+        }
+        
+    finally:
+        # Clean up temp file
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
 @router.post("/{session_id}/experiments/upload")
 async def upload_experiments(
     session_id: str,
     file: UploadFile = File(...),
-    target_column: str = "Output",
+    target_columns: str = "Output",  # Note: API accepts string, will be normalized by Session API
     session: OptimizationSession = Depends(get_session)
 ):
     """
     Upload experimental data from CSV file.
     
     The CSV should have columns matching the variable names,
-    plus an optional output column (default: "Output") and
-    optional noise column ("Noise").
+    plus target column(s) (default: "Output") and optional noise column ("Noise").
+    
+    Args:
+        target_columns: Target column name (single-objective) or comma-separated names (multi-objective).
+                       Examples: "Output", "yield", "yield,selectivity"
     """
     # Check if variables are defined
     if len(session.search_space.variables) == 0:
@@ -252,8 +317,11 @@ async def upload_experiments(
         tmp_path = tmp.name
     
     try:
+        # Parse target_columns (handle comma-separated for future multi-objective support)
+        target_cols_parsed = target_columns.split(',') if ',' in target_columns else target_columns
+        
         # Load data using session's load_data method
-        session.load_data(tmp_path, target_column=target_column)
+        session.load_data(tmp_path, target_columns=target_cols_parsed)
         
         n_experiments = len(session.experiment_manager.df)
         logger.info(f"Loaded {n_experiments} experiments from CSV for session {session_id}")

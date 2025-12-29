@@ -42,13 +42,51 @@ export const createExperimentBatch = async (
  */
 export const uploadExperimentsCSV = async (
   sessionId: string,
-  file: File
+  file: File,
+  targetColumns?: string | string[]
 ): Promise<{ message: string; n_experiments: number }> => {
   const formData = new FormData();
   formData.append('file', file);
   
+  // Build URL with target_columns as query parameter
+  const targetParam = targetColumns 
+    ? (Array.isArray(targetColumns) ? targetColumns.join(',') : targetColumns)
+    : undefined;
+  
+  const url = targetParam
+    ? `/sessions/${sessionId}/experiments/upload?target_columns=${encodeURIComponent(targetParam)}`
+    : `/sessions/${sessionId}/experiments/upload`;
+  
   const response = await apiClient.post(
-    `/sessions/${sessionId}/experiments/upload`,
+    url,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+/**
+ * Preview CSV columns before upload to check for target columns
+ */
+export const previewCSVColumns = async (
+  sessionId: string,
+  file: File
+): Promise<{
+  columns: string[];
+  available_targets: string[];
+  has_output: boolean;
+  recommended_target: string | null;
+  n_rows: number;
+}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await apiClient.post(
+    `/sessions/${sessionId}/experiments/preview`,
     formData,
     {
       headers: {

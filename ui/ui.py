@@ -519,6 +519,46 @@ class ALchemistApp(ctk.CTk):
         
         if file_path:
             try:
+                # First, read the CSV to check for target column
+                import pandas as pd
+                preview_df = pd.read_csv(file_path)
+                
+                # Check if any configured target column exists
+                # Default to looking for 'Output' if no target_columns configured
+                expected_targets = getattr(self.experiment_manager, 'target_columns', ['Output'])
+                missing_targets = [col for col in expected_targets if col not in preview_df.columns]
+                
+                # If target column(s) missing, show selection dialog
+                target_columns_to_use = None
+                if missing_targets:
+                    # Get non-metadata columns that could be targets
+                    metadata_cols = {'Iteration', 'Reason', 'Noise'}
+                    available_cols = [col for col in preview_df.columns if col not in metadata_cols]
+                    
+                    if not available_cols:
+                        raise ValueError("CSV file contains no columns that could be target columns.")
+                    
+                    # Show target selection dialog
+                    from ui.target_column_dialog import show_target_column_dialog
+                    selected = show_target_column_dialog(
+                        parent=self,
+                        available_columns=available_cols,
+                        default_column='output' if 'output' in available_cols else None
+                    )
+                    
+                    if selected is None:
+                        # User cancelled
+                        print("Data loading cancelled by user.")
+                        return
+                    
+                    target_columns_to_use = selected if isinstance(selected, list) else [selected]
+                    print(f"User selected target column(s): {target_columns_to_use}")
+                else:
+                    target_columns_to_use = expected_targets
+                
+                # Configure experiment manager with selected target columns
+                self.experiment_manager.target_columns = target_columns_to_use
+                
                 # Load experiments using the ExperimentManager
                 self.experiment_manager.load_from_csv(file_path)
                 
@@ -536,6 +576,7 @@ class ALchemistApp(ctk.CTk):
                 
                 # Log the data loading
                 print(f"Loaded {len(self.exp_df)} experiment points from {file_path}")
+                print(f"Target column(s): {target_columns_to_use}")
                 if 'Noise' in self.exp_df.columns:
                     print("Notice: Noise column detected. This will be used for model regularization if available.")
                 
@@ -1695,8 +1736,9 @@ class ALchemistApp(ctk.CTk):
                 # Ensure metadata columns have correct types
                 exp_df_clean = self.exp_df.copy()
                 
-                # Define metadata columns
-                metadata_cols = {'Output', 'Noise', 'Iteration', 'Reason'}
+                # Define metadata columns (including configured target columns)
+                target_cols = set(self.experiment_manager.target_columns) if hasattr(self.experiment_manager, 'target_columns') else {'Output'}
+                metadata_cols = target_cols | {'Noise', 'Iteration', 'Reason'}
                 
                 # Ensure Iteration is numeric
                 if 'Iteration' in exp_df_clean.columns:
@@ -1706,9 +1748,10 @@ class ALchemistApp(ctk.CTk):
                 if 'Reason' in exp_df_clean.columns:
                     exp_df_clean['Reason'] = exp_df_clean['Reason'].astype(str).replace('nan', 'Manual')
                 
-                # Ensure Output is numeric
-                if 'Output' in exp_df_clean.columns:
-                    exp_df_clean['Output'] = pd.to_numeric(exp_df_clean['Output'], errors='coerce')
+                # Ensure target columns are numeric
+                for target_col in target_cols:
+                    if target_col in exp_df_clean.columns:
+                        exp_df_clean[target_col] = pd.to_numeric(exp_df_clean[target_col], errors='coerce')
                 
                 # Ensure Noise is numeric if present
                 if 'Noise' in exp_df_clean.columns:
@@ -1744,6 +1787,10 @@ class ALchemistApp(ctk.CTk):
                 
                 # Copy cleaned data to session's experiment manager
                 self.session.experiment_manager.df = exp_df_clean
+                
+                # Copy target_columns configuration to session's experiment manager
+                if hasattr(self.experiment_manager, 'target_columns'):
+                    self.session.experiment_manager.target_columns = self.experiment_manager.target_columns
                 
                 # Update local exp_df with cleaned version
                 self.exp_df = exp_df_clean
