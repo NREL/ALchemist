@@ -415,13 +415,16 @@ class BoTorchModel(BaseModel):
         if self.model is None or self.fitted_state_dict is None:
             self.train(experiment_manager)
         
+        # Get target column name from experiment manager
+        target_col = experiment_manager.target_columns[0]
+        
         # Get data - handle noise column if present
         if 'Noise' in exp_df.columns:
-            X = exp_df.drop(columns=["Output", "Noise"])
+            X = exp_df.drop(columns=[target_col, "Noise"])
         else:
-            X = exp_df.drop(columns=["Output"])
+            X = exp_df.drop(columns=[target_col])
             
-        y = exp_df["Output"]
+        y = exp_df[target_col]
         
         # Encode categorical variables
         X_encoded = self._encode_categorical_data(X)

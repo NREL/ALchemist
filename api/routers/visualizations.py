@@ -194,9 +194,10 @@ async def get_contour_data(
     # CRITICAL FIX: Reorder columns to match training data
     # The model was trained with a specific column order, we must match it.
     # Exclude metadata columns that are part of the experiments table but
-    # are not model input features (e.g., Iteration, Reason, Output, Noise).
+    # are not model input features (e.g., Iteration, Reason, target columns, Noise).
     train_data = session.experiment_manager.get_data()
-    metadata_cols = {'Iteration', 'Reason', 'Output', 'Noise'}
+    target_cols = set(session.experiment_manager.target_columns)
+    metadata_cols = {'Iteration', 'Reason', 'Noise'} | target_cols
     feature_cols = [col for col in train_data.columns if col not in metadata_cols]
 
     # Safely align the prediction grid to the model feature order.
@@ -216,11 +217,12 @@ async def get_contour_data(
     experiments_data = None
     if request.include_experiments and len(session.experiment_manager) > 0:
         exp_df = session.experiment_manager.get_data()
-        if request.x_var in exp_df.columns and request.y_var in exp_df.columns and "Output" in exp_df.columns:
+        target_col = session.experiment_manager.target_columns[0]  # Use first target for visualization
+        if request.x_var in exp_df.columns and request.y_var in exp_df.columns and target_col in exp_df.columns:
             experiments_data = {
                 "x": exp_df[request.x_var].tolist(),
                 "y": exp_df[request.y_var].tolist(),
-                "output": exp_df["Output"].tolist()
+                "output": exp_df[target_col].tolist()
             }
     
     # Get suggestion data if requested (would need to be stored in session)

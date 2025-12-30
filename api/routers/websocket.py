@@ -32,7 +32,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         session_id: Session ID to subscribe to
     """
     await websocket.accept()
-    logger.info(f"WebSocket connected: session_id={session_id}")
+    logger.debug(f"WebSocket connected: session_id={session_id}")
     
     # Register this connection for this session
     if session_id not in active_connections:
@@ -60,7 +60,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 logger.warning(f"Invalid JSON from client: {data}")
             
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected: session_id={session_id}")
+        logger.debug(f"WebSocket disconnected: session_id={session_id}")
     finally:
         # Clean up on disconnect
         if session_id in active_connections:

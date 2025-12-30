@@ -56,8 +56,8 @@ export function useUploadExperiments(sessionId: string) {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (file: File) => 
-      experimentsAPI.uploadExperimentsCSV(sessionId, file),
+    mutationFn: ({ file, targetColumns }: { file: File; targetColumns?: string | string[] }) => 
+      experimentsAPI.uploadExperimentsCSV(sessionId, file, targetColumns),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['experiments', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['experiments-summary', sessionId] });
@@ -66,6 +66,19 @@ export function useUploadExperiments(sessionId: string) {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to upload experiments');
+    },
+  });
+}
+
+/**
+ * Hook to preview CSV columns before upload
+ */
+export function usePreviewCSV(sessionId: string) {
+  return useMutation({
+    mutationFn: (file: File) => 
+      experimentsAPI.previewCSVColumns(sessionId, file),
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to preview CSV file');
     },
   });
 }

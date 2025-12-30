@@ -4,7 +4,7 @@ Optimization Session API - High-level interface for Bayesian optimization workfl
 This module provides the main entry point for using ALchemist as a headless library.
 """
 
-from typing import Optional, Dict, Any, List, Tuple, Callable
+from typing import Optional, Dict, Any, List, Tuple, Callable, Union
 import pandas as pd
 import numpy as np
 import json
@@ -191,29 +191,62 @@ class OptimizationSession:
     # Data Management
     # ============================================================
     
-    def load_data(self, filepath: str, target_column: str = 'Output',
+    def load_data(self, filepath: str, target_columns: Union[str, List[str]] = 'Output',
                   noise_column: Optional[str] = None) -> None:
         """
         Load experimental data from CSV file.
         
         Args:
             filepath: Path to CSV file
-            target_column: Name of target/output column (default: 'Output')
+            target_columns: Target column name(s). Can be:
+                - String for single-objective: 'yield'
+                - List for multi-objective: ['yield', 'selectivity']
+                Default: 'Output'
             noise_column: Optional column with measurement noise/uncertainty
         
-        Example:
-            > session.load_data('experiments.csv', target_column='yield')
+        Examples:
+            Single-objective:
+            >>> session.load_data('experiments.csv', target_columns='yield')
+            >>> session.load_data('experiments.csv', target_columns=['yield'])  # also works
+            
+            Multi-objective (future):
+            >>> session.load_data('experiments.csv', target_columns=['yield', 'selectivity'])
+        
+        Note:
+            If the CSV doesn't have columns matching target_columns, an error will be raised.
+            Target columns will be preserved with their original names internally.
         """
         # Load the CSV
         import pandas as pd
         df = pd.read_csv(filepath)
         
-        # Rename target column to 'Output' if different
-        if target_column != 'Output' and target_column in df.columns:
-            df = df.rename(columns={target_column: 'Output'})
+        # Normalize target_columns to list
+        if isinstance(target_columns, str):
+            target_columns_list = [target_columns]
+        else:
+            target_columns_list = list(target_columns)
         
-        # Rename noise column to 'Noise' if specified
-        if noise_column and noise_column in df.columns:
+        # Validate that all target columns exist
+        missing_cols = [col for col in target_columns_list if col not in df.columns]
+        if missing_cols:
+            raise ValueError(
+                f"Target column(s) {missing_cols} not found in CSV file. "
+                f"Available columns: {list(df.columns)}. "
+                f"Please specify the correct target column name(s) using the target_columns parameter."
+            )
+        
+        # Warn if 'Output' column exists but user specified different target(s)
+        if 'Output' in df.columns and 'Output' not in target_columns_list:
+            logger.warning(
+                f"CSV contains 'Output' column but you specified {target_columns_list}. "
+                f"Using {target_columns_list} as specified."
+            )
+        
+        # Store the target column names for ExperimentManager
+        target_col_internal = target_columns_list
+        
+        # Rename noise column to 'Noise' if specified and different
+        if noise_column and noise_column in df.columns and noise_column != 'Noise':
             df = df.rename(columns={noise_column: 'Noise'})
         
         # Save to temporary file and load via ExperimentManager
@@ -223,10 +256,12 @@ class OptimizationSession:
             temp_path = tmp.name
         
         try:
-            self.experiment_manager = ExperimentManager.from_csv(
-                temp_path,
-                self.search_space
+            # Create ExperimentManager with the specified target column(s)
+            self.experiment_manager = ExperimentManager(
+                search_space=self.search_space,
+                target_columns=target_col_internal
             )
+            self.experiment_manager.load_from_csv(temp_path)
         finally:
             # Clean up temp file
             import os

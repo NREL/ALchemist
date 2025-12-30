@@ -8,12 +8,20 @@ class ExperimentManager:
     """
     Class for storing and managing experimental data in a consistent way across backends.
     Provides methods for data access, saving/loading, and conversion to formats needed by different backends.
+    
+    Supports both single-objective and multi-objective optimization:
+    - Single-objective: Uses single target column (default: 'Output', but configurable)
+    - Multi-objective: Uses multiple target columns specified in target_columns attribute
+    
+    The target_column parameter allows flexible column naming to support various CSV formats.
     """
-    def __init__(self, search_space=None):
+    def __init__(self, search_space=None, target_columns: Optional[List[str]] = None):
         self.df = pd.DataFrame()  # Raw experimental data
         self.search_space = search_space  # Reference to the search space
         self.filepath = None  # Path to saved experiment file
         self._current_iteration = 0  # Track current iteration for audit log
+        # Support flexible target column naming for both single and multi-objective
+        self.target_columns = target_columns or ['Output']  # Default to 'Output' for backward compatibility
         
     def set_search_space(self, search_space):
         """Set or update the search space reference."""
@@ -35,9 +43,9 @@ class ExperimentManager:
         # Create a copy of the point_dict to avoid modifying the original
         new_point = point_dict.copy()
         
-        # Add output value if provided
+        # Add output value if provided (use first target column for single-objective)
         if output_value is not None:
-            new_point['Output'] = output_value
+            new_point[self.target_columns[0]] = output_value
             
         # Add noise value if provided
         if noise_value is not None:
@@ -107,12 +115,20 @@ class ExperimentManager:
         Returns:
             X: Features DataFrame
             y: Target Series
+            
+        Raises:
+            ValueError: If configured target column is not found in data
         """
-        if 'Output' not in self.df.columns:
-            raise ValueError("DataFrame doesn't contain 'Output' column")
+        target_col = self.target_columns[0]  # Use first target column for single-objective
         
-        # Drop metadata columns (Output, Noise, Iteration, Reason)
-        metadata_cols = ['Output']
+        if target_col not in self.df.columns:
+            raise ValueError(
+                f"DataFrame doesn't contain target column '{target_col}'. "
+                f"Available columns: {list(self.df.columns)}"
+            )
+        
+        # Drop metadata columns (target, Noise, Iteration, Reason)
+        metadata_cols = self.target_columns.copy()
         if 'Noise' in self.df.columns:
             metadata_cols.append('Noise')
         if 'Iteration' in self.df.columns:
@@ -121,7 +137,7 @@ class ExperimentManager:
             metadata_cols.append('Reason')
         
         X = self.df.drop(columns=metadata_cols)
-        y = self.df['Output']
+        y = self.df[target_col]
         return X, y
     
     def get_features_target_and_noise(self) -> Tuple[pd.DataFrame, pd.Series, Optional[pd.Series]]:
@@ -132,12 +148,20 @@ class ExperimentManager:
             X: Features DataFrame
             y: Target Series
             noise: Noise Series if available, otherwise None
+            
+        Raises:
+            ValueError: If configured target column is not found in data
         """
-        if 'Output' not in self.df.columns:
-            raise ValueError("DataFrame doesn't contain 'Output' column")
+        target_col = self.target_columns[0]  # Use first target column for single-objective
+        
+        if target_col not in self.df.columns:
+            raise ValueError(
+                f"DataFrame doesn't contain target column '{target_col}'. "
+                f"Available columns: {list(self.df.columns)}"
+            )
         
         # Drop metadata columns
-        metadata_cols = ['Output']
+        metadata_cols = self.target_columns.copy()
         if 'Noise' in self.df.columns:
             metadata_cols.append('Noise')
         if 'Iteration' in self.df.columns:
@@ -146,7 +170,7 @@ class ExperimentManager:
             metadata_cols.append('Reason')
         
         X = self.df.drop(columns=metadata_cols)
-        y = self.df['Output']
+        y = self.df[target_col]
         noise = self.df['Noise'] if 'Noise' in self.df.columns else None
         return X, y, noise
     

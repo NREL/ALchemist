@@ -3,10 +3,11 @@
  * Mimics desktop UI experiment management
  */
 import { useRef, useState } from 'react';
-import { useExperiments, useExperimentsSummary, useUploadExperiments } from '../../hooks/api/useExperiments';
+import { useExperiments, useExperimentsSummary, useUploadExperiments, usePreviewCSV } from '../../hooks/api/useExperiments';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import AddPointDialog from '../../components/AddPointDialog';
+import { TargetColumnDialog } from '../../components/TargetColumnDialog';
 
 interface ExperimentsPanelProps {
   sessionId: string;
@@ -17,12 +18,17 @@ interface ExperimentsPanelProps {
 export function ExperimentsPanel({ sessionId, pendingSuggestions = [], onStageSuggestions }: ExperimentsPanelProps) {
   const [addPointOpen, setAddPointOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [availableTargets, setAvailableTargets] = useState<string[]>([]);
+  const [recommendedTarget, setRecommendedTarget] = useState<string | undefined>();
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   
   const { data: experimentsData, isLoading: isLoadingExperiments } = useExperiments(sessionId);
   const { data: summaryData } = useExperimentsSummary(sessionId);
   const uploadExperiments = useUploadExperiments(sessionId);
+  const previewCSV = usePreviewCSV(sessionId);
 
   const handleLoadFromFile = () => {
     fileInputRef.current?.click();
@@ -30,13 +36,50 @@ export function ExperimentsPanel({ sessionId, pendingSuggestions = [], onStageSu
 
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      await uploadExperiments.mutateAsync(file);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+    if (!file) return;
+
+    // First, preview the CSV to check for target columns
+    try {
+      const preview = await previewCSV.mutateAsync(file);
+      
+      if (preview.has_output) {
+        // Has 'Output' column, upload directly
+        await uploadExperiments.mutateAsync({ file });
+      } else {
+        // Missing 'Output', show target column selection dialog
+        setAvailableTargets(preview.available_targets);
+        setRecommendedTarget(preview.recommended_target || undefined);
+        setPendingFile(file);
+        setTargetDialogOpen(true);
       }
+    } catch (error) {
+      // Preview failed, let upload attempt and show error
+      console.error('Preview failed:', error);
     }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleTargetColumnConfirm = async (selectedColumns: string | string[]) => {
+    if (!pendingFile) return;
+    
+    try {
+      await uploadExperiments.mutateAsync({ 
+        file: pendingFile, 
+        targetColumns: selectedColumns 
+      });
+      setPendingFile(null);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }
+  };
+
+  const handleTargetDialogClose = () => {
+    setTargetDialogOpen(false);
+    setPendingFile(null);
   };
 
   const experiments = experimentsData?.experiments || [];
@@ -188,6 +231,15 @@ export function ExperimentsPanel({ sessionId, pendingSuggestions = [], onStageSu
           </div>
         </div>
       )}
+
+      {/* Target Column Selection Dialog */}
+      <TargetColumnDialog
+        open={targetDialogOpen}
+        onClose={handleTargetDialogClose}
+        availableColumns={availableTargets}
+        recommendedColumn={recommendedTarget}
+        onConfirm={handleTargetColumnConfirm}
+      />
     </div>
   );
 }
