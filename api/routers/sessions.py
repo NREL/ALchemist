@@ -39,8 +39,7 @@ async def create_session():
     
     return SessionCreateResponse(
         session_id=session_id,
-        created_at=session_info["created_at"],
-        expires_at=session_info["expires_at"]
+        created_at=session_info["created_at"]
     )
 
 
@@ -123,10 +122,8 @@ async def extend_session(session_id: str, hours: int = 24):
             detail=f"Session {session_id} not found"
         )
     
-    info = session_store.get_info(session_id)
     return {
-        "message": "Session TTL extended",
-        "expires_at": info["expires_at"]
+        "message": "Session TTL extended (legacy endpoint - no longer has effect)"
     }
 
 
@@ -194,8 +191,7 @@ async def import_session(file: UploadFile = File(...)):
         session_info = session_store.get_info(session_id)
         return SessionCreateResponse(
             session_id=session_id,
-            created_at=session_info["created_at"],
-            expires_at=session_info["expires_at"]
+            created_at=session_info["created_at"]
         )
         
     except Exception as e:
@@ -452,8 +448,7 @@ async def upload_session(file: UploadFile = File(...)):
             
             return SessionCreateResponse(
                 session_id=new_session_id,
-                created_at=session_info["created_at"],
-                expires_at=session_info["expires_at"]
+                created_at=session_info["created_at"]
             )
             
         finally:
@@ -466,6 +461,86 @@ async def upload_session(file: UploadFile = File(...)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to upload session: {str(e)}"
         )
+
+
+# ============================================================
+# Recovery / Backup Endpoints
+# ============================================================
+
+@router.post("/sessions/{session_id}/backup", status_code=status.HTTP_200_OK)
+async def create_recovery_backup(session_id: str):
+    """
+    Create a silent recovery backup for crash protection.
+    
+    Called automatically by frontend every 30 seconds while user has session open.
+    User never sees these backups unless browser crashes and recovery is needed.
+    """
+    success = session_store.save_recovery_backup(session_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found or backup failed"
+        )
+    return {"message": "Recovery backup created"}
+
+
+@router.delete("/sessions/{session_id}/backup", status_code=status.HTTP_200_OK)
+async def clear_recovery_backup(session_id: str):
+    """
+    Clear recovery backups for a session.
+    
+    Called after user successfully saves their session to their computer.
+    This prevents recovery prompt from appearing unnecessarily.
+    """
+    deleted = session_store.clear_recovery_backup(session_id)
+    return {"message": "Recovery backup cleared", "deleted": deleted}
+
+
+@router.get("/recovery/list")
+async def list_recovery_sessions():
+    """
+    List available recovery sessions.
+    
+    Called on app startup to check if there are any unsaved sessions
+    that can be recovered from a crash.
+    """
+    recoveries = session_store.list_recovery_sessions()
+    return {"recoveries": recoveries, "count": len(recoveries)}
+
+
+@router.post("/recovery/{session_id}/restore", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
+async def restore_recovery_session(session_id: str):
+    """
+    Restore a session from recovery backup.
+    
+    Called when user clicks "Restore" on the recovery banner.
+    Creates a new active session from the recovery file.
+    """
+    new_session_id = session_store.restore_from_recovery(session_id)
+    
+    if new_session_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No recovery data found for session {session_id}"
+        )
+    
+    session_info = session_store.get_info(new_session_id)
+    return SessionCreateResponse(
+        session_id=new_session_id,
+        created_at=session_info["created_at"]
+    )
+
+
+@router.delete("/recovery/cleanup")
+async def cleanup_old_recoveries(max_age_hours: int = 24):
+    """
+    Clean up old recovery files.
+    
+    Deletes recovery files older than specified hours.
+    Can be called manually or via scheduled task.
+    """
+    session_store.cleanup_old_recoveries(max_age_hours)
+    return {"message": f"Cleaned up recovery files older than {max_age_hours} hours"}
 
 
 # ============================================================

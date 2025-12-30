@@ -15,7 +15,7 @@ class SessionCreateResponse(BaseModel):
     """Response when creating a new session."""
     session_id: str = Field(..., description="Unique session identifier")
     created_at: str = Field(..., description="Session creation timestamp")
-    expires_at: str = Field(..., description="Session expiration timestamp")
+    expires_at: Optional[str] = Field(None, description="Legacy field - no longer used (sessions don't expire)")
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -58,7 +58,7 @@ class SessionInfoResponse(BaseModel):
     session_id: str
     created_at: str
     last_accessed: str
-    expires_at: str
+    expires_at: Optional[str] = None  # Legacy field - no longer used
     search_space: Dict[str, Any]
     data: DataSummary
     model: Optional[ModelSummary]

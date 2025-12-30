@@ -33,13 +33,11 @@ def test_create_and_get_session(store: SessionStore):
 
 
 def test_session_expiration_removes_entry(store: SessionStore):
+    """Test removed - TTL expiration no longer exists in recovery-based system"""
     session_id = store.create()
-    session_data = store._sessions[session_id]
-    lock = session_data["lock"]
-    with lock:
-        session_data["expires_at"] = datetime.now() - timedelta(seconds=1)
-    assert store.get(session_id) is None
-    assert store.count() == 0
+    session = store.get(session_id)
+    assert session is not None
+    assert store.count() == 1
 
 
 def test_persist_and_reload_session(tmp_path):
@@ -49,15 +47,22 @@ def test_persist_and_reload_session(tmp_path):
     session.add_variable("temperature", "real", min=200.0, max=400.0)
     assert store.persist_session_to_disk(session_id) is True
 
+    # No longer auto-loads from disk - sessions must be explicitly loaded
     reloaded_store = SessionStore(default_ttl_hours=1, persist_dir=str(tmp_path))
-    reloaded_session = reloaded_store.get(session_id)
+    # Import the saved session file
+    saved_path = tmp_path / f"{session_id}.json"
+    assert saved_path.exists()
+    with open(saved_path, 'r') as f:
+        session_data = f.read()
+    new_id = reloaded_store.import_session(session_data)
+    reloaded_session = reloaded_store.get(new_id)
     assert reloaded_session is not None
     names = {var["name"] for var in reloaded_session.search_space.variables}
     assert "temperature" in names
 
     store.delete(session_id)
-    for sid in list(reloaded_store.list_all()):
-        reloaded_store.delete(sid)
+    if new_id:
+        reloaded_store.delete(new_id)
 
 
 def test_export_and_import_session(store: SessionStore):
@@ -68,6 +73,7 @@ def test_export_and_import_session(store: SessionStore):
     exported = store.export_session(session_id)
     assert exported is not None
 
+    # Import no longer adds expires_at or requires default_ttl
     imported_session_id = store.import_session(exported)
     assert imported_session_id is not None
 
@@ -100,11 +106,12 @@ def test_lock_and_unlock_session(store: SessionStore):
 
 
 def test_extend_ttl_updates_expiration(store: SessionStore):
+    """Test updated - extend_ttl is now a no-op but returns True for compatibility"""
     session_id = store.create()
-    before = store._sessions[session_id]["expires_at"]
+    # extend_ttl is now a no-op but returns True to maintain API compatibility
     assert store.extend_ttl(session_id, hours=2) is True
-    after = store._sessions[session_id]["expires_at"]
-    assert after > before
+    # No expires_at field exists anymore
+    assert "expires_at" not in store._sessions[session_id]
 
 
 def test_extend_ttl_missing_session_returns_false(store: SessionStore):
@@ -155,10 +162,11 @@ def test_get_info_missing_returns_none(store: SessionStore):
 
 
 def test_list_all_removes_expired(store: SessionStore):
+    """Test updated - list_all no longer removes expired sessions (TTL system removed)"""
     session_id = store.create()
-    with store._sessions[session_id]["lock"]:
-        store._sessions[session_id]["expires_at"] = datetime.now() - timedelta(seconds=1)
-    assert session_id not in store.list_all()
+    # Session should still be in the list since TTL expiration is removed
+    assert session_id in store.list_all()
+    assert store.count() == 1
 
 
 def test_lock_session_missing_raises_keyerror(store: SessionStore):

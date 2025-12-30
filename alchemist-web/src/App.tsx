@@ -3,7 +3,6 @@ import { Toaster, toast } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { VisualizationProvider, useVisualization } from './providers/VisualizationProvider';
 import { 
-  getStoredSessionId, 
   clearStoredSessionId, 
   useCreateSession, 
   useSession,
@@ -31,6 +30,8 @@ function AppContent() {
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
   const [copiedSessionId, setCopiedSessionId] = useState(false);
   const [sessionFromUrl, setSessionFromUrl] = useState<boolean>(false);
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false);
+  const [recoverySession, setRecoverySession] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const createSession = useCreateSession();
@@ -48,7 +49,6 @@ function AppContent() {
   
   // Global staged suggestions to mirror desktop main_app.pending_suggestions
   const [pendingSuggestions, setPendingSuggestions] = useState<any[]>([]);
-  const [loadedFromFile, setLoadedFromFile] = useState<boolean>(false);
 
   // Restore pending suggestions from audit log on session load (desktop workflow)
   useEffect(() => {
@@ -85,8 +85,29 @@ function AppContent() {
     restorePendingSuggestions();
   }, [sessionId]);
 
-  // Check for URL parameters (session ID and monitoring mode)
+  // Check for recovery sessions on startup (before URL/localStorage)
   useEffect(() => {
+    fetch('/api/v1/recovery/list')
+      .then(res => res.json())
+      .then(data => {
+        if (data.recoveries && data.recoveries.length > 0) {
+          // Show recovery banner for newest session
+          setRecoverySession(data.recoveries[0]);
+          setShowRecoveryBanner(true);
+          console.log('✓ Found recovery session:', data.recoveries[0]);
+        }
+      })
+      .catch(err => console.warn('Failed to check for recovery sessions:', err));
+  }, []);
+
+  // Check for URL parameters (session ID and monitoring mode) - ONLY if no recovery
+  useEffect(() => {
+    // Don't auto-load sessions if there's a recovery banner showing
+    if (showRecoveryBanner) {
+      console.log('Recovery banner showing - skipping auto-load');
+      return;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     console.log('URL search params:', window.location.search);
     
@@ -98,14 +119,8 @@ function AppContent() {
       setSessionId(urlSessionId);
       setSessionFromUrl(true);  // Mark that this session came from URL
       console.log(`✓ Loaded session from URL: ${urlSessionId}`);
-    } else {
-      // Fallback to localStorage if no URL session
-      const storedId = getStoredSessionId();
-      if (storedId) {
-        setSessionId(storedId);
-        console.log(`✓ Loaded session from localStorage: ${storedId}`);
-      }
     }
+    // NOTE: Removed localStorage auto-restore - user must explicitly create or load session
     
     // Check for monitoring mode
     const monitorParam = urlParams.get('mode');
@@ -114,12 +129,12 @@ function AppContent() {
       setIsMonitoringMode(true);
       console.log('✓ Monitoring mode enabled');
     }
-  }, []);
+  }, [showRecoveryBanner]);
 
   // Auto-clear invalid session (but not if it came from URL - let user see the error)
   useEffect(() => {
     if (sessionError && sessionId && !sessionFromUrl) {
-      toast.error('Session expired or not found. Please create a new session.');
+      toast.error('Session not found. Please create a new session.');
       handleClearSession();
     } else if (sessionError && sessionFromUrl) {
       // Show error but don't clear - might be loading or user wants to see the issue
@@ -127,24 +142,25 @@ function AppContent() {
     }
   }, [sessionError, sessionId, sessionFromUrl]);
 
-  // Prompt to save on page close/reload (desktop _quit behavior)
+  // Silent auto-backup every 30 seconds for crash recovery
   useEffect(() => {
     if (!sessionId) return;
     
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only prompt if session has data
-      if (session && (session.variable_count > 0 || session.experiment_count > 0)) {
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return e.returnValue;
-      }
-    };
+    // Only backup if session has data
+    if (!session || (session.variable_count === 0 && session.experiment_count === 0)) {
+      return;
+    }
     
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    const interval = setInterval(() => {
+      fetch(`/api/v1/sessions/${sessionId}/backup`, { method: 'POST' })
+        .then(() => console.debug('Recovery backup saved'))
+        .catch(err => console.warn('Recovery backup failed:', err));
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
   }, [sessionId, session]);
 
-  // Prompt to save on page close/reload (desktop _quit behavior)
+  // Prompt to save on page close/reload if session has data
   useEffect(() => {
     if (!sessionId) return;
     
@@ -166,7 +182,6 @@ function AppContent() {
     try {
       const newSession = await createSession.mutateAsync({ ttl_hours: 24 });
       setSessionId(newSession.session_id);
-      setLoadedFromFile(false);
       toast.success('Session created successfully!');
       // Show metadata dialog for new session
       setShowMetadataDialog(true);
@@ -180,7 +195,6 @@ function AppContent() {
   const handleClearSession = () => {
     clearStoredSessionId();
     setSessionId(null);
-    setLoadedFromFile(false);
     toast.info('Session cleared');
   };
 
@@ -188,15 +202,16 @@ function AppContent() {
   const handleExportSession = async () => {
     if (!sessionId) return;
     try {
-      // If this session was loaded via the file upload dialog, persist server-side
-      if (loadedFromFile) {
-        await exportSession.mutateAsync({ sessionId, serverSide: true });
-      } else {
-        await exportSession.mutateAsync({ sessionId, serverSide: false });
-      }
-      toast.success('Session exported successfully!');
+      await exportSession.mutateAsync({ sessionId, serverSide: false });
+      
+      // Clear recovery backup after successful save
+      fetch(`/api/v1/sessions/${sessionId}/backup`, { method: 'DELETE' })
+        .then(() => console.log('Recovery backup cleared after save'))
+        .catch(err => console.warn('Failed to clear recovery backup:', err));
+      
+      toast.success('Session saved to Downloads folder!');
     } catch (error: any) {
-      toast.error('Failed to export session');
+      toast.error('Failed to save session');
       console.error('Error exporting session:', error);
     }
   };
@@ -212,8 +227,6 @@ function AppContent() {
       try {
         const newSession = await importSession.mutateAsync(file);
         setSessionId(newSession.session_id);
-        // Mark that this session was created from a file upload/import
-        setLoadedFromFile(true);
         toast.success('Session imported successfully!');
         // Reset file input
         if (fileInputRef.current) {
@@ -225,6 +238,46 @@ function AppContent() {
       }
     }
   };
+
+  // Handle recovery session restore
+  const handleRestoreRecovery = async () => {
+    if (!recoverySession) return;
+    try {
+      const response = await fetch(`/api/v1/recovery/${recoverySession.session_id}/restore`, {
+        method: 'POST'
+      });
+      if (!response.ok) throw new Error('Failed to restore recovery session');
+      
+      const data = await response.json();
+      setSessionId(data.session_id);
+      setShowRecoveryBanner(false);
+      setRecoverySession(null);
+      toast.success('Session restored from recovery backup!');
+    } catch (error: any) {
+      toast.error('Failed to restore recovery session');
+      console.error('Error restoring recovery:', error);
+    }
+  };
+
+  // Handle recovery dismissal
+  const handleDismissRecovery = async () => {
+    if (!recoverySession) return;
+    try {
+      // Delete the recovery backup
+      await fetch(`/api/v1/sessions/${recoverySession.session_id}/backup`, {
+        method: 'DELETE'
+      });
+      setShowRecoveryBanner(false);
+      setRecoverySession(null);
+      toast.info('Recovery session discarded');
+    } catch (error: any) {
+      console.error('Error dismissing recovery:', error);
+      // Still hide banner even if delete fails
+      setShowRecoveryBanner(false);
+      setRecoverySession(null);
+    }
+  };
+
   // Handle audit log export (matches desktop File → Export Audit Log)
   const handleExportAuditLog = async () => {
     if (!sessionId) return;
@@ -271,6 +324,51 @@ function AppContent() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* Recovery Banner */}
+      {showRecoveryBanner && recoverySession && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
+                    Unsaved work detected
+                  </h3>
+                </div>
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
+                  We found a session from {new Date(recoverySession.backup_time).toLocaleString()} that wasn't saved.
+                  Would you like to restore it?
+                </p>
+                <div className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                  <div><strong>Session:</strong> {recoverySession.session_name || 'Untitled Session'}</div>
+                  <div>
+                    <strong>Data:</strong> {recoverySession.n_variables} variables, {recoverySession.n_experiments} experiments
+                    {recoverySession.model_trained && ', trained model'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 ml-4">
+                <button
+                  onClick={handleRestoreRecovery}
+                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-md transition-colors"
+                >
+                  Restore Session
+                </button>
+                <button
+                  onClick={handleDismissRecovery}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-md transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Monitoring Mode - Show dedicated dashboard */}
       {isMonitoringMode && sessionId ? (
         <MonitoringDashboard sessionId={sessionId} pollingInterval={90000} />

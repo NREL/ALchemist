@@ -112,13 +112,15 @@ class TestSessionsExtended:
         assert response.status_code == 404
 
     def test_extend_session(self, mock_session_store):
+        """Test extend_session endpoint - now a no-op for backward compatibility"""
         mock_session_store.extend_ttl.return_value = True
-        mock_session_store.get_info.return_value = {"expires_at": "new_time"}
         
         response = client.post("/api/v1/sessions/test_id/extend?hours=48")
         
         assert response.status_code == 200
-        assert response.json()["expires_at"] == "new_time"
+        # Returns legacy compatibility message
+        assert "message" in response.json()
+        assert "legacy" in response.json()["message"].lower()
         mock_session_store.extend_ttl.assert_called_with("test_id", 48)
 
     def test_extend_session_not_found(self, mock_session_store):

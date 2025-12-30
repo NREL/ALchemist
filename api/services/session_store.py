@@ -1,11 +1,11 @@
 """
 Session Store - Session management with disk persistence.
 
-Stores OptimizationSession instances with TTL and automatic cleanup.
-Sessions are persisted to disk as JSON to survive server restarts.
+Stores OptimizationSession instances with recovery backup system.
+Sessions persist in RAM until explicitly saved by user.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from datetime import datetime, timedelta
 import uuid
 from alchemist_core.session import OptimizationSession
@@ -35,20 +35,21 @@ class SessionStore:
         Initialize session store.
         
         Args:
-            default_ttl_hours: Default time-to-live for sessions in hours
+            default_ttl_hours: Legacy parameter (kept for compatibility, not used for TTL)
             persist_dir: Directory to persist sessions (None = memory only)
         """
         self._sessions: Dict[str, Dict] = {}
-        self.default_ttl = timedelta(hours=default_ttl_hours)
         self.persist_dir = Path(persist_dir) if persist_dir else Path("cache/sessions")
+        self.recovery_dir = Path("cache/recovery")
         
-        # Create persistence directory
+        # Create directories
         if self.persist_dir:
             self.persist_dir.mkdir(parents=True, exist_ok=True)
-            # Load existing sessions from disk
-            self._load_from_disk()
+        self.recovery_dir.mkdir(parents=True, exist_ok=True)
         
-        logger.info(f"SessionStore initialized with TTL={default_ttl_hours}h, persist_dir={self.persist_dir}")
+        # Note: No longer auto-loading sessions on startup
+        # Sessions are created on-demand or loaded explicitly by user
+        logger.info(f"SessionStore initialized with persist_dir={self.persist_dir}, recovery_dir={self.recovery_dir}")
     
     def _get_session_file(self, session_id: str) -> Path:
         """Get path to session file."""
@@ -71,8 +72,7 @@ class SessionStore:
             # Store metadata alongside session
             metadata = {
                 "created_at": session_data["created_at"].isoformat(),
-                "last_accessed": session_data["last_accessed"].isoformat(),
-                "expires_at": session_data["expires_at"].isoformat()
+                "last_accessed": session_data["last_accessed"].isoformat()
             }
             
             # Load session JSON and add metadata
@@ -105,12 +105,7 @@ class SessionStore:
                 # Extract metadata
                 metadata = session_json.pop("_session_store_metadata", {})
                 
-                # Check if expired
-                if metadata:
-                    expires_at = datetime.fromisoformat(metadata["expires_at"])
-                    if datetime.now() > expires_at:
-                        session_file.unlink()  # Delete expired session file
-                        continue
+                # No longer check for expiration - TTL system removed
                 
                 # Write session data to temp file and load
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
@@ -125,7 +120,6 @@ class SessionStore:
                     "session": session,
                     "created_at": datetime.fromisoformat(metadata.get("created_at", datetime.now().isoformat())),
                     "last_accessed": datetime.fromisoformat(metadata.get("last_accessed", datetime.now().isoformat())),
-                    "expires_at": datetime.fromisoformat(metadata.get("expires_at", (datetime.now() + self.default_ttl).isoformat())),
                     "lock": threading.Lock()
                 }
                 loaded_count += 1
@@ -177,12 +171,11 @@ class SessionStore:
             "session": session,
             "created_at": datetime.now(),
             "last_accessed": datetime.now(),
-            "expires_at": datetime.now() + self.default_ttl,
             "lock": threading.Lock()
         }
         
-        # Persist to disk
-        self._save_to_disk(session_id)
+        # Note: No automatic disk save on creation
+        # User will explicitly save when ready
         
         logger.info(f"Created session {session_id}")
         return session_id
@@ -195,11 +188,8 @@ class SessionStore:
             session_id: Session identifier
             
         Returns:
-            OptimizationSession or None if not found/expired
+            OptimizationSession or None if not found
         """
-        # Clean up expired sessions first
-        self._cleanup_expired()
-        
         if session_id not in self._sessions:
             logger.warning(f"Session {session_id} not found")
             return None
@@ -208,27 +198,12 @@ class SessionStore:
         lock = session_data.get("lock")
         if lock:
             with lock:
-                # Check if expired
-                if datetime.now() > session_data["expires_at"]:
-                    logger.info(f"Session {session_id} expired, removing")
-                    del self._sessions[session_id]
-                    return None
-
-                # Update last accessed time
+                # Update last accessed time (no save to disk)
                 session_data["last_accessed"] = datetime.now()
-
-                # Save updated access time to disk
-                self._save_to_disk(session_id)
-
                 return session_data["session"]
         else:
             # Fallback (no lock present)
-            if datetime.now() > session_data["expires_at"]:
-                logger.info(f"Session {session_id} expired, removing")
-                del self._sessions[session_id]
-                return None
             session_data["last_accessed"] = datetime.now()
-            self._save_to_disk(session_id)
             return session_data["session"]
     
     def delete(self, session_id: str) -> bool:
@@ -274,7 +249,6 @@ class SessionStore:
             "session_id": session_id,
             "created_at": session_data["created_at"].isoformat(),
             "last_accessed": session_data["last_accessed"].isoformat(),
-            "expires_at": session_data["expires_at"].isoformat(),
             "search_space": session.get_search_space_summary(),
             "data": session.get_data_summary(),
             "model": session.get_model_summary()
@@ -282,52 +256,32 @@ class SessionStore:
     
     def extend_ttl(self, session_id: str, hours: int = None) -> bool:
         """
-        Extend session TTL.
+        Legacy method - no longer used (sessions don't expire).
+        Kept for API compatibility.
         
         Args:
             session_id: Session identifier
-            hours: Hours to extend (uses default if None)
+            hours: Ignored
             
         Returns:
-            True if extended, False if session not found
+            True if session exists, False otherwise
         """
         if session_id not in self._sessions:
             return False
-        lock = self._sessions[session_id].get("lock")
-        if lock:
-            with lock:
-                extension = timedelta(hours=hours) if hours else self.default_ttl
-                self._sessions[session_id]["expires_at"] = datetime.now() + extension
-                self._save_to_disk(session_id)
-        else:
-            extension = timedelta(hours=hours) if hours else self.default_ttl
-            self._sessions[session_id]["expires_at"] = datetime.now() + extension
-            self._save_to_disk(session_id)
-
-        logger.info(f"Extended TTL for session {session_id}")
+        logger.info(f"extend_ttl called for session {session_id} (no-op - TTL removed)")
         return True
     
     def _cleanup_expired(self):
-        """Remove expired sessions."""
-        now = datetime.now()
-        expired = [
-            sid for sid, data in self._sessions.items()
-            if now > data["expires_at"]
-        ]
-        
-        for sid in expired:
-            del self._sessions[sid]
-            self._delete_from_disk(sid)
-            logger.info(f"Cleaned up expired session {sid}")
+        """Legacy method - no longer used (sessions don't expire)."""
+        # No-op: sessions no longer have TTL expiration
+        pass
     
     def count(self) -> int:
         """Get count of active sessions."""
-        self._cleanup_expired()
         return len(self._sessions)
     
     def list_all(self) -> list:
         """Get list of all active session IDs."""
-        self._cleanup_expired()
         return list(self._sessions.keys())
     
     def export_session(self, session_id: str) -> Optional[str]:
@@ -429,7 +383,6 @@ class SessionStore:
                 "session": session,
                 "created_at": datetime.now(),
                 "last_accessed": datetime.now(),
-                "expires_at": datetime.now() + self.default_ttl,
                 "lock": threading.Lock()
             }
             
@@ -516,6 +469,277 @@ class SessionStore:
             "locked_at": lock_info.get("locked_at"),
             "lock_token": None  # Never expose token in status check
         }
+
+    # ============================================================
+    # Recovery / Backup System
+    # ============================================================
+    
+    def _get_recovery_file(self, session_id: str) -> Path:
+        """Get path to recovery backup file."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return self.recovery_dir / f"{session_id}_recovery_{timestamp}.json"
+    
+    def save_recovery_backup(self, session_id: str) -> bool:
+        """
+        Save a recovery backup for crash protection.
+        
+        This is called periodically (every 30s) from frontend to create
+        silent backups. User never sees these unless needed for recovery.
+        
+        Args:
+            session_id: Session identifier
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if session_id not in self._sessions:
+            return False
+        
+        try:
+            lock = self._sessions[session_id].get("lock")
+            
+            # Clean up old recovery files for this session first
+            self._cleanup_old_recovery_files(session_id)
+            
+            recovery_file = self._get_recovery_file(session_id)
+            
+            if lock:
+                with lock:
+                    # Create temporary file
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                        self._sessions[session_id]["session"].save_session(tmp.name)
+                        temp_path = tmp.name
+                    
+                    # Read and add recovery metadata
+                    with open(temp_path, 'r') as f:
+                        session_json = json.load(f)
+                    
+                    session_json["_recovery_metadata"] = {
+                        "session_id": session_id,
+                        "backup_time": datetime.now().isoformat(),
+                        "session_name": self._sessions[session_id]["session"].metadata.name
+                    }
+                    
+                    # Write to recovery file
+                    with open(recovery_file, 'w') as f:
+                        json.dump(session_json, f, indent=2)
+                    
+                    # Clean up temp file
+                    Path(temp_path).unlink()
+            else:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                    self._sessions[session_id]["session"].save_session(tmp.name)
+                    temp_path = tmp.name
+                
+                with open(temp_path, 'r') as f:
+                    session_json = json.load(f)
+                
+                session_json["_recovery_metadata"] = {
+                    "session_id": session_id,
+                    "backup_time": datetime.now().isoformat(),
+                    "session_name": self._sessions[session_id]["session"].metadata.name
+                }
+                
+                with open(recovery_file, 'w') as f:
+                    json.dump(session_json, f, indent=2)
+                
+                Path(temp_path).unlink()
+            
+            logger.debug(f"Recovery backup saved for session {session_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save recovery backup for {session_id}: {e}")
+            return False
+    
+    def _cleanup_old_recovery_files(self, session_id: str, keep_newest: int = 1):
+        """
+        Clean up old recovery files for a session, keeping only the newest.
+        
+        Args:
+            session_id: Session identifier
+            keep_newest: Number of newest files to keep (default 1)
+        """
+        if not self.recovery_dir.exists():
+            return
+        
+        # Find all recovery files for this session
+        pattern = f"{session_id}_recovery_*.json"
+        recovery_files = sorted(self.recovery_dir.glob(pattern), key=lambda p: p.stat().st_mtime)
+        
+        # Delete all but the newest
+        for old_file in recovery_files[:-keep_newest]:
+            try:
+                old_file.unlink()
+                logger.debug(f"Deleted old recovery file: {old_file.name}")
+            except Exception as e:
+                logger.warning(f"Failed to delete old recovery file {old_file}: {e}")
+    
+    def clear_recovery_backup(self, session_id: str) -> bool:
+        """
+        Delete all recovery backups for a session.
+        
+        Called after user successfully saves their session to their computer.
+        
+        Args:
+            session_id: Session identifier
+            
+        Returns:
+            True if any files were deleted
+        """
+        if not self.recovery_dir.exists():
+            return False
+        
+        deleted = False
+        pattern = f"{session_id}_recovery_*.json"
+        
+        for recovery_file in self.recovery_dir.glob(pattern):
+            try:
+                recovery_file.unlink()
+                logger.info(f"Deleted recovery backup: {recovery_file.name}")
+                deleted = True
+            except Exception as e:
+                logger.error(f"Failed to delete recovery file {recovery_file}: {e}")
+        
+        return deleted
+    
+    def list_recovery_sessions(self) -> List[Dict]:
+        """
+        List all available recovery sessions.
+        
+        Returns list of recovery metadata for frontend to display.
+        """
+        if not self.recovery_dir.exists():
+            return []
+        
+        recoveries = []
+        
+        # Group by session_id (only show newest for each)
+        session_files = {}
+        for recovery_file in self.recovery_dir.glob("*_recovery_*.json"):
+            try:
+                # Extract session_id from filename
+                parts = recovery_file.stem.split("_recovery_")
+                if len(parts) != 2:
+                    continue
+                
+                session_id = parts[0]
+                
+                # Keep only newest file per session
+                if session_id not in session_files:
+                    session_files[session_id] = recovery_file
+                else:
+                    # Compare modification times
+                    if recovery_file.stat().st_mtime > session_files[session_id].stat().st_mtime:
+                        session_files[session_id] = recovery_file
+            except Exception as e:
+                logger.warning(f"Error processing recovery file {recovery_file}: {e}")
+        
+        # Load metadata from newest files
+        for session_id, recovery_file in session_files.items():
+            try:
+                with open(recovery_file, 'r') as f:
+                    session_json = json.load(f)
+                
+                metadata = session_json.get("_recovery_metadata", {})
+                session_meta = session_json.get("metadata", {})
+                
+                # Get session statistics
+                experiments = session_json.get("experiments", {})
+                n_experiments = experiments.get("n_total", 0)
+                
+                search_space = session_json.get("search_space", {})
+                n_variables = len(search_space.get("variables", []))
+                
+                model_config = session_json.get("model_config", {})
+                model_trained = model_config is not None and len(model_config) > 0
+                
+                recoveries.append({
+                    "session_id": session_id,
+                    "session_name": metadata.get("session_name", session_meta.get("name", "Untitled Session")),
+                    "backup_time": metadata.get("backup_time", datetime.fromtimestamp(recovery_file.stat().st_mtime).isoformat()),
+                    "n_variables": n_variables,
+                    "n_experiments": n_experiments,
+                    "model_trained": model_trained,
+                    "file_path": str(recovery_file)
+                })
+            except Exception as e:
+                logger.error(f"Error reading recovery file {recovery_file}: {e}")
+        
+        # Sort by backup time (newest first)
+        recoveries.sort(key=lambda x: x["backup_time"], reverse=True)
+        
+        return recoveries
+    
+    def restore_from_recovery(self, session_id: str) -> Optional[str]:
+        """
+        Restore a session from recovery backup.
+        
+        Creates a new active session from the recovery file.
+        
+        Args:
+            session_id: Original session ID to restore
+            
+        Returns:
+            New session ID if successful, None otherwise
+        """
+        if not self.recovery_dir.exists():
+            return None
+        
+        # Find newest recovery file for this session
+        pattern = f"{session_id}_recovery_*.json"
+        recovery_files = sorted(self.recovery_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        
+        if not recovery_files:
+            logger.warning(f"No recovery files found for session {session_id}")
+            return None
+        
+        recovery_file = recovery_files[0]
+        
+        try:
+            # Read recovery file
+            with open(recovery_file, 'r') as f:
+                session_data = f.read()
+            
+            # Import as new session (generates new ID)
+            new_session_id = self.import_session(session_data)
+            
+            if new_session_id:
+                logger.info(f"Restored session {session_id} as new session {new_session_id}")
+                # Keep recovery file until user explicitly saves
+                return new_session_id
+            
+        except Exception as e:
+            logger.error(f"Failed to restore from recovery {recovery_file}: {e}")
+        
+        return None
+    
+    def cleanup_old_recoveries(self, max_age_hours: int = 24):
+        """
+        Clean up recovery files older than specified hours.
+        
+        Called periodically to prevent accumulation.
+        
+        Args:
+            max_age_hours: Maximum age in hours (default 24)
+        """
+        if not self.recovery_dir.exists():
+            return
+        
+        cutoff_time = datetime.now().timestamp() - (max_age_hours * 3600)
+        deleted_count = 0
+        
+        for recovery_file in self.recovery_dir.glob("*_recovery_*.json"):
+            try:
+                if recovery_file.stat().st_mtime < cutoff_time:
+                    recovery_file.unlink()
+                    deleted_count += 1
+                    logger.debug(f"Deleted old recovery file: {recovery_file.name}")
+            except Exception as e:
+                logger.warning(f"Failed to delete recovery file {recovery_file}: {e}")
+        
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} old recovery files")
 
 
 # Global session store instance
