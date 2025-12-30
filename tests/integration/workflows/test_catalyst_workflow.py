@@ -33,7 +33,7 @@ def test_catalyst_data_workflow():
         print(f"    - {var['name']} ({var['type']}): {var.get('bounds') or var.get('categories')}")
     
     # 3. Load experimental data
-    session.load_data(experiments_path, target_column='Output')
+    session.load_data(experiments_path, target_columns='Output')
     print("✓ Experimental data loaded")
     
     data_summary = session.get_data_summary()

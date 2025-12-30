@@ -249,10 +249,11 @@ class TestCSVUpload:
 """
         csv_file = io.BytesIO(csv_content.encode())
         
-        # Upload CSV
+        # Upload CSV (specify target_columns since CSV uses lowercase 'output')
         response = client.post(
             f"/api/v1/sessions/{session_id}/experiments/upload",
-            files={"file": ("data.csv", csv_file, "text/csv")}
+            files={"file": ("data.csv", csv_file, "text/csv")},
+            params={"target_columns": "output"}
         )
         assert response.status_code == 200
         assert response.json()["n_experiments"] == 3  # Check total count
