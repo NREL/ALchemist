@@ -248,3 +248,148 @@ class ExperimentManager:
     
     def __len__(self):
         return len(self.df)
+    
+    def get_pareto_frontier(self, directions: Optional[List[str]] = None) -> pd.DataFrame:
+        """
+        Compute Pareto-optimal solutions from experiments with multiple objectives.
+        
+        Uses BoTorch's fast non-dominated sorting algorithm to identify Pareto-optimal
+        points. Works with both single-objective (returns all data) and multi-objective
+        experiments.
+        
+        Args:
+            directions: List of 'maximize' or 'minimize' for each target column.
+                       If None, assumes all objectives are maximized.
+                       Length must match number of target columns.
+        
+        Returns:
+            DataFrame containing only Pareto-optimal experiments with all columns.
+            
+        Raises:
+            ValueError: If directions length doesn't match target columns.
+            ValueError: If target columns contain missing data.
+            
+        Example:
+            >>> # For 2 objectives: maximize yield, minimize cost
+            >>> pareto_df = exp_mgr.get_pareto_frontier(['maximize', 'minimize'])
+        """
+        import torch
+        from botorch.utils.multi_objective.pareto import is_non_dominated
+        
+        if len(self.df) == 0:
+            return pd.DataFrame()
+        
+        # Validate target columns exist
+        missing_cols = [col for col in self.target_columns if col not in self.df.columns]
+        if missing_cols:
+            raise ValueError(f"Target columns {missing_cols} not found in experiment data")
+        
+        # Extract objective values
+        Y = self.df[self.target_columns].values
+        
+        # Check for missing values
+        if pd.isna(Y).any():
+            raise ValueError("Target columns contain missing values (NaN). Cannot compute Pareto frontier.")
+        
+        # Single objective case: return all data
+        if len(self.target_columns) == 1:
+            return self.df.copy()
+        
+        # Set default directions if not provided
+        if directions is None:
+            directions = ['maximize'] * len(self.target_columns)
+        
+        # Validate directions
+        if len(directions) != len(self.target_columns):
+            raise ValueError(
+                f"Number of directions ({len(directions)}) must match number of "
+                f"target columns ({len(self.target_columns)})"
+            )
+        
+        # Convert objectives to maximization form (BoTorch assumes maximization)
+        Y_torch = torch.tensor(Y, dtype=torch.double)
+        for i, direction in enumerate(directions):
+            if direction.lower() == 'minimize':
+                Y_torch[:, i] = -Y_torch[:, i]
+        
+        # Compute non-dominated mask
+        nd_mask = is_non_dominated(Y_torch, maximize=True, deduplicate=True)
+        
+        # Return Pareto-optimal experiments
+        return self.df[nd_mask.numpy()].copy()
+    
+    def compute_hypervolume(self, ref_point: Union[List[float], np.ndarray], 
+                           directions: Optional[List[str]] = None) -> float:
+        """
+        Compute hypervolume indicator for multi-objective experiments.
+        
+        The hypervolume measures the volume of objective space dominated by the
+        Pareto frontier relative to a reference point. Larger values indicate
+        better overall performance.
+        
+        Args:
+            ref_point: Reference point (worst acceptable values) for each objective.
+                      Must have same length as target_columns.
+                      For maximization: should be below minimum observed values.
+                      For minimization: should be above maximum observed values.
+            directions: List of 'maximize' or 'minimize' for each target column.
+                       If None, assumes all objectives are maximized.
+        
+        Returns:
+            Hypervolume value (float). Zero if no Pareto-optimal points exist.
+            
+        Raises:
+            ValueError: If ref_point length doesn't match target columns.
+            ValueError: If target columns contain missing data.
+            
+        Example:
+            >>> # For 2 objectives (maximize yield, minimize cost)
+            >>> # ref_point = [min_acceptable_yield, max_acceptable_cost]
+            >>> hv = exp_mgr.compute_hypervolume([50.0, 100.0], ['maximize', 'minimize'])
+        """
+        import torch
+        from botorch.utils.multi_objective.hypervolume import Hypervolume
+        
+        if len(self.df) == 0:
+            return 0.0
+        
+        # Single objective case: not meaningful
+        if len(self.target_columns) == 1:
+            raise ValueError(
+                "Hypervolume is only defined for multi-objective problems. "
+                "For single-objective, use best observed value instead."
+            )
+        
+        # Validate ref_point
+        ref_point = np.array(ref_point)
+        if len(ref_point) != len(self.target_columns):
+            raise ValueError(
+                f"Reference point length ({len(ref_point)}) must match number of "
+                f"target columns ({len(self.target_columns)})"
+            )
+        
+        # Get Pareto frontier
+        pareto_df = self.get_pareto_frontier(directions)
+        if len(pareto_df) == 0:
+            return 0.0
+        
+        # Set default directions if not provided
+        if directions is None:
+            directions = ['maximize'] * len(self.target_columns)
+        
+        # Extract Pareto objectives and convert to torch tensors
+        Y_pareto = pareto_df[self.target_columns].values
+        Y_torch = torch.tensor(Y_pareto, dtype=torch.double)
+        ref_torch = torch.tensor(ref_point, dtype=torch.double)
+        
+        # Convert to maximization form (BoTorch assumes maximization)
+        for i, direction in enumerate(directions):
+            if direction.lower() == 'minimize':
+                Y_torch[:, i] = -Y_torch[:, i]
+                ref_torch[i] = -ref_torch[i]
+        
+        # Compute hypervolume
+        hv_calculator = Hypervolume(ref_point=ref_torch)
+        hv = hv_calculator.compute(Y_torch)
+        
+        return float(hv)
