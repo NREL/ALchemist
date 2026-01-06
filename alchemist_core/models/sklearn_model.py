@@ -463,13 +463,16 @@ class SklearnModel(BaseModel):
                 subset_X_train = X_train.iloc[:i]
                 subset_y_train = y_train.iloc[:i]
                 
-                # Use the ALREADY FITTED scalers (fit_scalers=False)
-                X_processed = self._preprocess_subset(subset_X_train, categorical_variables, fit_scalers=False)
-                y_processed = self._scale_output(subset_y_train.values.reshape(-1, 1), fit_scaler=False).ravel()
+                # Fit scalers on this subset
+                X_processed = self._preprocess_subset(subset_X_train, categorical_variables, fit_scalers=True)
+                y_processed = self._scale_output(subset_y_train.values.reshape(-1, 1), fit_scaler=True).ravel()
                 
-                # Create model with optimized hyperparameters but no re-optimization
+                # Build kernel for this subset's dimensionality
+                subset_kernel = self._build_kernel(X_processed)
+                
+                # Create model with subset-specific kernel but no re-optimization
                 eval_model = GaussianProcessRegressor(
-                    kernel=self.optimized_kernel,
+                    kernel=subset_kernel,
                     optimizer=None,  # Don't re-optimize
                     random_state=self.random_state
                 )
@@ -515,13 +518,16 @@ class SklearnModel(BaseModel):
                     X_test_fold = subset_X.iloc[test_idx]
                     y_test_fold = subset_y.iloc[test_idx]
                     
-                    # Use the ALREADY FITTED scalers (fit_scalers=False) - same scalers for all folds
-                    X_train_processed = self._preprocess_subset(X_train_fold, categorical_variables, fit_scalers=False)
-                    y_train_processed = self._scale_output(y_train_fold.values.reshape(-1, 1), fit_scaler=False).ravel()
+                    # Fit scalers on this fold's training data
+                    X_train_processed = self._preprocess_subset(X_train_fold, categorical_variables, fit_scalers=True)
+                    y_train_processed = self._scale_output(y_train_fold.values.reshape(-1, 1), fit_scaler=True).ravel()
                     
-                    # Create model with optimized hyperparameters but no re-optimization
+                    # Build kernel for this fold's dimensionality
+                    fold_kernel = self._build_kernel(X_train_processed)
+                    
+                    # Create model with fold-specific kernel but no re-optimization
                     eval_model = GaussianProcessRegressor(
-                        kernel=self.optimized_kernel,
+                        kernel=fold_kernel,
                         optimizer=None,  # Don't re-optimize
                         random_state=self.random_state
                     )
@@ -590,9 +596,13 @@ class SklearnModel(BaseModel):
             X_train_processed = self._preprocess_subset(X_train_fold, categorical_variables, fit_scalers=True)
             y_train_processed = self._scale_output(y_train_fold.values.reshape(-1, 1), fit_scaler=True).ravel()
             
-            # Create model with optimized hyperparameters but no re-optimization
+            # Create a kernel for this fold's dimensionality
+            # (categories might differ between folds, changing feature count)
+            fold_kernel = self._build_kernel(X_train_processed)
+            
+            # Create model with fold-specific kernel but no re-optimization
             cv_model = GaussianProcessRegressor(
-                kernel=self.optimized_kernel,
+                kernel=fold_kernel,
                 optimizer=None,  # Don't re-optimize
                 random_state=self.random_state
             )

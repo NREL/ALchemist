@@ -4,7 +4,7 @@ Optimization Session API - High-level interface for Bayesian optimization workfl
 This module provides the main entry point for using ALchemist as a headless library.
 """
 
-from typing import Optional, Dict, Any, List, Tuple, Callable, Union
+from typing import Optional, Dict, Any, List, Tuple, Callable, Union, Literal
 import pandas as pd
 import numpy as np
 import json
@@ -15,6 +15,15 @@ from alchemist_core.data.experiment_manager import ExperimentManager
 from alchemist_core.events import EventEmitter
 from alchemist_core.config import get_logger
 from alchemist_core.audit_log import AuditLog, SessionMetadata, AuditEntry
+
+# Optional matplotlib import for visualization methods
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
+    _HAS_MATPLOTLIB = True
+except ImportError:
+    _HAS_MATPLOTLIB = False
+    Figure = None  # Type hint placeholder
 
 logger = get_logger(__name__)
 
@@ -1384,4 +1393,662 @@ class OptimizationSession:
         """
         self.config.update(kwargs)
         logger.info(f"Updated config: {kwargs}")
+    
+    # ============================================================
+    # Visualization Methods (Notebook Support)
+    # ============================================================
+    
+    def _check_matplotlib(self) -> None:
+        """Check if matplotlib is available for plotting."""
+        if not _HAS_MATPLOTLIB:
+            raise ImportError(
+                "matplotlib is required for visualization methods. "
+                "Install with: pip install matplotlib"
+            )
+    
+    def _check_model_trained(self) -> None:
+        """Check if model is trained before plotting."""
+        if self.model is None:
+            raise ValueError(
+                "Model not trained. Call train_model() before creating visualizations."
+            )
+    
+    def _check_cv_results(self, use_calibrated: bool = False) -> Dict[str, np.ndarray]:
+        """
+        Get CV results from model, handling both calibrated and uncalibrated.
+        
+        Args:
+            use_calibrated: Whether to use calibrated results if available
+            
+        Returns:
+            Dictionary with y_true, y_pred, y_std arrays
+        """
+        self._check_model_trained()
+        
+        # Check for calibrated results first if requested
+        if use_calibrated and hasattr(self.model, 'cv_cached_results_calibrated'):
+            if self.model.cv_cached_results_calibrated is not None:
+                return self.model.cv_cached_results_calibrated
+        
+        # Fall back to uncalibrated results
+        if hasattr(self.model, 'cv_cached_results'):
+            if self.model.cv_cached_results is not None:
+                return self.model.cv_cached_results
+        
+        raise ValueError(
+            "No CV results available. Model must be trained with cross-validation."
+        )
+    
+    def plot_parity(
+        self,
+        use_calibrated: bool = False,
+        sigma_multiplier: float = 1.96,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None,
+        show_metrics: bool = True,
+        show_error_bars: bool = True
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create parity plot of actual vs predicted values from cross-validation.
+        
+        This plot shows how well the model's predictions match the actual experimental
+        values, with optional error bars indicating prediction uncertainty.
+        
+        Args:
+            use_calibrated: Use calibrated uncertainty estimates if available
+            sigma_multiplier: Error bar size (1.96 = 95% CI, 1.0 = 68% CI, 2.58 = 99% CI)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated with metrics)
+            show_metrics: Include RMSE, MAE, R² in title
+            show_error_bars: Display uncertainty error bars
+        
+        Returns:
+            matplotlib Figure object (displays inline in Jupyter)
+        
+        Example:
+            >>> fig = session.plot_parity()
+            >>> fig.show()  # In notebooks, displays automatically
+            
+            >>> # With custom styling
+            >>> fig = session.plot_parity(
+            ...     sigma_multiplier=2.58,  # 99% confidence interval
+            ...     figsize=(10, 8),
+            ...     dpi=150
+            ... )
+            >>> fig.savefig('parity.png', bbox_inches='tight')
+        
+        Note:
+            Requires model to be trained with cross-validation (default behavior).
+            Error bars are only shown if model provides uncertainty estimates.
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        # Get CV results
+        cv_results = self._check_cv_results(use_calibrated)
+        y_true = cv_results['y_true']
+        y_pred = cv_results['y_pred']
+        y_std = cv_results.get('y_std', None)
+        
+        # Calculate metrics
+        from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        try:
+            r2 = r2_score(y_true, y_pred)
+        except:
+            r2 = float('nan')
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        # Plot data with optional error bars
+        if show_error_bars and y_std is not None:
+            yerr = sigma_multiplier * y_std
+            ax.errorbar(y_true, y_pred, yerr=yerr, 
+                       fmt='o', alpha=0.7, capsize=3, capthick=1,
+                       elinewidth=1, markersize=5)
+        else:
+            ax.scatter(y_true, y_pred, alpha=0.7)
+        
+        # Add parity line (y=x)
+        min_val = min(np.min(y_true), np.min(y_pred))
+        max_val = max(np.max(y_true), np.max(y_pred))
+        ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='Parity line')
+        
+        # Set labels
+        ax.set_xlabel("Actual Values")
+        ax.set_ylabel("Predicted Values")
+        
+        # Create title
+        if title is None and show_metrics:
+            ci_labels = {
+                1.0: "68% CI",
+                1.96: "95% CI",
+                2.0: "95.4% CI",
+                2.58: "99% CI",
+                3.0: "99.7% CI"
+            }
+            ci_label = ci_labels.get(sigma_multiplier, f"{sigma_multiplier}σ")
+            
+            if show_error_bars and y_std is not None:
+                title = (f"Cross-Validation Parity Plot\n"
+                        f"RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}\n"
+                        f"Error bars: ±{sigma_multiplier}σ ({ci_label})")
+            else:
+                title = (f"Cross-Validation Parity Plot\n"
+                        f"RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
+        
+        if title:
+            ax.set_title(title)
+        
+        ax.legend()
+        fig.tight_layout()
+        
+        logger.info("Generated parity plot")
+        return fig
+    
+    def plot_slice(
+        self,
+        x_var: str,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        n_points: int = 100,
+        show_uncertainty: Union[bool, List[float]] = True,
+        show_experiments: bool = True,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm] # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 1D slice plot showing model predictions along one variable.
+        
+        Visualizes how the model's prediction changes as one variable is varied
+        while all other variables are held constant. Shows prediction mean and
+        optional uncertainty bands.
+        
+        Args:
+            x_var: Variable name to vary along X axis (must be 'real' or 'integer')
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            n_points: Number of points to evaluate along the slice
+            show_uncertainty: Show uncertainty bands. Can be:
+                - True: Show ±1σ and ±2σ bands (default)
+                - False: No uncertainty bands
+                - List[float]: Custom sigma values, e.g., [1.0, 2.0, 3.0] for ±1σ, ±2σ, ±3σ
+            show_experiments: Plot experimental data points as scatter
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # With custom uncertainty bands (±1σ, ±2σ, ±3σ)
+            >>> fig = session.plot_slice(
+            ...     'temperature',
+            ...     fixed_values={'pressure': 5.0, 'catalyst': 'Pt'},
+            ...     show_uncertainty=[1.0, 2.0, 3.0]
+            ... )
+            >>> fig.savefig('slice.png', dpi=300), 'catalyst': 'Pt'},
+            ...     show_uncertainty=False
+            ... )
+            >>> fig.savefig('slice.png', dpi=300)
+        
+        Note:
+            - Model must be trained before plotting
+            - Uncertainty bands require model to support std predictions
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get variable info
+        var_names = self.search_space.get_variable_names()
+        if x_var not in var_names:
+            raise ValueError(f"Variable '{x_var}' not in search space")
+        
+        # Get x variable definition
+        x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+        
+        if x_var_def['type'] not in ['real', 'integer']:
+            raise ValueError(f"Variable '{x_var}' must be 'real' or 'integer' type for slice plot")
+        
+        # Create range for x variable
+        x_min, x_max = x_var_def['min'], x_var_def['max']
+        x_values = np.linspace(x_min, x_max, n_points)
+        
+        # Build prediction data with fixed values
+        slice_data = {x_var: x_values}
+        
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name == x_var:
+                continue
+            
+            if var_name in fixed_values:
+                slice_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    slice_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    slice_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        slice_df = pd.DataFrame(slice_data, columns=column_order)
+        
+        # Get predictions with uncertainty
+        predictions, std = self.predict(slice_df)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        # Style settings
+        mean_color = "#0B3C5D"          # dark blue-teal, prints well
+        exp_face   = "#E07A00"          # orange (colorblind-friendly vs blue)
+        grid_alpha = 0.25
+        
+        # Plot uncertainty bands (BEFORE mean line), with readable nesting
+        if show_uncertainty and std is not None:
+            # Determine which sigma values to plot
+            if isinstance(show_uncertainty, bool):
+                # Default: show ±1σ and ±2σ
+                sigma_values = [1.0, 2.0]
+            else:
+                # Custom sigma values provided
+                sigma_values = sorted(show_uncertainty)
+            
+            # Plot largest band first (background) - reverse order for z-stacking
+            sig_desc = sorted(sigma_values, reverse=True)
+            n = len(sig_desc)
+            
+            # Sequential colormap: same hue, different lightness
+            cmap = plt.get_cmap("Blues")
+            
+            for i, sigma in enumerate(sig_desc):
+                # i=0 is largest sigma (should be most transparent)
+                # i=n-1 is smallest sigma (should be most opaque)
+                t = i / max(1, n - 1)  # 0..1, where 0=largest σ, 1=smallest σ
+                
+                # Choose lighter tones for larger sigma, darker for smaller sigma
+                face = cmap(0.3 + 0.3 * t)  # 0.30 (largest σ) to 0.60 (smallest σ) in Blues
+                edge = plt.matplotlib.colors.to_rgba(mean_color, 0.55)
+                
+                # Sigmoid-based alpha as function of sigma value
+                # alpha = 1 - 1 / (1 + exp(-sigma + 2))
+                # Smaller sigma → higher alpha (more opaque)
+                alpha = 1.0 - 1.0 / (1.0 + np.exp(-sigma + 2.0))
+                
+                ax.fill_between(
+                    x_values,
+                    predictions - sigma * std,
+                    predictions + sigma * std,
+                    facecolor=plt.matplotlib.colors.to_rgba(face, alpha),
+                    edgecolor=edge,
+                    linewidth=0.9,
+                    label=f'±{sigma:.1f}σ',
+                    zorder=1
+                )
+        
+        # Mean prediction on top
+        ax.plot(
+            x_values,
+            predictions,
+            color=mean_color,
+            linewidth=2.6,
+            label='Prediction',
+            zorder=3
+        )
+        
+        # Plot experimental points
+        if show_experiments and len(self.experiment_manager.df) > 0:
+            df = self.experiment_manager.df
+            
+            # Filter points that match the fixed values
+            mask = pd.Series([True] * len(df))
+            for var_name, fixed_val in fixed_values.items():
+                if var_name in df.columns:
+                    # For numerical values, allow small tolerance
+                    if isinstance(fixed_val, (int, float)):
+                        mask &= np.abs(df[var_name] - fixed_val) < 1e-6
+                    else:
+                        mask &= df[var_name] == fixed_val
+            
+            if mask.any():
+                filtered_df = df[mask]
+                ax.scatter(
+                    filtered_df[x_var],
+                    filtered_df['Output'],
+                    s=70,
+                    facecolor=exp_face,
+                    edgecolor='black',
+                    linewidth=0.9,
+                    alpha=0.9,
+                    zorder=4,
+                    label=f'Experiments (n={mask.sum()})'
+                )
+        
+        # Labels and grid
+        ax.set_xlabel(x_var)
+        ax.set_ylabel('Predicted Output')
+        ax.grid(True, alpha=grid_alpha)
+        ax.set_axisbelow(True)
+        
+        # Create legend with improved ordering: Prediction, bands (small->large), Experiments
+        handles, labels = ax.get_legend_handles_labels()
+        def sort_key(lbl):
+            if lbl == 'Prediction':
+                return (0, 0)
+            if lbl.startswith('±'):
+                # Sort smaller sigma first in legend
+                val = float(lbl.split('±')[1].split('σ')[0])
+                return (1, val)
+            if lbl.startswith('Experiments'):
+                return (2, 0)
+            return (3, 0)
+        
+        order = sorted(range(len(labels)), key=lambda k: sort_key(labels[k]))
+        ax.legend([handles[i] for i in order], [labels[i] for i in order], frameon=True)
+        
+        if title is None:
+            # Generate title showing fixed values
+            if fixed_values:
+                fixed_str = ', '.join([f'{k}={v}' for k, v in fixed_values.items()])
+                title = f"1D Slice: {x_var}\n({fixed_str})"
+            else:
+                title = f"1D Slice: {x_var}"
+        
+        ax.set_title(title)
+        fig.tight_layout()
+        
+        logger.info(f"Generated 1D slice plot for {x_var}")
+        return fig
+    
+    def plot_contour(
+        self,
+        x_var: str,
+        y_var: str,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 50,
+        show_experiments: bool = True,
+        show_suggestions: bool = False,
+        cmap: str = 'viridis',
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 2D contour plot of model predictions over a variable space.
+        
+        Visualizes the model's predicted response surface by varying two variables
+        while holding others constant. Useful for understanding variable interactions
+        and identifying optimal regions.
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' type)
+            y_var: Variable name for Y axis (must be 'real' type)
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxN points)
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (e.g., 'viridis', 'coolwarm', 'plasma')
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: "Contour Plot of Model Predictions")
+        
+        Returns:
+            matplotlib Figure object (displays inline in Jupyter)
+        
+        Example:
+            >>> # Basic contour plot
+            >>> fig = session.plot_contour('temperature', 'pressure')
+            
+            >>> # With fixed values for other variables
+            >>> fig = session.plot_contour(
+            ...     'temperature', 'pressure',
+            ...     fixed_values={'catalyst': 'Pt', 'flow_rate': 50},
+            ...     cmap='coolwarm',
+            ...     grid_resolution=100
+            ... )
+            >>> fig.savefig('contour.png', dpi=300, bbox_inches='tight')
+        
+        Note:
+            - Requires at least 2 'real' type variables
+            - Model must be trained before plotting
+            - Categorical variables are automatically encoded using model's encoding
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get variable names
+        var_names = self.search_space.get_variable_names()
+        
+        # Validate variables exist
+        if x_var not in var_names:
+            raise ValueError(f"Variable '{x_var}' not in search space")
+        if y_var not in var_names:
+            raise ValueError(f"Variable '{y_var}' not in search space")
+        
+        # Get variable info (search_space.variables is a list)
+        x_var_info = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_info = next(v for v in self.search_space.variables if v['name'] == y_var)
+        
+        if x_var_info['type'] != 'real':
+            raise ValueError(f"X variable '{x_var}' must be 'real' type, got '{x_var_info['type']}'")
+        if y_var_info['type'] != 'real':
+            raise ValueError(f"Y variable '{y_var}' must be 'real' type, got '{y_var_info['type']}'")
+        
+        # Get bounds
+        x_bounds = (x_var_info['min'], x_var_info['max'])
+        y_bounds = (y_var_info['min'], y_var_info['max'])
+        
+        # Create meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        X_grid, Y_grid = np.meshgrid(x, y)
+        
+        # Build prediction dataframe with ALL variables in proper order
+        # Start with grid variables
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with columns in the same order as original training data
+        # This is critical for model preprocessing to work correctly
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            # Use the model's stored column order
+            column_order = self.model.original_feature_names
+        else:
+            # Fall back to search space order
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Get predictions - use Session's predict method for consistency
+        predictions, _ = self.predict(grid_df)
+        
+        # Reshape to grid
+        predictions_grid = predictions.reshape(X_grid.shape)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        # Plot contour
+        contour = ax.contourf(X_grid, Y_grid, predictions_grid, levels=20, cmap=cmap)
+        cbar = fig.colorbar(contour, ax=ax)
+        cbar.set_label('Predicted Output')
+        
+        # Plot experimental data points
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns:
+                ax.scatter(
+                    exp_df[x_var], 
+                    exp_df[y_var], 
+                    c='white', 
+                    edgecolors='black', 
+                    s=50, 
+                    label='Experiments',
+                    zorder=10
+                )
+        
+        # Plot suggested points
+        if show_suggestions and len(self.last_suggestions) > 0:
+            # last_suggestions is a DataFrame
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns:
+                ax.scatter(
+                    sugg_df[x_var],
+                    sugg_df[y_var],
+                    c='red',
+                    marker='D',
+                    s=80,
+                    label='Suggestions',
+                    zorder=11
+                )
+        
+        # Add legend if needed
+        if (show_experiments or show_suggestions) and ax.get_legend_handles_labels()[0]:
+            ax.legend()
+        
+        # Set labels and title
+        ax.set_xlabel(x_var)
+        ax.set_ylabel(y_var)
+        ax.set_title(title or "Contour Plot of Model Predictions")
+        
+        fig.tight_layout()
+        
+        logger.info(f"Generated contour plot for {x_var} vs {y_var}")
+        return fig
+    
+    def plot_metrics(
+        self,
+        metric: Literal['rmse', 'mae', 'r2', 'mape'] = 'rmse',
+        cv_splits: int = 5,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Plot cross-validation metrics as a function of training set size.
+        
+        Shows how model performance improves as more experimental data is added.
+        This evaluates the model at each training set size from 5 observations up to
+        the current total, providing insight into data efficiency and whether more
+        experiments are needed.
+        
+        Args:
+            metric: Which metric to plot ('rmse', 'mae', 'r2', or 'mape')
+            cv_splits: Number of cross-validation folds (default: 5)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Plot RMSE vs number of experiments
+            >>> fig = session.plot_metrics('rmse')
+            
+            >>> # Plot R² to see improvement
+            >>> fig = session.plot_metrics('r2')
+        
+        Note:
+            This calls model.evaluate() which computes CV metrics for each training
+            set size. This can be computationally expensive for large datasets.
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        # Need at least 5 observations for CV
+        n_total = len(self.experiment_manager.df)
+        if n_total < 5:
+            raise ValueError(f"Need at least 5 observations for metrics plot (have {n_total})")
+        
+        # Call model's evaluate method to get metrics over training sizes
+        logger.info(f"Computing {metric.upper()} over training set sizes (this may take a moment)...")
+        cv_metrics = self.model.evaluate(
+            self.experiment_manager,
+            cv_splits=cv_splits,
+            debug=False
+        )
+        
+        # Extract the requested metric
+        metric_key_map = {
+            'rmse': 'RMSE',
+            'mae': 'MAE',
+            'r2': 'R²',
+            'mape': 'MAPE'
+        }
+        
+        if metric not in metric_key_map:
+            raise ValueError(f"Unknown metric '{metric}'. Choose from: {list(metric_key_map.keys())}")
+        
+        metric_key = metric_key_map[metric]
+        metric_values = cv_metrics.get(metric_key, [])
+        
+        if not metric_values:
+            raise RuntimeError(f"Model did not return {metric_key} values from evaluate()")
+        
+        # X-axis: training set sizes (starts at 5)
+        x_range = range(5, len(metric_values) + 5)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        # Plot as line with markers
+        ax.plot(x_range, metric_values, marker='o', linewidth=2, 
+                markersize=6, color='#2E86AB')
+        
+        # Labels
+        metric_labels = {
+            'rmse': 'RMSE',
+            'mae': 'MAE',
+            'r2': 'R²',
+            'mape': 'MAPE (%)'
+        }
+        ax.set_xlabel("Number of Observations")
+        ax.set_ylabel(metric_labels[metric])
+        ax.set_title(f"{metric_labels[metric]} vs Number of Observations")
+        ax.grid(True, alpha=0.3)
+        
+        fig.tight_layout()
+        
+        logger.info(f"Generated {metric} metrics plot with {len(metric_values)} points")
+        return fig
 
