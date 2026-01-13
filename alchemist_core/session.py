@@ -25,6 +25,21 @@ except ImportError:
     _HAS_MATPLOTLIB = False
     Figure = None  # Type hint placeholder
 
+# Import visualization functions (delegates to visualization module)
+try:
+    from alchemist_core.visualization import (
+        create_parity_plot,
+        create_contour_plot,
+        create_slice_plot,
+        create_metrics_plot,
+        create_qq_plot,
+        create_calibration_plot,
+        check_matplotlib
+    )
+    _HAS_VISUALIZATION = True
+except ImportError:
+    _HAS_VISUALIZATION = False
+
 logger = get_logger(__name__)
 
 
@@ -637,8 +652,18 @@ class OptimizationSession:
                     if k != 'nu':  # Already handled above
                         kernel_options[k] = v
             
+            # Identify categorical variable indices for BoTorch
+            cat_dims = []
+            categorical_var_names = self.search_space.get_categorical_variables()
+            if categorical_var_names:
+                # Get the column order from search space
+                all_var_names = self.search_space.get_variable_names()
+                cat_dims = [i for i, name in enumerate(all_var_names) if name in categorical_var_names]
+                logger.debug(f"Categorical dimensions for BoTorch: {cat_dims} (variables: {categorical_var_names})")
+            
             self.model = BoTorchModel(
                 kernel_options=kernel_options,
+                cat_dims=cat_dims if cat_dims else None,
                 random_state=self.config['random_state'],
                 **kwargs
             )
@@ -1400,7 +1425,9 @@ class OptimizationSession:
     
     def _check_matplotlib(self) -> None:
         """Check if matplotlib is available for plotting."""
-        if not _HAS_MATPLOTLIB:
+        if _HAS_VISUALIZATION:
+            check_matplotlib()  # Use visualization module's check
+        elif not _HAS_MATPLOTLIB:
             raise ImportError(
                 "matplotlib is required for visualization methods. "
                 "Install with: pip install matplotlib"
@@ -1492,60 +1519,18 @@ class OptimizationSession:
         y_pred = cv_results['y_pred']
         y_std = cv_results.get('y_std', None)
         
-        # Calculate metrics
-        from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-        mae = mean_absolute_error(y_true, y_pred)
-        try:
-            r2 = r2_score(y_true, y_pred)
-        except:
-            r2 = float('nan')
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        
-        # Plot data with optional error bars
-        if show_error_bars and y_std is not None:
-            yerr = sigma_multiplier * y_std
-            ax.errorbar(y_true, y_pred, yerr=yerr, 
-                       fmt='o', alpha=0.7, capsize=3, capthick=1,
-                       elinewidth=1, markersize=5)
-        else:
-            ax.scatter(y_true, y_pred, alpha=0.7)
-        
-        # Add parity line (y=x)
-        min_val = min(np.min(y_true), np.min(y_pred))
-        max_val = max(np.max(y_true), np.max(y_pred))
-        ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='Parity line')
-        
-        # Set labels
-        ax.set_xlabel("Actual Values")
-        ax.set_ylabel("Predicted Values")
-        
-        # Create title
-        if title is None and show_metrics:
-            ci_labels = {
-                1.0: "68% CI",
-                1.96: "95% CI",
-                2.0: "95.4% CI",
-                2.58: "99% CI",
-                3.0: "99.7% CI"
-            }
-            ci_label = ci_labels.get(sigma_multiplier, f"{sigma_multiplier}σ")
-            
-            if show_error_bars and y_std is not None:
-                title = (f"Cross-Validation Parity Plot\n"
-                        f"RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}\n"
-                        f"Error bars: ±{sigma_multiplier}σ ({ci_label})")
-            else:
-                title = (f"Cross-Validation Parity Plot\n"
-                        f"RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
-        
-        if title:
-            ax.set_title(title)
-        
-        ax.legend()
-        fig.tight_layout()
+        # Delegate to visualization module
+        fig, ax = create_parity_plot(
+            y_true=y_true,
+            y_pred=y_pred,
+            y_std=y_std,
+            sigma_multiplier=sigma_multiplier,
+            figsize=figsize,
+            dpi=dpi,
+            title=title,
+            show_metrics=show_metrics,
+            show_error_bars=show_error_bars
+        )
         
         logger.info("Generated parity plot")
         return fig
@@ -1560,7 +1545,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None
-    ) -> Figure: # pyright: ignore[reportInvalidTypeForm] # pyright: ignore[reportInvalidTypeForm]
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 1D slice plot showing model predictions along one variable.
         
@@ -1592,9 +1577,6 @@ class OptimizationSession:
             ...     'temperature',
             ...     fixed_values={'pressure': 5.0, 'catalyst': 'Pt'},
             ...     show_uncertainty=[1.0, 2.0, 3.0]
-            ... )
-            >>> fig.savefig('slice.png', dpi=300), 'catalyst': 'Pt'},
-            ...     show_uncertainty=False
             ... )
             >>> fig.savefig('slice.png', dpi=300)
         
@@ -1651,67 +1633,9 @@ class OptimizationSession:
         # Get predictions with uncertainty
         predictions, std = self.predict(slice_df)
         
-        # Create figure
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        
-        # Style settings
-        mean_color = "#0B3C5D"          # dark blue-teal, prints well
-        exp_face   = "#E07A00"          # orange (colorblind-friendly vs blue)
-        grid_alpha = 0.25
-        
-        # Plot uncertainty bands (BEFORE mean line), with readable nesting
-        if show_uncertainty and std is not None:
-            # Determine which sigma values to plot
-            if isinstance(show_uncertainty, bool):
-                # Default: show ±1σ and ±2σ
-                sigma_values = [1.0, 2.0]
-            else:
-                # Custom sigma values provided
-                sigma_values = sorted(show_uncertainty)
-            
-            # Plot largest band first (background) - reverse order for z-stacking
-            sig_desc = sorted(sigma_values, reverse=True)
-            n = len(sig_desc)
-            
-            # Sequential colormap: same hue, different lightness
-            cmap = plt.get_cmap("Blues")
-            
-            for i, sigma in enumerate(sig_desc):
-                # i=0 is largest sigma (should be most transparent)
-                # i=n-1 is smallest sigma (should be most opaque)
-                t = i / max(1, n - 1)  # 0..1, where 0=largest σ, 1=smallest σ
-                
-                # Choose lighter tones for larger sigma, darker for smaller sigma
-                face = cmap(0.3 + 0.3 * t)  # 0.30 (largest σ) to 0.60 (smallest σ) in Blues
-                edge = plt.matplotlib.colors.to_rgba(mean_color, 0.55)
-                
-                # Sigmoid-based alpha as function of sigma value
-                # alpha = 1 - 1 / (1 + exp(-sigma + 2))
-                # Smaller sigma → higher alpha (more opaque)
-                alpha = 1.0 - 1.0 / (1.0 + np.exp(-sigma + 2.0))
-                
-                ax.fill_between(
-                    x_values,
-                    predictions - sigma * std,
-                    predictions + sigma * std,
-                    facecolor=plt.matplotlib.colors.to_rgba(face, alpha),
-                    edgecolor=edge,
-                    linewidth=0.9,
-                    label=f'±{sigma:.1f}σ',
-                    zorder=1
-                )
-        
-        # Mean prediction on top
-        ax.plot(
-            x_values,
-            predictions,
-            color=mean_color,
-            linewidth=2.6,
-            label='Prediction',
-            zorder=3
-        )
-        
-        # Plot experimental points
+        # Prepare experimental data for plotting
+        exp_x = None
+        exp_y = None
         if show_experiments and len(self.experiment_manager.df) > 0:
             df = self.experiment_manager.df
             
@@ -1727,50 +1651,40 @@ class OptimizationSession:
             
             if mask.any():
                 filtered_df = df[mask]
-                ax.scatter(
-                    filtered_df[x_var],
-                    filtered_df['Output'],
-                    s=70,
-                    facecolor=exp_face,
-                    edgecolor='black',
-                    linewidth=0.9,
-                    alpha=0.9,
-                    zorder=4,
-                    label=f'Experiments (n={mask.sum()})'
-                )
+                exp_x = filtered_df[x_var].values
+                exp_y = filtered_df['Output'].values
         
-        # Labels and grid
-        ax.set_xlabel(x_var)
-        ax.set_ylabel('Predicted Output')
-        ax.grid(True, alpha=grid_alpha)
-        ax.set_axisbelow(True)
-        
-        # Create legend with improved ordering: Prediction, bands (small->large), Experiments
-        handles, labels = ax.get_legend_handles_labels()
-        def sort_key(lbl):
-            if lbl == 'Prediction':
-                return (0, 0)
-            if lbl.startswith('±'):
-                # Sort smaller sigma first in legend
-                val = float(lbl.split('±')[1].split('σ')[0])
-                return (1, val)
-            if lbl.startswith('Experiments'):
-                return (2, 0)
-            return (3, 0)
-        
-        order = sorted(range(len(labels)), key=lambda k: sort_key(labels[k]))
-        ax.legend([handles[i] for i in order], [labels[i] for i in order], frameon=True)
-        
+        # Generate title if not provided
         if title is None:
-            # Generate title showing fixed values
             if fixed_values:
                 fixed_str = ', '.join([f'{k}={v}' for k, v in fixed_values.items()])
                 title = f"1D Slice: {x_var}\n({fixed_str})"
             else:
                 title = f"1D Slice: {x_var}"
         
-        ax.set_title(title)
-        fig.tight_layout()
+        # Delegate to visualization module
+        # Handle show_uncertainty parameter conversion
+        sigma_bands = None
+        if show_uncertainty is not False:
+            if isinstance(show_uncertainty, bool):
+                # Default: [1.0, 2.0]
+                sigma_bands = [1.0, 2.0] if show_uncertainty else None
+            else:
+                # Custom list of sigma values
+                sigma_bands = show_uncertainty
+        
+        fig, ax = create_slice_plot(
+            x_values=x_values,
+            predictions=predictions,
+            x_var=x_var,
+            std=std,
+            sigma_bands=sigma_bands,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
         
         logger.info(f"Generated 1D slice plot for {x_var}")
         return fig
@@ -1902,29 +1816,18 @@ class OptimizationSession:
         # Reshape to grid
         predictions_grid = predictions.reshape(X_grid.shape)
         
-        # Create figure
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        
-        # Plot contour
-        contour = ax.contourf(X_grid, Y_grid, predictions_grid, levels=20, cmap=cmap)
-        cbar = fig.colorbar(contour, ax=ax)
-        cbar.set_label('Predicted Output')
-        
-        # Plot experimental data points
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
         if show_experiments and not self.experiment_manager.df.empty:
             exp_df = self.experiment_manager.df
             if x_var in exp_df.columns and y_var in exp_df.columns:
-                ax.scatter(
-                    exp_df[x_var], 
-                    exp_df[y_var], 
-                    c='white', 
-                    edgecolors='black', 
-                    s=50, 
-                    label='Experiments',
-                    zorder=10
-                )
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
         
-        # Plot suggested points
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
         if show_suggestions and len(self.last_suggestions) > 0:
             # last_suggestions is a DataFrame
             if isinstance(self.last_suggestions, pd.DataFrame):
@@ -1933,28 +1836,28 @@ class OptimizationSession:
                 sugg_df = pd.DataFrame(self.last_suggestions)
             
             if x_var in sugg_df.columns and y_var in sugg_df.columns:
-                ax.scatter(
-                    sugg_df[x_var],
-                    sugg_df[y_var],
-                    c='red',
-                    marker='D',
-                    s=80,
-                    label='Suggestions',
-                    zorder=11
-                )
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
         
-        # Add legend if needed
-        if (show_experiments or show_suggestions) and ax.get_legend_handles_labels()[0]:
-            ax.legend()
-        
-        # Set labels and title
-        ax.set_xlabel(x_var)
-        ax.set_ylabel(y_var)
-        ax.set_title(title or "Contour Plot of Model Predictions")
-        
-        fig.tight_layout()
+        # Delegate to visualization module
+        fig, ax, cbar = create_contour_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            predictions_grid=predictions_grid,
+            x_var=x_var,
+            y_var=y_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            cmap=cmap,
+            figsize=figsize,
+            dpi=dpi,
+            title=title or "Contour Plot of Model Predictions"
+        )
         
         logger.info(f"Generated contour plot for {x_var} vs {y_var}")
+        # Return figure only for backwards compatibility (colorbar accessible via fig/ax)
         return fig
     
     def plot_metrics(
@@ -1962,7 +1865,8 @@ class OptimizationSession:
         metric: Literal['rmse', 'mae', 'r2', 'mape'] = 'rmse',
         cv_splits: int = 5,
         figsize: Tuple[float, float] = (8, 6),
-        dpi: int = 100
+        dpi: int = 100,
+        use_cached: bool = True
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Plot cross-validation metrics as a function of training set size.
@@ -1977,6 +1881,7 @@ class OptimizationSession:
             cv_splits: Number of cross-validation folds (default: 5)
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
+            use_cached: Use cached metrics if available (default: True)
         
         Returns:
             matplotlib Figure object
@@ -1987,10 +1892,13 @@ class OptimizationSession:
             
             >>> # Plot R² to see improvement
             >>> fig = session.plot_metrics('r2')
+            
+            >>> # Force recomputation of metrics
+            >>> fig = session.plot_metrics('rmse', use_cached=False)
         
         Note:
-            This calls model.evaluate() which computes CV metrics for each training
-            set size. This can be computationally expensive for large datasets.
+            Calls model.evaluate() if metrics not cached, which can be computationally
+            expensive for large datasets. Set use_cached=False to force recomputation.
         """
         self._check_matplotlib()
         self._check_model_trained()
@@ -2000,13 +1908,21 @@ class OptimizationSession:
         if n_total < 5:
             raise ValueError(f"Need at least 5 observations for metrics plot (have {n_total})")
         
-        # Call model's evaluate method to get metrics over training sizes
-        logger.info(f"Computing {metric.upper()} over training set sizes (this may take a moment)...")
-        cv_metrics = self.model.evaluate(
-            self.experiment_manager,
-            cv_splits=cv_splits,
-            debug=False
-        )
+        # Check for cached metrics first
+        cache_key = f'_cached_cv_metrics_{cv_splits}'
+        if use_cached and hasattr(self.model, cache_key):
+            cv_metrics = getattr(self.model, cache_key)
+            logger.info(f"Using cached CV metrics for {metric.upper()}")
+        else:
+            # Call model's evaluate method to get metrics over training sizes
+            logger.info(f"Computing {metric.upper()} over training set sizes (this may take a moment)...")
+            cv_metrics = self.model.evaluate(
+                self.experiment_manager,
+                cv_splits=cv_splits,
+                debug=False
+            )
+            # Cache the results
+            setattr(self.model, cache_key, cv_metrics)
         
         # Extract the requested metric
         metric_key_map = {
@@ -2026,29 +1942,654 @@ class OptimizationSession:
             raise RuntimeError(f"Model did not return {metric_key} values from evaluate()")
         
         # X-axis: training set sizes (starts at 5)
-        x_range = range(5, len(metric_values) + 5)
+        x_range = np.arange(5, len(metric_values) + 5)
+        metric_array = np.array(metric_values)
         
-        # Create figure
-        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        
-        # Plot as line with markers
-        ax.plot(x_range, metric_values, marker='o', linewidth=2, 
-                markersize=6, color='#2E86AB')
-        
-        # Labels
-        metric_labels = {
-            'rmse': 'RMSE',
-            'mae': 'MAE',
-            'r2': 'R²',
-            'mape': 'MAPE (%)'
-        }
-        ax.set_xlabel("Number of Observations")
-        ax.set_ylabel(metric_labels[metric])
-        ax.set_title(f"{metric_labels[metric]} vs Number of Observations")
-        ax.grid(True, alpha=0.3)
-        
-        fig.tight_layout()
+        # Delegate to visualization module
+        fig, ax = create_metrics_plot(
+            training_sizes=x_range,
+            metric_values=metric_array,
+            metric_name=metric,
+            figsize=figsize,
+            dpi=dpi
+        )
         
         logger.info(f"Generated {metric} metrics plot with {len(metric_values)} points")
         return fig
-
+    
+    def plot_qq(
+        self,
+        use_calibrated: bool = False,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create Q-Q (quantile-quantile) plot for model residuals normality check.
+        
+        Visualizes whether the model's prediction errors (residuals) follow a normal
+        distribution. Points should lie close to the diagonal line if residuals are
+        normally distributed, which is an assumption of Gaussian Process models.
+        
+        Args:
+            use_calibrated: Use calibrated uncertainty estimates if available
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: "Q-Q Plot: Residuals Normality Check")
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Check if residuals are normally distributed
+            >>> fig = session.plot_qq()
+            >>> fig.savefig('qq_plot.png')
+            
+            >>> # Use calibrated predictions if available
+            >>> fig = session.plot_qq(use_calibrated=True)
+        
+        Note:
+            - Requires model to be trained with cross-validation
+            - Significant deviations from the diagonal suggest non-normal residuals
+            - Useful for diagnosing model assumptions and identifying outliers
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        # Get CV results
+        cv_results = self._check_cv_results(use_calibrated)
+        y_true = cv_results['y_true']
+        y_pred = cv_results['y_pred']
+        y_std = cv_results.get('y_std', None)
+        
+        # Compute standardized residuals (z-scores)
+        residuals = y_true - y_pred
+        if y_std is not None and len(y_std) > 0:
+            z_scores = residuals / y_std
+        else:
+            # Fallback: standardize by residual standard deviation
+            z_scores = residuals / np.std(residuals)
+        
+        # Delegate to visualization module
+        fig, ax = create_qq_plot(
+            z_scores=z_scores,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info("Generated Q-Q plot for residuals")
+        return fig
+    
+    def plot_calibration(
+        self,
+        use_calibrated: bool = False,
+        n_bins: int = 10,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create calibration plot showing reliability of uncertainty estimates.
+        
+        Compares predicted confidence intervals to actual coverage. For well-calibrated
+        models, a 68% confidence interval should contain ~68% of true values, 95% should
+        contain ~95%, etc. This plot helps diagnose if the model's uncertainty estimates
+        are too narrow (overconfident) or too wide (underconfident).
+        
+        Args:
+            use_calibrated: Use calibrated uncertainty estimates if available
+            n_bins: Number of bins for grouping predictions (default: 10)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: "Calibration Plot: Uncertainty Reliability")
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Check if uncertainty estimates are reliable
+            >>> fig = session.plot_calibration()
+            >>> fig.savefig('calibration_plot.png')
+            
+            >>> # With more bins for finer resolution
+            >>> fig = session.plot_calibration(n_bins=20)
+        
+        Note:
+            - Requires model to be trained with cross-validation and provide uncertainties
+            - Points above diagonal = model is underconfident (intervals too wide)
+            - Points below diagonal = model is overconfident (intervals too narrow)
+            - Well-calibrated models have points close to the diagonal
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        # Get CV results
+        cv_results = self._check_cv_results(use_calibrated)
+        y_true = cv_results['y_true']
+        y_pred = cv_results['y_pred']
+        y_std = cv_results.get('y_std', None)
+        
+        if y_std is None:
+            raise ValueError(
+                "Model does not provide uncertainty estimates (y_std). "
+                "Calibration plot requires uncertainty predictions."
+            )
+        
+        # Compute calibration curve data
+        from scipy import stats
+        
+        # Compute empirical coverage for a range of nominal probabilities
+        nominal_probs = np.arange(0.10, 1.00, 0.05)
+        empirical_coverage = []
+        
+        for prob in nominal_probs:
+            # Convert probability to sigma multiplier
+            sigma = stats.norm.ppf((1 + prob) / 2)
+            
+            # Compute empirical coverage at this sigma level
+            lower_bound = y_pred - sigma * y_std
+            upper_bound = y_pred + sigma * y_std
+            within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
+            empirical_coverage.append(np.mean(within_interval))
+        
+        empirical_coverage = np.array(empirical_coverage)
+        
+        # Delegate to visualization module
+        fig, ax = create_calibration_plot(
+            nominal_probs=nominal_probs,
+            empirical_coverage=empirical_coverage,
+            figsize=figsize,
+            dpi=dpi,
+            title=title or "Calibration Plot: Uncertainty Reliability"
+        )
+        
+        logger.info("Generated calibration plot for uncertainty estimates")
+        return fig
+    
+    def plot_regret(
+        self,
+        goal: Literal['maximize', 'minimize'] = 'maximize',
+        include_predictions: bool = True,
+        show_cumulative: bool = False,
+        backend: Optional[str] = None,
+        kernel: Optional[str] = None,
+        n_grid_points: int = 1000,
+        sigma_bands: Optional[List[float]] = None,
+        start_iteration: int = 5,
+        reuse_hyperparameters: bool = True,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Plot optimization progress (regret curve).
+        
+        Shows the best value found as a function of iteration number. The curve
+        displays cumulative best results and all observed values, providing insight
+        into optimization convergence.
+        
+        A flattening curve indicates the optimization is converging (no further
+        improvements being found). This is useful for determining when to stop
+        an optimization campaign.
+        
+        Optionally overlays the model's predicted best value (max posterior mean)
+        with uncertainty bands, showing where the model believes the optimum lies.
+        
+        Args:
+            goal: 'maximize' or 'minimize' - which direction to optimize
+            include_predictions: Whether to overlay max(posterior mean) with uncertainty bands
+            backend: Model backend ('sklearn' or 'botorch'). Uses session default if None.
+            kernel: Kernel type ('RBF', 'Matern', etc.). Uses session default if None.
+            n_grid_points: Number of points to evaluate for finding max posterior mean
+            sigma_bands: List of sigma values for uncertainty bands (e.g., [1.0, 2.0])
+            start_iteration: First iteration to compute predictions (needs enough data)
+            reuse_hyperparameters: Reuse final model's hyperparameters (faster, default True)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom plot title (auto-generated if None)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # For a maximization problem
+            >>> fig = session.plot_regret(goal='maximize')
+            >>> fig.savefig('optimization_progress.png')
+            
+            >>> # With custom uncertainty bands (±1σ, ±2σ)
+            >>> fig = session.plot_regret(goal='maximize', sigma_bands=[1.0, 2.0])
+            
+            >>> # For a minimization problem
+            >>> fig = session.plot_regret(goal='minimize')
+        
+        Note:
+            - Requires at least 2 experiments
+            - Also known as "simple regret" or "incumbent trajectory"
+            - Best used to visualize overall optimization progress
+        """
+        self._check_matplotlib()
+        
+        # Check we have experiments
+        n_exp = len(self.experiment_manager.df)
+        if n_exp < 2:
+            raise ValueError(f"Need at least 2 experiments for regret plot (have {n_exp})")
+        
+        # Get observed values and create iteration array (1-based for user clarity)
+        # Use first target column (single-objective optimization)
+        target_col = self.experiment_manager.target_columns[0]
+        observed_values = self.experiment_manager.df[target_col].values
+        iterations = np.arange(1, n_exp + 1)  # 1-based: [1, 2, 3, ..., n]
+        
+        # Compute posterior predictions if requested
+        predicted_means = None
+        predicted_stds = None
+        
+        if include_predictions and n_exp >= start_iteration:
+            try:
+                predicted_means, predicted_stds = self._compute_posterior_predictions(
+                    goal=goal,
+                    backend=backend,
+                    kernel=kernel,
+                    n_grid_points=n_grid_points,
+                    start_iteration=start_iteration,
+                    reuse_hyperparameters=reuse_hyperparameters
+                )
+            except Exception as e:
+                logger.warning(f"Could not compute posterior predictions: {e}. Plotting observations only.")
+        
+        # Import visualization function
+        from alchemist_core.visualization.plots import create_regret_plot
+        
+        # Delegate to visualization module
+        fig, ax = create_regret_plot(
+            iterations=iterations,
+            observed_values=observed_values,
+            show_cumulative=show_cumulative,
+            goal=goal,
+            predicted_means=predicted_means,
+            predicted_stds=predicted_stds,
+            sigma_bands=sigma_bands,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info(f"Generated regret plot with {n_exp} experiments")
+        return fig
+    
+    def _generate_prediction_grid(self, n_grid_points: int) -> pd.DataFrame:
+        """
+        Generate grid of test points across search space for predictions.
+        
+        Args:
+            n_grid_points: Target number of grid points (actual number depends on dimensionality)
+        
+        Returns:
+            DataFrame with columns for each variable
+        """
+        grid_1d = []
+        var_names = []
+        
+        for var in self.search_space.variables:
+            var_names.append(var['name'])
+            
+            if var['type'] == 'real':
+                # Continuous: linspace
+                n_per_dim = int(n_grid_points ** (1/len(self.search_space.variables)))
+                grid_1d.append(np.linspace(var['min'], var['max'], n_per_dim))
+            elif var['type'] == 'integer':
+                # Integer: range of integers
+                n_per_dim = int(n_grid_points ** (1/len(self.search_space.variables)))
+                grid_1d.append(np.linspace(var['min'], var['max'], n_per_dim).astype(int))
+            else:
+                # Categorical: use actual category values
+                grid_1d.append(var['values'])
+        
+        # Generate test points using Cartesian product
+        from itertools import product
+        X_test_tuples = list(product(*grid_1d))
+        
+        # Convert to DataFrame with proper variable names and types
+        grid = pd.DataFrame(X_test_tuples, columns=var_names)
+        
+        # Ensure correct dtypes for categorical variables
+        for var in self.search_space.variables:
+            if var['type'] == 'categorical':
+                grid[var['name']] = grid[var['name']].astype(str)
+        
+        return grid
+    
+    def _compute_posterior_predictions(
+        self,
+        goal: str,
+        backend: Optional[str],
+        kernel: Optional[str],
+        n_grid_points: int,
+        start_iteration: int,
+        reuse_hyperparameters: bool
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute max(posterior mean) and corresponding std at each iteration.
+        
+        Helper method for regret plot to overlay model predictions with uncertainty.
+        
+        Returns:
+            Tuple of (predicted_means, predicted_stds) arrays, same length as n_experiments
+        """
+        n_exp = len(self.experiment_manager.df)
+        
+        # Initialize arrays (NaN for iterations before start_iteration)
+        predicted_means = np.full(n_exp, np.nan)
+        predicted_stds = np.full(n_exp, np.nan)
+        
+        # Determine backend and kernel
+        if backend is None:
+            if self.model is None or not self.model.is_trained:
+                raise ValueError("No trained model in session. Train a model first or specify backend/kernel.")
+            backend = self.model_backend
+        
+        if kernel is None:
+            if self.model is None or not self.model.is_trained:
+                raise ValueError("No trained model in session. Train a model first or specify backend/kernel.")
+            if backend == 'sklearn':
+                kernel = self.model.kernel_options.get('kernel_type', 'RBF')
+            elif backend == 'botorch':
+                # BoTorchModel stores kernel type in cont_kernel_type
+                kernel = getattr(self.model, 'cont_kernel_type', 'Matern')
+        
+        # Extract optimized hyperparameters if reusing
+        optimized_kernel_params = None
+        if reuse_hyperparameters and self.model is not None and self.model.is_trained:
+            if backend == 'sklearn':
+                optimized_kernel_params = self.model.optimized_kernel.get_params()
+            # For botorch, would extract from model.covar_module.state_dict()
+        
+        # Generate grid for predictions
+        grid = self._generate_prediction_grid(n_grid_points)
+        
+        # Get full dataset
+        full_df = self.experiment_manager.df
+        target_col = self.experiment_manager.target_columns[0]
+        
+        # Loop through iterations
+        for i in range(start_iteration, n_exp + 1):
+            try:
+                # Create temporary session with subset of data
+                temp_session = OptimizationSession()
+                
+                # Directly assign search space to avoid logging spam
+                temp_session.search_space = self.search_space
+                temp_session.experiment_manager.set_search_space(self.search_space)
+                
+                # Add subset of experiments
+                for idx in range(i):
+                    row = full_df.iloc[idx]
+                    inputs = {var['name']: row[var['name']] for var in self.experiment_manager.search_space.variables}
+                    temp_session.add_experiment(inputs, output=row[target_col])
+                
+                # Train model on subset
+                if backend == 'sklearn':
+                    # Create model instance
+                    from alchemist_core.models.sklearn_model import SklearnModel
+                    temp_model = SklearnModel(kernel_options={'kernel_type': kernel})
+                    
+                    if reuse_hyperparameters and optimized_kernel_params is not None:
+                        # Override n_restarts to disable optimization
+                        temp_model.n_restarts_optimizer = 0
+                        temp_model._custom_optimizer = None
+                        # Store the optimized kernel to use
+                        from sklearn.gaussian_process.kernels import clone_kernel
+                        temp_model._reuse_kernel = clone_kernel(self.model.optimized_kernel)
+                    
+                    # Attach model and train
+                    temp_session.model = temp_model
+                    temp_session.model_backend = 'sklearn'
+                    temp_model.train(temp_session.experiment_manager)
+                    
+                    # Verify model was trained
+                    if not temp_model.is_trained:
+                        raise ValueError(f"Model training failed at iteration {i}")
+                    if temp_session.model is None:
+                        raise ValueError(f"temp_session.model is None after training at iteration {i}")
+                    
+                elif backend == 'botorch':
+                    temp_session.train_model(backend='botorch', kernel=kernel)
+                
+                # Predict on grid  
+                result = temp_session.predict(grid)
+                if result is None:
+                    raise ValueError(f"predict() returned None at iteration {i}")
+                means, stds = result
+                
+                # Find max mean (or min for minimization)
+                if goal.lower() == 'maximize':
+                    best_idx = np.argmax(means)
+                else:
+                    best_idx = np.argmin(means)
+                
+                predicted_means[i - 1] = means[best_idx]
+                predicted_stds[i - 1] = stds[best_idx]
+                
+            except Exception as e:
+                import traceback
+                logger.warning(f"Failed to compute predictions for iteration {i}: {e}")
+                logger.debug(traceback.format_exc())
+                # Leave as NaN
+        
+        return predicted_means, predicted_stds
+    
+    def plot_probability_of_improvement(
+        self,
+        goal: Literal['maximize', 'minimize'] = 'maximize',
+        backend: Optional[str] = None,
+        kernel: Optional[str] = None,
+        n_grid_points: int = 1000,
+        start_iteration: int = 5,
+        reuse_hyperparameters: bool = True,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Plot maximum probability of improvement over optimization iterations.
+        
+        Retroactively computes how the probability of finding a better solution
+        evolved during optimization. At each iteration:
+        1. Trains GP on observations up to that point (reusing hyperparameters)
+        2. Computes PI across the search space
+        3. Records the maximum PI value
+        
+        Decreasing max(PI) indicates the optimization is converging and has
+        less potential for improvement remaining.
+        
+        Args:
+            goal: 'maximize' or 'minimize' - optimization direction
+            backend: Model backend to use (defaults to session's model_backend)
+            kernel: Kernel type for GP (defaults to session's kernel type)
+            n_grid_points: Number of points to sample search space
+            start_iteration: Minimum observations before computing PI (default: 5)
+            reuse_hyperparameters: If True, use final model's optimized hyperparameters
+                                   for all iterations (much faster, recommended)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom plot title (auto-generated if None)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # After running optimization
+            >>> fig = session.plot_probability_of_improvement(goal='maximize')
+            >>> fig.savefig('pi_convergence.png')
+        
+        Note:
+            - Requires at least `start_iteration` experiments
+            - Use fewer n_grid_points for faster computation
+            - PI values near 0 suggest little room for improvement
+            - Reusing hyperparameters (default) is much faster and usually sufficient
+        """
+        self._check_matplotlib()
+        
+        # Check we have enough experiments
+        n_exp = len(self.experiment_manager.df)
+        if n_exp < start_iteration:
+            raise ValueError(
+                f"Need at least {start_iteration} experiments for PI plot "
+                f"(have {n_exp}). Lower start_iteration if needed."
+            )
+        
+        # Default to session's model configuration if not specified
+        if backend is None:
+            if self.model_backend is None:
+                raise ValueError(
+                    "No backend specified and session has no trained model. "
+                    "Either train a model first or specify backend parameter."
+                )
+            backend = self.model_backend
+        
+        if kernel is None:
+            if self.model is None:
+                raise ValueError(
+                    "No kernel specified and session has no trained model. "
+                    "Either train a model first or specify kernel parameter."
+                )
+            # Extract kernel type from trained model
+            if hasattr(self.model, 'optimized_kernel'):
+                # sklearn model
+                kernel_obj = self.model.optimized_kernel
+                if 'RBF' in str(type(kernel_obj)):
+                    kernel = 'RBF'
+                elif 'Matern' in str(type(kernel_obj)):
+                    kernel = 'Matern'
+                elif 'RationalQuadratic' in str(type(kernel_obj)):
+                    kernel = 'RationalQuadratic'
+                else:
+                    kernel = 'RBF'  # fallback
+            else:
+                kernel = 'Matern'  # fallback for botorch
+        
+        # Get optimized hyperparameters if reusing them
+        optimized_kernel_params = None
+        if reuse_hyperparameters and self.model is not None:
+            if backend.lower() == 'sklearn' and hasattr(self.model, 'optimized_kernel'):
+                # Extract the optimized kernel parameters
+                optimized_kernel_params = self.model.optimized_kernel
+                logger.info(f"Reusing optimized kernel hyperparameters from trained model")
+            # Note: botorch hyperparameter reuse would go here if needed
+        
+        # Get data
+        target_col = self.experiment_manager.target_columns[0]
+        X_all, y_all = self.experiment_manager.get_features_and_target()
+        
+        # Generate grid of test points across search space
+        X_test = self._generate_prediction_grid(n_grid_points)
+        
+        logger.info(f"Computing PI convergence from iteration {start_iteration} to {n_exp}...")
+        logger.info(f"Using {len(X_test)} test points across search space")
+        if reuse_hyperparameters and optimized_kernel_params is not None:
+            logger.info("Using optimized hyperparameters from final model (faster)")
+        else:
+            logger.info("Optimizing hyperparameters at each iteration (slower but more accurate)")
+        
+        # Compute max PI at each iteration
+        iterations = []
+        max_pi_values = []
+        
+        for i in range(start_iteration, n_exp + 1):
+            # Get data up to iteration i
+            X_train = X_all.iloc[:i]
+            y_train = y_all[:i]
+            
+            # Create temporary session for this iteration
+            temp_session = OptimizationSession(
+                search_space=self.search_space,
+                experiment_manager=ExperimentManager(search_space=self.search_space)
+            )
+            temp_session.experiment_manager.df = self.experiment_manager.df.iloc[:i].copy()
+            
+            # Train model with optimized hyperparameters if available
+            try:
+                if reuse_hyperparameters and optimized_kernel_params is not None and backend.lower() == 'sklearn':
+                    # For sklearn: directly access model and set optimized kernel
+                    from alchemist_core.models.sklearn_model import SklearnModel
+                    
+                    # Create model instance with kernel options
+                    model_kwargs = {
+                        'kernel_options': {'kernel_type': kernel},
+                        'n_restarts_optimizer': 0  # Don't optimize since we're using fixed hyperparameters
+                    }
+                    temp_model = SklearnModel(**model_kwargs)
+                    
+                    # Preprocess data
+                    X_processed, y_processed = temp_model._preprocess_data(temp_session.experiment_manager)
+                    
+                    # Import sklearn's GP
+                    from sklearn.gaussian_process import GaussianProcessRegressor
+                    
+                    # Create GP with the optimized kernel and optimizer=None to keep it fixed
+                    gp_params = {
+                        'kernel': optimized_kernel_params,
+                        'optimizer': None,  # Keep hyperparameters fixed
+                        'random_state': temp_model.random_state
+                    }
+                    
+                    # Only add alpha if we have noise values
+                    if temp_model.alpha is not None:
+                        gp_params['alpha'] = temp_model.alpha
+                    
+                    temp_model.model = GaussianProcessRegressor(**gp_params)
+                    
+                    # Fit model (only computes GP weights, not hyperparameters)
+                    temp_model.model.fit(X_processed, y_processed)
+                    temp_model._is_trained = True
+                    
+                    # Set the model in the session
+                    temp_session.model = temp_model
+                    temp_session.model_backend = 'sklearn'
+                else:
+                    # Standard training with hyperparameter optimization
+                    temp_session.train_model(backend=backend, kernel=kernel)
+            except Exception as e:
+                logger.warning(f"Failed to train model at iteration {i}: {e}")
+                continue
+            
+            # Get predictions with uncertainty
+            y_pred, y_std = temp_session.predict(X_test)
+            
+            # Compute PI for all test points
+            if goal.lower() == 'maximize':
+                f_best = y_train.max()
+                z = (y_pred - f_best) / (y_std + 1e-9)
+            else:
+                f_best = y_train.min()
+                z = (f_best - y_pred) / (y_std + 1e-9)
+            
+            from scipy.stats import norm
+            pi = norm.cdf(z)
+            
+            # Record max PI
+            max_pi = pi.max()
+            iterations.append(i)
+            max_pi_values.append(max_pi)
+            
+            if i % 5 == 0 or i == n_exp:
+                logger.info(f"  Iteration {i}/{n_exp}: max(PI) = {max_pi:.4f}")
+        
+        if not iterations:
+            raise RuntimeError("Failed to compute PI for any iterations")
+        
+        # Import visualization function
+        from alchemist_core.visualization.plots import create_probability_of_improvement_plot
+        
+        # Create plot
+        fig, ax = create_probability_of_improvement_plot(
+            iterations=np.array(iterations),
+            max_pi_values=np.array(max_pi_values),
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info(f"Generated PI convergence plot with {len(iterations)} points")
+        return fig

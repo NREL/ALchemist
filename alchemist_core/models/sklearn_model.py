@@ -322,7 +322,13 @@ class SklearnModel(BaseModel):
         self.X_orig = X_orig  # Store original data for contour generation
         
         X, y = self._preprocess_data(experiment_manager)
-        self.kernel = self._build_kernel(X)
+        
+        # Check if we should reuse a pre-optimized kernel
+        if hasattr(self, '_reuse_kernel') and self._reuse_kernel is not None:
+            self.kernel = self._reuse_kernel
+            logger.info("Reusing pre-optimized kernel hyperparameters")
+        else:
+            self.kernel = self._build_kernel(X)
         
         # Create base parameters dictionary
         params = {

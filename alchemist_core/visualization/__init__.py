@@ -1,0 +1,37 @@
+"""
+Visualization module for ALchemist.
+
+Pure plotting functions with no session or UI dependencies.
+All functions return matplotlib Figure/Axes objects for maximum flexibility.
+"""
+
+from alchemist_core.visualization.plots import (
+    create_parity_plot,
+    create_contour_plot,
+    create_slice_plot,
+    create_metrics_plot,
+    create_qq_plot,
+    create_calibration_plot,
+    create_regret_plot,
+    create_probability_of_improvement_plot,
+)
+
+from alchemist_core.visualization.helpers import (
+    check_matplotlib,
+    compute_z_scores,
+    compute_calibration_metrics,
+)
+
+__all__ = [
+    'create_parity_plot',
+    'create_contour_plot',
+    'create_slice_plot',
+    'create_metrics_plot',
+    'create_qq_plot',
+    'create_calibration_plot',
+    'create_regret_plot',
+    'create_probability_of_improvement_plot',
+    'check_matplotlib',
+    'compute_z_scores',
+    'compute_calibration_metrics',
+]

@@ -5,6 +5,7 @@ from botorch.models import SingleTaskGP
 from botorch.models.gp_regression_mixed import MixedSingleTaskGP
 from botorch.models.transforms import Normalize, Standardize
 from botorch.fit import fit_gpytorch_mll
+from botorch.exceptions import OptimizationWarning
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import KFold
@@ -61,15 +62,25 @@ class BoTorchModel(BaseModel):
     
     def _get_cont_kernel_factory(self):
         """Returns a factory function for the continuous kernel."""
+        # Validate kernel type before creating factory
+        valid_kernels = ["matern", "rbf"]
+        kernel_lower = self.cont_kernel_type.lower()
+        
+        if kernel_lower not in valid_kernels:
+            raise ValueError(
+                f"Unknown kernel type: '{self.cont_kernel_type}'. "
+                f"Valid options for BoTorch are: {valid_kernels}"
+            )
+        
         def factory(batch_shape, ard_num_dims, active_dims):
-            if self.cont_kernel_type.lower() == "matern":
+            if kernel_lower == "matern":
                 return MaternKernel(
                     nu=self.matern_nu, 
                     ard_num_dims=ard_num_dims, 
                     active_dims=active_dims,
                     batch_shape=batch_shape
                 )
-            else:  # Default to RBF
+            else:  # RBF
                 return RBFKernel(
                     ard_num_dims=ard_num_dims, 
                     active_dims=active_dims,
@@ -208,12 +219,25 @@ class BoTorchModel(BaseModel):
                     outcome_transform=outcome_transform
                 )
         else:
-            # For continuous-only models
+            # For continuous-only models, we need to manually construct the covariance module
+            # SingleTaskGP doesn't accept cont_kernel_factory, so we create it and set it manually
+            from gpytorch.kernels import ScaleKernel
+            
+            # Get the kernel from our factory
+            num_dims = train_X.shape[-1]
+            base_kernel = cont_kernel_factory(
+                batch_shape=torch.Size([]),
+                ard_num_dims=num_dims,
+                active_dims=list(range(num_dims))
+            )
+            covar_module = ScaleKernel(base_kernel)
+            
             if noise is not None:
                 self.model = SingleTaskGP(
                     train_X=train_X, 
                     train_Y=train_Y, 
                     train_Yvar=train_Yvar,
+                    covar_module=covar_module,
                     input_transform=input_transform,
                     outcome_transform=outcome_transform
                 )
@@ -222,6 +246,7 @@ class BoTorchModel(BaseModel):
                 self.model = SingleTaskGP(
                     train_X=train_X, 
                     train_Y=train_Y,
+                    covar_module=covar_module,
                     input_transform=input_transform,
                     outcome_transform=outcome_transform
                 )
@@ -441,11 +466,11 @@ class BoTorchModel(BaseModel):
         n_obs = []
         
         # Calculate total steps for progress
-        total_steps = len(range(max(cv_splits+1, 5), len(full_X) + 1))
+        total_steps = len(range(5, len(full_X) + 1))
         current_step = 0
         
-        # Evaluate on increasing subsets of data
-        for i in range(max(cv_splits+1, 5), len(full_X) + 1):
+        # Evaluate on increasing subsets of data (starting at 5 for minimum CV size)
+        for i in range(5, len(full_X) + 1):
             if debug:
                 logger.info(f"Evaluating with {i} observations")
                 
@@ -462,48 +487,68 @@ class BoTorchModel(BaseModel):
             
             # Perform cross-validation for this subset size
             for train_idx, test_idx in kf.split(subset_np_X):
-                # Split data
-                X_train = subset_X[train_idx]
-                y_train = subset_Y[train_idx]
-                X_test = subset_X[test_idx]
-                y_test = subset_Y[test_idx]
-                
-                # Create a new model with this fold's training data
-                # Need to recreate transforms with the same parameters as the main model
-                fold_input_transform, fold_outcome_transform = self._create_transforms(X_train, y_train)
-                
-                cont_kernel_factory = self._get_cont_kernel_factory()
-                if self.cat_dims and len(self.cat_dims) > 0:
-                    fold_model = MixedSingleTaskGP(
-                        X_train, y_train, 
-                        cat_dims=self.cat_dims,
-                        cont_kernel_factory=cont_kernel_factory,
-                        input_transform=fold_input_transform,
-                        outcome_transform=fold_outcome_transform
-                    )
-                else:
-                    fold_model = SingleTaskGP(
-                        X_train, y_train,
-                        input_transform=fold_input_transform,
-                        outcome_transform=fold_outcome_transform
-                    )
-                
-                # Train the fold model from scratch (don't load state_dict to avoid dimension mismatches)
-                # This is necessary because folds may have different categorical values or data shapes
-                mll = ExactMarginalLogLikelihood(fold_model.likelihood, fold_model)
-                fit_gpytorch_mll(mll)
-                
-                # Make predictions on test fold
-                fold_model.eval()
-                fold_model.likelihood.eval()
-                
-                with torch.no_grad():
-                    posterior = fold_model.posterior(X_test)
-                    preds = posterior.mean.squeeze(-1)
+                try:
+                    # Split data
+                    X_train = subset_X[train_idx]
+                    y_train = subset_Y[train_idx]
+                    X_test = subset_X[test_idx]
+                    y_test = subset_Y[test_idx]
                     
-                    # Store this fold's results
-                    fold_y_trues.append(y_test.squeeze(-1))
-                    fold_y_preds.append(preds)
+                    # Create a new model with this fold's training data
+                    # Need to recreate transforms with the same parameters as the main model
+                    fold_input_transform, fold_outcome_transform = self._create_transforms(X_train, y_train)
+                    
+                    cont_kernel_factory = self._get_cont_kernel_factory()
+                    if self.cat_dims and len(self.cat_dims) > 0:
+                        fold_model = MixedSingleTaskGP(
+                            X_train, y_train, 
+                            cat_dims=self.cat_dims,
+                            cont_kernel_factory=cont_kernel_factory,
+                            input_transform=fold_input_transform,
+                            outcome_transform=fold_outcome_transform
+                        )
+                    else:
+                        fold_model = SingleTaskGP(
+                            X_train, y_train,
+                            input_transform=fold_input_transform,
+                            outcome_transform=fold_outcome_transform
+                        )
+                    
+                    # Train the fold model from scratch (don't load state_dict to avoid dimension mismatches)
+                    # This is necessary because folds may have different categorical values or data shapes
+                    mll = ExactMarginalLogLikelihood(fold_model.likelihood, fold_model)
+                    
+                    # Suppress optimization warnings for small folds where convergence may be difficult
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('ignore', category=OptimizationWarning)
+                        # Use fit_gpytorch_mll with options that improve convergence for small datasets
+                        fit_gpytorch_mll(
+                            mll,
+                            options={
+                                "maxiter": 50,  # Reduce iterations for speed
+                                "ftol": 1e-6,   # Slightly relaxed tolerance
+                                "gtol": 1e-5,   # Slightly relaxed gradient tolerance
+                            }
+                        )
+                    
+                    # Make predictions on test fold
+                    fold_model.eval()
+                    fold_model.likelihood.eval()
+                    
+                    with torch.no_grad():
+                        posterior = fold_model.posterior(X_test)
+                        preds = posterior.mean.squeeze(-1)
+                        
+                        # Store this fold's results
+                        fold_y_trues.append(y_test.squeeze(-1))
+                        fold_y_preds.append(preds)
+                        
+                except Exception as e:
+                    # Skip this fold if optimization fails (can happen with small/difficult training sets)
+                    if debug:
+                        logger.warning(f"Skipping fold for subset size {i} due to error: {e}")
+                    continue
             
             # Combine all fold results for this subset size
             all_y_true = torch.cat(fold_y_trues).cpu().numpy()

@@ -149,8 +149,8 @@ class TestBoTorchModelExtended:
         
         results = catalyst_session.train_model(
             backend='botorch',
-            kernel='Matern',
-            cat_dims=[1]  # Explicitly tell BoTorch which dimension is categorical
+            kernel='Matern'
+            # Session now auto-detects cat_dims from search space
         )
         
         assert results['success'] == True
