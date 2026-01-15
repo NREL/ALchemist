@@ -1280,19 +1280,68 @@ class OptimizationSession:
 
         return content
     
-    @staticmethod
-    def load_session(filepath: str, retrain_on_load: bool = True) -> 'OptimizationSession':
+    def load_session(self, filepath: str = None, retrain_on_load: bool = True) -> 'OptimizationSession':
         """
         Load session from JSON file.
         
+        This method works both as a static method (creating a new session) and as an
+        instance method (loading into existing session):
+        
+        Static usage (returns new session):
+            > session = OptimizationSession.load_session("my_session.json")
+        
+        Instance usage (loads into existing session):
+            > session = OptimizationSession()
+            > session.load_session("my_session.json")
+            > # session.experiment_manager.df is now populated
+        
         Args:
-            filepath: Path to session file
+            filepath: Path to session file (required when called as static method,
+                     can be self when called as instance method)
+            retrain_on_load: Whether to retrain model if config exists (default: True)
             
         Returns:
-            OptimizationSession with restored state
+            OptimizationSession (new or modified instance)
+        """
+        # Detect if called as instance method or static method
+        # When called as static method: self is actually the filepath string
+        # When called as instance method: self is an OptimizationSession instance
+        if isinstance(self, OptimizationSession):
+            # Instance method: load into this session
+            if filepath is None:
+                raise ValueError("filepath is required when calling as instance method")
             
-        Example:
-            > session = OptimizationSession.load_session("my_session.json")
+            # Load from static implementation
+            loaded_session = OptimizationSession._load_session_impl(filepath, retrain_on_load)
+            
+            # Copy all attributes from loaded session to this instance
+            self.search_space = loaded_session.search_space
+            self.experiment_manager = loaded_session.experiment_manager
+            self.metadata = loaded_session.metadata
+            self.audit_log = loaded_session.audit_log
+            self.config = loaded_session.config
+            self.model = loaded_session.model
+            self.model_backend = loaded_session.model_backend
+            self.acquisition = loaded_session.acquisition
+            self.staged_experiments = loaded_session.staged_experiments
+            self.last_suggestions = loaded_session.last_suggestions
+            
+            # Don't copy events emitter - keep the original
+            logger.info(f"Loaded session data into current instance from {filepath}")
+            self.events.emit('session_loaded', {'filepath': str(filepath)})
+            
+            return self
+        else:
+            # Static method: self is actually the filepath, retrain_on_load is in filepath param
+            actual_filepath = self
+            actual_retrain = filepath if filepath is not None else True
+            return OptimizationSession._load_session_impl(actual_filepath, actual_retrain)
+    
+    @staticmethod
+    def _load_session_impl(filepath: str, retrain_on_load: bool = True) -> 'OptimizationSession':
+        """
+        Internal implementation for loading session from file.
+        This always creates and returns a new session.
         """
         filepath = Path(filepath)
         

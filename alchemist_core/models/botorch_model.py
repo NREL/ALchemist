@@ -16,6 +16,8 @@ from botorch.models.utils.assorted import InputDataWarning
 
 # Import necessary kernels from GPyTorch
 from gpytorch.kernels import MaternKernel, RBFKernel
+import gpytorch
+gpytorch.settings.cholesky_jitter(1e-2)
 
 logger = get_logger(__name__)
 
