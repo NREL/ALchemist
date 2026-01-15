@@ -165,12 +165,12 @@ class BoTorchModel(BaseModel):
         X_encoded = self._encode_categorical_data(X)
         
         # Convert to tensors
-        train_X = torch.tensor(X_encoded.values, dtype=torch.double)
-        train_Y = torch.tensor(y.values, dtype=torch.double).unsqueeze(-1)
+        train_X = torch.tensor(X_encoded.values, dtype=torch.float64)
+        train_Y = torch.tensor(y.values, dtype=torch.float64).unsqueeze(-1)
         
         # Convert noise values to tensor if available
         if noise is not None:
-            train_Yvar = torch.tensor(noise.values, dtype=torch.double).unsqueeze(-1)
+            train_Yvar = torch.tensor(noise.values, dtype=torch.float64).unsqueeze(-1)
             logger.info(f"Using provided noise values for BoTorch model regularization.")
         else:
             train_Yvar = None
@@ -284,10 +284,10 @@ class BoTorchModel(BaseModel):
         
         # Convert to tensor - handle both DataFrame and numpy array inputs
         if isinstance(X_encoded, pd.DataFrame):
-            test_X = torch.tensor(X_encoded.values, dtype=torch.double)
+            test_X = torch.tensor(X_encoded.values, dtype=torch.float64)
         else:
             # If X_encoded is already a numpy array
-            test_X = torch.tensor(X_encoded, dtype=torch.double)
+            test_X = torch.tensor(X_encoded, dtype=torch.float64)
         
         # Set model to evaluation mode
         self.model.eval()
@@ -327,10 +327,10 @@ class BoTorchModel(BaseModel):
         
         # Convert to tensor
         if isinstance(X_encoded, pd.DataFrame):
-            X_tensor = torch.tensor(X_encoded.values, dtype=torch.double)
+            X_tensor = torch.tensor(X_encoded.values, dtype=torch.float64)
         else:
             # If X_encoded is already a numpy array
-            X_tensor = torch.tensor(X_encoded, dtype=torch.double)
+            X_tensor = torch.tensor(X_encoded, dtype=torch.float64)
         
         # Set model to evaluation mode
         self.model.eval()
@@ -455,8 +455,8 @@ class BoTorchModel(BaseModel):
         X_encoded = self._encode_categorical_data(X)
         
         # Convert to tensors
-        full_X = torch.tensor(X_encoded.values, dtype=torch.double)
-        full_Y = torch.tensor(y.values, dtype=torch.double).unsqueeze(-1)
+        full_X = torch.tensor(X_encoded.values, dtype=torch.float64)
+        full_Y = torch.tensor(y.values, dtype=torch.float64).unsqueeze(-1)
         
         # Metrics storage
         rmse_values = []
@@ -843,14 +843,14 @@ class BoTorchModel(BaseModel):
         # Convert pandas/numpy data to tensors if needed
         if isinstance(X, pd.DataFrame):
             X_encoded = self._encode_categorical_data(X)
-            X_tensor = torch.tensor(X_encoded.values, dtype=torch.double)
+            X_tensor = torch.tensor(X_encoded.values, dtype=torch.float64)
         elif isinstance(X, np.ndarray):
-            X_tensor = torch.tensor(X, dtype=torch.double)
+            X_tensor = torch.tensor(X, dtype=torch.float64)
         else:
             X_tensor = X  # Assume it's already a tensor
             
         if isinstance(y, pd.Series) or isinstance(y, np.ndarray):
-            y_tensor = torch.tensor(y, dtype=torch.double).unsqueeze(-1)
+            y_tensor = torch.tensor(y, dtype=torch.float64).unsqueeze(-1)
         else:
             y_tensor = y  # Assume it's already a tensor
         

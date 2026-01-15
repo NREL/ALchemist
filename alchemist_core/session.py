@@ -2387,6 +2387,7 @@ class OptimizationSession:
         n_grid_points: int = 1000,
         start_iteration: int = 5,
         reuse_hyperparameters: bool = True,
+        xi: float = 0.01,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None
@@ -2397,8 +2398,12 @@ class OptimizationSession:
         Retroactively computes how the probability of finding a better solution
         evolved during optimization. At each iteration:
         1. Trains GP on observations up to that point (reusing hyperparameters)
-        2. Computes PI across the search space
+        2. Computes PI across the search space using native acquisition functions
         3. Records the maximum PI value
+        
+        Uses native PI implementations:
+        - sklearn backend: skopt.acquisition.gaussian_pi
+        - botorch backend: botorch.acquisition.ProbabilityOfImprovement
         
         Decreasing max(PI) indicates the optimization is converging and has
         less potential for improvement remaining.
@@ -2411,6 +2416,7 @@ class OptimizationSession:
             start_iteration: Minimum observations before computing PI (default: 5)
             reuse_hyperparameters: If True, use final model's optimized hyperparameters
                                    for all iterations (much faster, recommended)
+            xi: PI parameter controlling improvement threshold (default: 0.01)
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom plot title (auto-generated if None)
@@ -2428,6 +2434,7 @@ class OptimizationSession:
             - Use fewer n_grid_points for faster computation
             - PI values near 0 suggest little room for improvement
             - Reusing hyperparameters (default) is much faster and usually sufficient
+            - Uses rigorous acquisition function implementations (not approximations)
         """
         self._check_matplotlib()
         
@@ -2455,7 +2462,7 @@ class OptimizationSession:
                     "Either train a model first or specify kernel parameter."
                 )
             # Extract kernel type from trained model
-            if hasattr(self.model, 'optimized_kernel'):
+            if self.model_backend == 'sklearn' and hasattr(self.model, 'optimized_kernel'):
                 # sklearn model
                 kernel_obj = self.model.optimized_kernel
                 if 'RBF' in str(type(kernel_obj)):
@@ -2466,8 +2473,12 @@ class OptimizationSession:
                     kernel = 'RationalQuadratic'
                 else:
                     kernel = 'RBF'  # fallback
+            elif self.model_backend == 'botorch' and hasattr(self.model, 'cont_kernel_type'):
+                # botorch model - use the stored kernel type
+                kernel = self.model.cont_kernel_type
             else:
-                kernel = 'Matern'  # fallback for botorch
+                # Final fallback if we can't determine kernel
+                kernel = 'Matern'
         
         # Get optimized hyperparameters if reusing them
         optimized_kernel_params = None
@@ -2487,6 +2498,7 @@ class OptimizationSession:
         
         logger.info(f"Computing PI convergence from iteration {start_iteration} to {n_exp}...")
         logger.info(f"Using {len(X_test)} test points across search space")
+        logger.info(f"Using native PI acquisition functions (xi={xi})")
         if reuse_hyperparameters and optimized_kernel_params is not None:
             logger.info("Using optimized hyperparameters from final model (faster)")
         else:
@@ -2554,22 +2566,84 @@ class OptimizationSession:
                 logger.warning(f"Failed to train model at iteration {i}: {e}")
                 continue
             
-            # Get predictions with uncertainty
-            y_pred, y_std = temp_session.predict(X_test)
-            
-            # Compute PI for all test points
-            if goal.lower() == 'maximize':
-                f_best = y_train.max()
-                z = (y_pred - f_best) / (y_std + 1e-9)
-            else:
-                f_best = y_train.min()
-                z = (f_best - y_pred) / (y_std + 1e-9)
-            
-            from scipy.stats import norm
-            pi = norm.cdf(z)
+            # Compute PI using native acquisition functions
+            try:
+                if backend.lower() == 'sklearn':
+                    # Use skopt's gaussian_pi function
+                    from skopt.acquisition import gaussian_pi
+                    
+                    # For maximization, negate y values so skopt treats it as minimization
+                    if goal.lower() == 'maximize':
+                        y_opt = -y_train.max()
+                    else:
+                        y_opt = y_train.min()
+                    
+                    # Preprocess X_test using the model's preprocessing pipeline
+                    # This handles categorical encoding and scaling
+                    X_test_processed = temp_session.model._preprocess_X(X_test)
+                    
+                    # Compute PI for all test points using skopt's implementation
+                    # Note: gaussian_pi expects model with predict(X, return_std=True)
+                    pi_values = gaussian_pi(
+                        X=X_test_processed,
+                        model=temp_session.model.model,  # sklearn GP model
+                        y_opt=y_opt,
+                        xi=xi
+                    )
+                    
+                    max_pi = float(np.max(pi_values))
+                    
+                elif backend.lower() == 'botorch':
+                    # Use BoTorch's ProbabilityOfImprovement
+                    import torch
+                    from botorch.acquisition import ProbabilityOfImprovement
+                    
+                    # Determine best value seen so far
+                    if goal.lower() == 'maximize':
+                        best_f = float(y_train.max())
+                    else:
+                        best_f = float(y_train.min())
+                    
+                    # Encode categorical variables if present
+                    X_test_encoded = temp_session.model._encode_categorical_data(X_test)
+                    
+                    # Convert to torch tensor
+                    X_tensor = torch.from_numpy(X_test_encoded.values).to(
+                        dtype=temp_session.model.model.train_inputs[0].dtype,
+                        device=temp_session.model.model.train_inputs[0].device
+                    )
+                    
+                    # Create PI acquisition function
+                    if goal.lower() == 'maximize':
+                        pi_acq = ProbabilityOfImprovement(
+                            model=temp_session.model.model,
+                            best_f=best_f,
+                            maximize=True
+                        )
+                    else:
+                        pi_acq = ProbabilityOfImprovement(
+                            model=temp_session.model.model,
+                            best_f=best_f,
+                            maximize=False
+                        )
+                    
+                    # Evaluate PI on all test points
+                    temp_session.model.model.eval()
+                    with torch.no_grad():
+                        pi_values = pi_acq(X_tensor.unsqueeze(-2))  # Add batch dimension
+                    
+                    max_pi = float(pi_values.max().item())
+                    
+                else:
+                    raise ValueError(f"Unknown backend: {backend}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to compute PI at iteration {i}: {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
+                continue
             
             # Record max PI
-            max_pi = pi.max()
             iterations.append(i)
             max_pi_values.append(max_pi)
             
