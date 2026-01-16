@@ -533,7 +533,14 @@ class BoTorchAcquisition(BaseAcquisition):
         return self
 
     def find_optimum(self, model=None, maximize=None, random_state=None):
-        """Find the point where the model predicts the optimal value."""
+        """
+        Find the point where the model predicts the optimal value.
+        
+        This uses the same approach as regret plot predictions: generate a grid
+        in the original variable space, predict using the model's standard pipeline,
+        and find the argmax/argmin. This ensures categorical variables are handled
+        correctly through proper encoding/decoding.
+        """
         if model is not None:
             self.model = model
             
@@ -543,135 +550,81 @@ class BoTorchAcquisition(BaseAcquisition):
         if random_state is not None:
             self.random_state = random_state
     
-        # Get bounds from the search space
-        bounds_tensor = self._get_bounds_from_search_space()
+        # Generate prediction grid in ORIGINAL variable space (not encoded)
+        # This handles categorical variables correctly
+        n_grid_points = 10000  # Target number of grid points
+        grid = self._generate_prediction_grid(n_grid_points)
         
-        # Identify categorical and integer variables
-        categorical_variables = []
-        integer_variables = []
-        if hasattr(self.search_space_obj, 'get_categorical_variables'):
-            categorical_variables = self.search_space_obj.get_categorical_variables()
-        if hasattr(self.search_space_obj, 'get_integer_variables'):
-            integer_variables = self.search_space_obj.get_integer_variables()
-    
-        # Prepare for optimization
-        torch.manual_seed(self.random_state)
+        # Use model's predict method which handles encoding internally
+        # This is the same pipeline used by regret plot (correct approach)
+        means, stds = self.model.predict(grid, return_std=True)
         
-        try:
-            # Use a simpler randomized search approach instead of optimize_acqf
-            # This avoids the dimension issues in the more complex optimization
-            n_samples = 20000  # Large number of random samples 
-            best_value = float('-inf') if self.maximize else float('inf')
-            best_x = None
-            
-            # Generate random samples within bounds
-            lower_bounds, upper_bounds = bounds_tensor[0], bounds_tensor[1]
-            X_samples = torch.rand(n_samples, len(lower_bounds), dtype=torch.double)
-            X_samples = X_samples * (upper_bounds - lower_bounds) + lower_bounds
-            
-            # Round integer variables to nearest integer
-            if integer_variables:
-                for i, feature_name in enumerate(self.model.feature_names):
-                    if feature_name in integer_variables:
-                        X_samples[:, i] = torch.round(X_samples[:, i])
-            
-            # Evaluate model at all samples
-            self.model.model.eval()
-            with torch.no_grad():
-                posterior = self.model.model.posterior(X_samples)
-                values = posterior.mean.squeeze()
-                
-                # If minimizing, negate values for finding maximum
-                if not self.maximize:
-                    values = -values
-                    
-                # Find the best value
-                best_idx = torch.argmax(values)
-                best_x = X_samples[best_idx]
-                best_value = values[best_idx].item()
-                
-            # Convert to numpy
-            best_candidate = best_x.cpu().numpy().reshape(1, -1)
-        except Exception as e:
-            logger.error(f"Error in random search optimization: {e}")
-            # Fallback to grid search
-            logger.info("Falling back to grid search...")
-            
-            # Create a simple grid search
-            n_points = 10  # Points per dimension
-            grid_points = []
-            
-            # Create grid for each dimension
-            for i, feature_name in enumerate(self.model.feature_names):
-                if feature_name in integer_variables:
-                    # For integer variables, create integer grid
-                    min_val = int(lower_bounds[i])
-                    max_val = int(upper_bounds[i])
-                    if max_val - min_val + 1 <= n_points:
-                        # If range is small, use all integer values
-                        grid_points.append(torch.arange(min_val, max_val + 1, dtype=torch.double))
-                    else:
-                        # If range is large, sample n_points integers
-                        step = max(1, (max_val - min_val) // (n_points - 1))
-                        values = torch.arange(min_val, max_val + 1, step, dtype=torch.double)
-                        grid_points.append(values[:n_points])
-                else:
-                    # For continuous variables, use linspace
-                    grid_points.append(torch.linspace(
-                        lower_bounds[i], upper_bounds[i], n_points, dtype=torch.double
-                    ))
-            
-            # Create meshgrid
-            meshgrid = torch.meshgrid(*grid_points, indexing='ij')
-            X_grid = torch.stack([x.reshape(-1) for x in meshgrid], dim=1)
-            
-            # Evaluate model on grid
-            self.model.model.eval()
-            with torch.no_grad():
-                posterior = self.model.model.posterior(X_grid)
-                values = posterior.mean.squeeze()
-                
-                # If minimizing, negate values
-                if not self.maximize:
-                    values = -values
-                    
-                # Find the best value
-                best_idx = torch.argmax(values)
-                best_x = X_grid[best_idx]
-                best_value = values[best_idx].item()
-                
-            # Convert to numpy
-            best_candidate = best_x.cpu().numpy().reshape(1, -1)
-            
-        # Convert to dictionary and then to DataFrame
-        feature_names = self.model.original_feature_names
-        result = {}
-        for i, name in enumerate(feature_names):
-            value = best_candidate[0, i]
-            
-            # If this is a categorical variable, convert back to original value
-            if name in categorical_variables:
-                # Find the original categorical value from the encoding
-                encoding = self.model.categorical_encodings.get(name, {})
-                inv_encoding = {v: k for k, v in encoding.items()}
-                if value in inv_encoding:
-                    value = inv_encoding[value]
-                elif int(value) in inv_encoding:
-                    value = inv_encoding[int(value)]
-            # If this is an integer variable, ensure it's an integer
-            elif name in integer_variables:
-                value = int(round(value))
+        # Find argmax or argmin
+        if self.maximize:
+            best_idx = np.argmax(means)
+        else:
+            best_idx = np.argmin(means)
         
-            result[name] = value
-            
-        # Convert to DataFrame
-        opt_point_df = pd.DataFrame([result])
-        
-        # Get predicted value and std at optimum
-        pred_mean, pred_std = self.model.predict_with_std(opt_point_df)
+        # Extract the optimal point (already in original variable space)
+        opt_point_df = grid.iloc[[best_idx]].reset_index(drop=True)
         
         return {
             'x_opt': opt_point_df,
-            'value': float(pred_mean[0]),
-            'std': float(pred_std[0])
+            'value': float(means[best_idx]),
+            'std': float(stds[best_idx])
         }
+    
+    def _generate_prediction_grid(self, n_grid_points: int) -> pd.DataFrame:
+        """
+        Generate grid of test points across search space for predictions.
+        
+        This creates a grid in the ORIGINAL variable space (with actual category
+        names, not encoded values), which is then properly encoded by the model's
+        predict() method.
+        
+        Args:
+            n_grid_points: Target number of grid points (actual number depends on dimensionality)
+        
+        Returns:
+            DataFrame with columns for each variable in original space
+        """
+        from itertools import product
+        
+        grid_1d = []
+        var_names = []
+        
+        variables = self.search_space_obj.variables
+        n_vars = len(variables)
+        n_per_dim = max(2, int(n_grid_points ** (1/n_vars)))
+        
+        for var in variables:
+            var_names.append(var['name'])
+            
+            if var['type'] == 'real':
+                # Continuous: linspace
+                grid_1d.append(np.linspace(var['min'], var['max'], n_per_dim))
+            elif var['type'] == 'integer':
+                # Integer: range of integers
+                n_integers = var['max'] - var['min'] + 1
+                if n_integers <= n_per_dim:
+                    # Use all integers if range is small
+                    grid_1d.append(np.arange(var['min'], var['max'] + 1))
+                else:
+                    # Sample n_per_dim integers
+                    grid_1d.append(np.linspace(var['min'], var['max'], n_per_dim).astype(int))
+            elif var['type'] == 'categorical':
+                # Categorical: use ACTUAL category values (not encoded)
+                grid_1d.append(var['values'])
+        
+        # Generate test points using Cartesian product
+        X_test_tuples = list(product(*grid_1d))
+        
+        # Convert to DataFrame with proper variable names and types
+        grid = pd.DataFrame(X_test_tuples, columns=var_names)
+        
+        # Ensure correct dtypes for categorical variables
+        for var in variables:
+            if var['type'] == 'categorical':
+                grid[var['name']] = grid[var['name']].astype(str)
+        
+        return grid

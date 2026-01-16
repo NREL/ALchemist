@@ -653,17 +653,19 @@ class OptimizationSession:
                         kernel_options[k] = v
             
             # Identify categorical variable indices for BoTorch
-            cat_dims = []
-            categorical_var_names = self.search_space.get_categorical_variables()
-            if categorical_var_names:
-                # Get the column order from search space
-                all_var_names = self.search_space.get_variable_names()
-                cat_dims = [i for i, name in enumerate(all_var_names) if name in categorical_var_names]
-                logger.debug(f"Categorical dimensions for BoTorch: {cat_dims} (variables: {categorical_var_names})")
+            # Only compute if not already provided in kwargs (e.g., from UI)
+            if 'cat_dims' not in kwargs:
+                cat_dims = []
+                categorical_var_names = self.search_space.get_categorical_variables()
+                if categorical_var_names:
+                    # Get the column order from search space
+                    all_var_names = self.search_space.get_variable_names()
+                    cat_dims = [i for i, name in enumerate(all_var_names) if name in categorical_var_names]
+                    logger.debug(f"Categorical dimensions for BoTorch: {cat_dims} (variables: {categorical_var_names})")
+                kwargs['cat_dims'] = cat_dims if cat_dims else None
             
             self.model = BoTorchModel(
                 kernel_options=kernel_options,
-                cat_dims=cat_dims if cat_dims else None,
                 random_state=self.config['random_state'],
                 **kwargs
             )
@@ -896,7 +898,75 @@ class OptimizationSession:
             'parameters': kwargs
         }
         
-        return result_df    # ============================================================
+        return result_df
+    
+    def find_optimum(self, goal: str = 'maximize', n_grid_points: int = 10000) -> Dict[str, Any]:
+        """
+        Find the point where the model predicts the optimal value.
+        
+        Uses a grid search approach to find the point with the best predicted
+        value (maximum or minimum) across the search space. This is useful for
+        identifying the model's predicted optimum independent of acquisition
+        function suggestions.
+        
+        Args:
+            goal: 'maximize' or 'minimize' - which direction to optimize
+            n_grid_points: Target number of grid points for search (default: 10000)
+        
+        Returns:
+            Dictionary with:
+                - 'x_opt': DataFrame with optimal point (single row)
+                - 'value': Predicted value at optimum
+                - 'std': Uncertainty (standard deviation) at optimum
+        
+        Example:
+            >>> # Find predicted maximum
+            >>> result = session.find_optimum(goal='maximize')
+            >>> print(f"Optimum at: {result['x_opt']}")
+            >>> print(f"Predicted value: {result['value']:.2f} ± {result['std']:.2f}")
+            
+            >>> # Find predicted minimum
+            >>> result = session.find_optimum(goal='minimize')
+            
+            >>> # Use finer grid for more accuracy
+            >>> result = session.find_optimum(goal='maximize', n_grid_points=50000)
+        
+        Note:
+            - Requires a trained model
+            - Uses the same grid-based approach as regret plot for consistency
+            - Handles categorical variables correctly through proper encoding
+            - Grid size is target value; actual number depends on dimensionality
+        """
+        if self.model is None:
+            raise ValueError("No trained model available. Use train_model() first.")
+        
+        # Generate prediction grid in ORIGINAL variable space (not encoded)
+        grid = self._generate_prediction_grid(n_grid_points)
+        
+        # Use model's predict method which handles encoding internally
+        means, stds = self.predict(grid)
+        
+        # Find argmax or argmin
+        if goal.lower() == 'maximize':
+            best_idx = np.argmax(means)
+        else:
+            best_idx = np.argmin(means)
+        
+        # Extract the optimal point (already in original variable space)
+        opt_point_df = grid.iloc[[best_idx]].reset_index(drop=True)
+        
+        result = {
+            'x_opt': opt_point_df,
+            'value': float(means[best_idx]),
+            'std': float(stds[best_idx])
+        }
+        
+        logger.info(f"Found optimum: {result['x_opt'].to_dict('records')[0]}")
+        logger.info(f"Predicted value: {result['value']:.4f} ± {result['std']:.4f}")
+        
+        return result
+    
+    # ============================================================
     # Predictions
     # ============================================================
     
@@ -2167,6 +2237,7 @@ class OptimizationSession:
         sigma_bands: Optional[List[float]] = None,
         start_iteration: int = 5,
         reuse_hyperparameters: bool = True,
+        use_calibrated_uncertainty: bool = False,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None
@@ -2194,6 +2265,10 @@ class OptimizationSession:
             sigma_bands: List of sigma values for uncertainty bands (e.g., [1.0, 2.0])
             start_iteration: First iteration to compute predictions (needs enough data)
             reuse_hyperparameters: Reuse final model's hyperparameters (faster, default True)
+            use_calibrated_uncertainty: If True, apply calibration to uncertainties. If False,
+                use raw GP uncertainties. Default False recommended for convergence assessment
+                since raw uncertainties better reflect model's internal convergence. Set True
+                for realistic prediction intervals that account for model miscalibration.
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom plot title (auto-generated if None)
@@ -2242,7 +2317,8 @@ class OptimizationSession:
                     kernel=kernel,
                     n_grid_points=n_grid_points,
                     start_iteration=start_iteration,
-                    reuse_hyperparameters=reuse_hyperparameters
+                    reuse_hyperparameters=reuse_hyperparameters,
+                    use_calibrated_uncertainty=use_calibrated_uncertainty
                 )
             except Exception as e:
                 logger.warning(f"Could not compute posterior predictions: {e}. Plotting observations only.")
@@ -2316,12 +2392,18 @@ class OptimizationSession:
         kernel: Optional[str],
         n_grid_points: int,
         start_iteration: int,
-        reuse_hyperparameters: bool
+        reuse_hyperparameters: bool,
+        use_calibrated_uncertainty: bool
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute max(posterior mean) and corresponding std at each iteration.
         
         Helper method for regret plot to overlay model predictions with uncertainty.
+        
+        IMPORTANT: When reuse_hyperparameters=True, this uses the final model's 
+        hyperparameters for ALL iterations by creating fresh GP models with those
+        hyperparameters and subsets of data. This avoids numerical instability from
+        repeated MLE optimization.
         
         Returns:
             Tuple of (predicted_means, predicted_stds) arrays, same length as n_experiments
@@ -2347,12 +2429,15 @@ class OptimizationSession:
                 # BoTorchModel stores kernel type in cont_kernel_type
                 kernel = getattr(self.model, 'cont_kernel_type', 'Matern')
         
-        # Extract optimized hyperparameters if reusing
+        # Extract optimized state_dict for botorch or kernel params for sklearn
+        optimized_state_dict = None
         optimized_kernel_params = None
         if reuse_hyperparameters and self.model is not None and self.model.is_trained:
             if backend == 'sklearn':
                 optimized_kernel_params = self.model.optimized_kernel.get_params()
-            # For botorch, would extract from model.covar_module.state_dict()
+            elif backend == 'botorch':
+                # Store the fitted state dict from the final model
+                optimized_state_dict = self.model.fitted_state_dict
         
         # Generate grid for predictions
         grid = self._generate_prediction_grid(n_grid_points)
@@ -2360,6 +2445,13 @@ class OptimizationSession:
         # Get full dataset
         full_df = self.experiment_manager.df
         target_col = self.experiment_manager.target_columns[0]
+        
+        # Suppress INFO logging for temp sessions to avoid spam
+        import logging
+        original_session_level = logger.level
+        original_model_level = logging.getLogger('alchemist_core.models.botorch_model').level
+        logger.setLevel(logging.WARNING)
+        logging.getLogger('alchemist_core.models.botorch_model').setLevel(logging.WARNING)
         
         # Loop through iterations
         for i in range(start_iteration, n_exp + 1):
@@ -2377,7 +2469,7 @@ class OptimizationSession:
                     inputs = {var['name']: row[var['name']] for var in self.experiment_manager.search_space.variables}
                     temp_session.add_experiment(inputs, output=row[target_col])
                 
-                # Train model on subset
+                # Train model on subset using SAME approach for all iterations
                 if backend == 'sklearn':
                     # Create model instance
                     from alchemist_core.models.sklearn_model import SklearnModel
@@ -2388,13 +2480,23 @@ class OptimizationSession:
                         temp_model.n_restarts_optimizer = 0
                         temp_model._custom_optimizer = None
                         # Store the optimized kernel to use
-                        from sklearn.gaussian_process.kernels import clone_kernel
-                        temp_model._reuse_kernel = clone_kernel(self.model.optimized_kernel)
+                        from sklearn.base import clone
+                        temp_model._reuse_kernel = clone(self.model.optimized_kernel)
                     
                     # Attach model and train
                     temp_session.model = temp_model
                     temp_session.model_backend = 'sklearn'
-                    temp_model.train(temp_session.experiment_manager)
+                    
+                    # Train WITHOUT recomputing calibration (if reusing hyperparameters)
+                    if reuse_hyperparameters:
+                        temp_model.train(temp_session.experiment_manager, calibrate_uncertainty=False)
+                        # Transfer calibration factor from final model
+                        if hasattr(self.model, 'calibration_factor'):
+                            temp_model.calibration_factor = self.model.calibration_factor
+                            # Enable calibration only if user requested calibrated uncertainties
+                            temp_model.calibration_enabled = use_calibrated_uncertainty
+                    else:
+                        temp_model.train(temp_session.experiment_manager)
                     
                     # Verify model was trained
                     if not temp_model.is_trained:
@@ -2403,9 +2505,60 @@ class OptimizationSession:
                         raise ValueError(f"temp_session.model is None after training at iteration {i}")
                     
                 elif backend == 'botorch':
-                    temp_session.train_model(backend='botorch', kernel=kernel)
+                    # For BoTorch: create a fresh model and load the fitted hyperparameters
+                    from alchemist_core.models.botorch_model import BoTorchModel
+                    import torch
+                    
+                    # Create model instance with same configuration as original model
+                    kernel_opts = {'cont_kernel_type': kernel}
+                    if hasattr(self.model, 'matern_nu'):
+                        kernel_opts['matern_nu'] = self.model.matern_nu
+                    
+                    temp_model = BoTorchModel(
+                        kernel_options=kernel_opts,
+                        input_transform_type=self.model.input_transform_type if hasattr(self.model, 'input_transform_type') else 'normalize',
+                        output_transform_type=self.model.output_transform_type if hasattr(self.model, 'output_transform_type') else 'standardize'
+                    )
+                    
+                    # Train model on subset (this creates the GP with subset of data)
+                    # Disable calibration computation if reusing hyperparameters
+                    if reuse_hyperparameters:
+                        temp_model.train(temp_session.experiment_manager, calibrate_uncertainty=False)
+                    else:
+                        temp_model.train(temp_session.experiment_manager)
+                    
+                    # Apply optimized hyperparameters from final model to trained subset model
+                    # Only works for simple kernel structures (no categorical variables)
+                    if reuse_hyperparameters and optimized_state_dict is not None:
+                        try:
+                            with torch.no_grad():
+                                # Extract hyperparameters from final model
+                                # This only works for ScaleKernel(base_kernel), not AdditiveKernel
+                                final_lengthscale = self.model.model.covar_module.base_kernel.lengthscale.detach().clone()
+                                final_outputscale = self.model.model.covar_module.outputscale.detach().clone()
+                                final_noise = self.model.model.likelihood.noise.detach().clone()
+                                
+                                # Set hyperparameters in temp model (trained on subset)
+                                temp_model.model.covar_module.base_kernel.lengthscale = final_lengthscale
+                                temp_model.model.covar_module.outputscale = final_outputscale
+                                temp_model.model.likelihood.noise = final_noise
+                        except AttributeError:
+                            # If kernel structure is complex (e.g., has categorical variables),
+                            # skip hyperparameter reuse - fall back to each iteration's own optimization
+                            pass
+                    
+                    # Transfer calibration factor from final model (even if hyperparameters couldn't be transferred)
+                    # This ensures last iteration matches final model exactly
+                    if reuse_hyperparameters and hasattr(self.model, 'calibration_factor'):
+                        temp_model.calibration_factor = self.model.calibration_factor
+                        # Enable calibration only if user requested calibrated uncertainties
+                        temp_model.calibration_enabled = use_calibrated_uncertainty
+                    
+                    # Attach to session
+                    temp_session.model = temp_model
+                    temp_session.model_backend = 'botorch'
                 
-                # Predict on grid  
+                # Predict on grid using temp_session.predict (consistent for all iterations)
                 result = temp_session.predict(grid)
                 if result is None:
                     raise ValueError(f"predict() returned None at iteration {i}")
@@ -2425,6 +2578,10 @@ class OptimizationSession:
                 logger.warning(f"Failed to compute predictions for iteration {i}: {e}")
                 logger.debug(traceback.format_exc())
                 # Leave as NaN
+        
+        # Restore original logging levels
+        logger.setLevel(original_session_level)
+        logging.getLogger('alchemist_core.models.botorch_model').setLevel(original_model_level)
         
         return predicted_means, predicted_stds
     

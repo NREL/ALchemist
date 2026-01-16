@@ -181,38 +181,19 @@ def test_select_next_falls_back_to_standard_optimization(monkeypatch, trained_se
     assert {r["Catalyst"] for r in results} <= {"High SAR", "Low SAR"}
 
 
-def test_find_optimum_uses_grid_search_fallback(monkeypatch, trained_session_botorch):
+def test_find_optimum_uses_grid_search(trained_session_botorch):
+    """Test that find_optimum uses grid search and model.predict() correctly."""
     session = trained_session_botorch
     acquisition = _make_acquisition(session, strategy="ucb")
 
-    original_rand = botorch_module.torch.rand
-
-    def tiny_rand(n, d, dtype=torch.double):
-        return original_rand(10, d, dtype=dtype)
-
-    monkeypatch.setattr(botorch_module.torch, "rand", tiny_rand)
-
-    class PosteriorStub:
-        def __init__(self):
-            self.calls = 0
-
-        def __call__(self, X):
-            self.calls += 1
-            if self.calls == 1:
-                raise RuntimeError("posterior failure")
-            mean = torch.sum(X, dim=1, keepdim=True)
-            return SimpleNamespace(mean=mean)
-
-    posterior_stub = PosteriorStub()
-    monkeypatch.setattr(acquisition.model.model, "posterior", posterior_stub)
-    monkeypatch.setattr(acquisition.model, "predict_with_std", lambda df: ([1.0], [0.1]))
-    monkeypatch.setattr(session.search_space, "get_integer_variables", lambda: ["Metal Loading"])
-
+    # find_optimum should use model.predict() which handles encoding properly
     result = acquisition.find_optimum(model=session.model, maximize=False, random_state=7)
 
     assert set(result.keys()) == {"x_opt", "value", "std"}
     assert isinstance(result["x_opt"], pd.DataFrame)
     assert not result["x_opt"].empty
+    # Check that categorical variables are in original space (not encoded)
+    assert result["x_opt"]["Catalyst"].iloc[0] in {"High SAR", "Low SAR"}
 
 
 def test_select_next_mixed_success_path(monkeypatch, trained_session_botorch):
@@ -421,81 +402,50 @@ def test_update_invokes_model_update(monkeypatch, trained_session_botorch):
     assert recreated["called"]
 
 
-def test_find_optimum_random_search_success(monkeypatch, trained_session_botorch):
+def test_find_optimum_maximize_returns_valid_result(trained_session_botorch):
+    """Test that find_optimum returns valid results for maximization."""
     session = trained_session_botorch
     acquisition = _make_acquisition(session, strategy="ucb")
-
-    original_rand = botorch_module.torch.rand
-
-    def small_rand(n, d, dtype=torch.double):
-        return original_rand(12, d, dtype=dtype)
-
-    def posterior_success(X):
-        mean = torch.arange(1, X.shape[0] + 1, dtype=torch.double).view(-1, 1)
-        return SimpleNamespace(mean=mean)
-
-    monkeypatch.setattr(botorch_module.torch, "rand", small_rand)
-    monkeypatch.setattr(acquisition.model.model, "posterior", posterior_success)
-    monkeypatch.setattr(acquisition.model, "predict_with_std", lambda df: ([2.0], [0.3]))
-    monkeypatch.setattr(session.search_space, "get_integer_variables", lambda: ["Metal Loading"])
 
     result = acquisition.find_optimum()
 
     assert isinstance(result["x_opt"], pd.DataFrame)
-    assert result["value"] == pytest.approx(2.0)
-    assert result["std"] == pytest.approx(0.3)
+    assert isinstance(result["value"], float)
+    assert isinstance(result["std"], float)
+    # Check that result is in original variable space
+    assert "Catalyst" in result["x_opt"].columns
+    assert result["x_opt"]["Catalyst"].iloc[0] in {"High SAR", "Low SAR"}
 
 
-def test_find_optimum_handles_minimization(monkeypatch, trained_session_botorch):
+def test_find_optimum_handles_minimization(trained_session_botorch):
+    """Test that find_optimum correctly handles minimization."""
     session = trained_session_botorch
     acquisition = _make_acquisition(session, strategy="ucb")
-
-    def posterior_linear(X):
-        values = torch.linspace(0.0, 1.0, steps=X.shape[0], dtype=torch.double).view(-1, 1)
-        return SimpleNamespace(mean=values)
-
-    monkeypatch.setattr(botorch_module.torch, "rand", lambda n, d, dtype=torch.double: torch.zeros((5, d), dtype=dtype))
-    monkeypatch.setattr(acquisition.model.model, "posterior", posterior_linear)
-    monkeypatch.setattr(acquisition.model, "predict_with_std", lambda df: ([0.5], [0.05]))
 
     result = acquisition.find_optimum(maximize=False)
 
     assert isinstance(result["x_opt"], pd.DataFrame)
-    assert result["value"] == pytest.approx(0.5)
-    assert result["std"] == pytest.approx(0.05)
+    assert isinstance(result["value"], float)
+    assert isinstance(result["std"], float)
+    # Categorical values should be in original space
+    assert result["x_opt"]["Catalyst"].iloc[0] in {"High SAR", "Low SAR"}
 
 
-def test_find_optimum_grid_search_handles_large_integer_ranges(monkeypatch, trained_session_botorch):
+def test_find_optimum_generates_grid_correctly(trained_session_botorch):
+    """Test that find_optimum generates a proper grid across the search space."""
     session = trained_session_botorch
     acquisition = _make_acquisition(session, strategy="ucb")
 
-    bounds = torch.tensor(
-        [
-            [0.0, 0.0, 0.0, 0.0],
-            [100.0, 1.0, 3.0, 1.0],
-        ],
-        dtype=torch.double,
-    )
-
-    def custom_bounds():
-        return bounds
-
-    class PosteriorStub:
-        def __init__(self):
-            self.calls = 0
-
-        def __call__(self, X):
-            self.calls += 1
-            if self.calls == 1:
-                raise RuntimeError("force grid search")
-            mean = torch.sum(X, dim=1, keepdim=True)
-            return SimpleNamespace(mean=mean)
-
-    monkeypatch.setattr(acquisition, "_get_bounds_from_search_space", custom_bounds)
-    monkeypatch.setattr(acquisition.model.model, "posterior", PosteriorStub())
-    monkeypatch.setattr(acquisition.model, "predict_with_std", lambda df: ([1.0], [0.2]))
-    monkeypatch.setattr(session.search_space, "get_integer_variables", lambda: ["Temperature", "Metal Loading"])
-
     result = acquisition.find_optimum()
 
+    # Check result structure
     assert isinstance(result["x_opt"], pd.DataFrame)
+    assert not result["x_opt"].empty
+    
+    # Verify all variables are present
+    expected_vars = {var['name'] for var in session.search_space.variables}
+    assert set(result["x_opt"].columns) == expected_vars
+    
+    # Verify categorical variables are not encoded (should be strings)
+    assert isinstance(result["x_opt"]["Catalyst"].iloc[0], str)
+    assert result["x_opt"]["Catalyst"].iloc[0] in {"High SAR", "Low SAR"}
