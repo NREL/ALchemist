@@ -125,6 +125,7 @@ def create_contour_plot(
     suggest_x: Optional[np.ndarray] = None,
     suggest_y: Optional[np.ndarray] = None,
     cmap: str = 'viridis',
+    use_log_scale: bool = False,
     figsize: Tuple[float, float] = (8, 6),
     dpi: int = 100,
     title: str = "Contour Plot of Model Predictions",
@@ -144,6 +145,7 @@ def create_contour_plot(
         suggest_x: Suggested X values to overlay (optional)
         suggest_y: Suggested Y values to overlay (optional)
         cmap: Matplotlib colormap name
+        use_log_scale: Use logarithmic color scale for values spanning orders of magnitude
         figsize: Figure size (width, height) in inches
         dpi: Resolution
         title: Plot title
@@ -164,10 +166,54 @@ def create_contour_plot(
         fig = ax.figure
         should_tight_layout = False
     
-    # Contour plot
-    contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=20, cmap=cmap)
-    cbar = fig.colorbar(contour, ax=ax)
-    cbar.set_label('Predicted Output')
+    # Contour plot with optional log scaling
+    if use_log_scale:
+        from matplotlib.colors import LogNorm, SymLogNorm
+        
+        min_val = predictions_grid.min()
+        max_val = predictions_grid.max()
+        
+        # For predominantly negative values (like LogEI), use negative to make positive
+        if max_val <= 0:
+            # All negative: flip sign to make positive for LogNorm, but keep track for colorbar
+            plot_grid = -predictions_grid
+            vmin_pos = -max_val  # Most negative original value (worst)
+            vmax_pos = -min_val  # Closest to zero original value (best)
+            
+            # Create log-spaced levels in the positive space
+            levels = np.logspace(np.log10(vmin_pos), np.log10(vmax_pos), 50)
+            contour = ax.contourf(x_grid, y_grid, plot_grid, levels=levels, cmap=cmap, norm=LogNorm(vmin=vmin_pos, vmax=vmax_pos))
+            
+            # Create colorbar with negative value labels
+            cbar = fig.colorbar(contour, ax=ax)
+            
+            # Create a custom formatter that shows negative values
+            def fmt(x, pos):
+                return f'{-x:.0e}'
+            
+            import matplotlib.ticker as ticker
+            cbar.ax.yaxis.set_major_formatter(ticker.FuncFormatter(fmt))
+        elif min_val >= 0:
+            # All positive: use directly
+            plot_grid = predictions_grid
+            levels = np.logspace(np.log10(min_val + 1e-10), np.log10(max_val), 50)
+            contour = ax.contourf(x_grid, y_grid, plot_grid, levels=levels, cmap=cmap, norm=LogNorm())
+            cbar = fig.colorbar(contour, ax=ax)
+        else:
+            # Mixed signs: use SymLogNorm
+            linthresh = max(abs(min_val), abs(max_val)) * 0.01
+            contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=50, cmap=cmap, 
+                                norm=SymLogNorm(linthresh=linthresh, vmin=min_val, vmax=max_val))
+            cbar = fig.colorbar(contour, ax=ax)
+    else:
+        contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=20, cmap=cmap)
+        cbar = fig.colorbar(contour, ax=ax)
+    
+    # Only set label if we haven't already created colorbar
+    if not use_log_scale or (use_log_scale and not (max_val <= 0 and min_val < 0)):
+        cbar.set_label('Predicted Output')
+    else:
+        cbar.set_label('Predicted Output')
     
     # Overlay experimental points
     if exp_x is not None and exp_y is not None and len(exp_x) > 0:
@@ -729,3 +775,76 @@ def create_probability_of_improvement_plot(
         fig.tight_layout()
     
     return fig, ax
+
+
+# ==============================================================================
+# VISUALIZATION ARCHITECTURE NOTES
+# ==============================================================================
+#
+# This module implements a systematic framework for visualizing Gaussian Process
+# models in the context of Bayesian optimization. The visualization space can be
+# organized along two axes:
+#
+# 1. WHAT TO VISUALIZE (3 fundamental quantities):
+#    ------------------------------------------------
+#    a) Posterior Mean
+#       - Model's best estimate of the objective function
+#       - Already implemented: slice plots, contour plots
+#       - Not yet: 3D voxel plots
+#    
+#    b) Posterior Uncertainty
+#       - Model's confidence/uncertainty in predictions
+#       - Already implemented: slice plots (as bands around mean)
+#       - Not yet: contour plots of uncertainty, 3D voxel plots
+#    
+#    c) Acquisition Function (NOT YET IMPLEMENTED)
+#       - Decision-making criteria under uncertainty (EI, PI, UCB, etc.)
+#       - Shows where the optimization algorithm will sample next
+#       - Same dimensionality as posterior mean/uncertainty
+#       - Would greatly aid in understanding optimization behavior
+#       - Potential plots: 1D slice, 2D contour, 3D voxel
+#
+# 2. HOW TO VISUALIZE (dimensionality of visualization):
+#    -----------------------------------------------------
+#    a) 1D Slice - Fix all but 1 variable (IMPLEMENTED)
+#       - plot_slice(): Shows posterior mean + uncertainty bands
+#       - Experimental points can be overlaid
+#       - Custom sigma bands: [1.0, 2.0, 3.0] for ±1σ, ±2σ, ±3σ
+#    
+#    b) 2D Contour - Fix all but 2 variables (PARTIALLY IMPLEMENTED)
+#       - plot_contour(): Shows posterior mean as colored contours
+#       - Experimental points and suggestions can be overlaid
+#       - Not yet: uncertainty as separate subplot or transparency overlay
+#       - Not yet: acquisition function contours
+#    
+#    c) 3D Voxel - Fix all but 3 variables (NOT YET IMPLEMENTED)
+#       - Interactive 3D visualization for exploring 3D response surfaces
+#       - Could use plotly/mayavi for interactivity
+#       - Useful for understanding 3-variable interactions
+#       - Volume rendering for uncertainty
+#
+# FUTURE WORK:
+# ------------
+# - Add acquisition function visualization (1D, 2D, 3D)
+# - Add uncertainty contour plots (2D)
+# - Add 3D voxel plotting capabilities
+# - Standardize parameter naming across all plot types:
+#   * Consider: show_uncertainty vs show_error_bars
+#   * Consider: n_points vs grid_resolution
+# - Add subplot layouts (e.g., mean + uncertainty side-by-side)
+# - Add animation support for time-varying optimization campaigns
+#
+# API CONSISTENCY NOTES:
+# ----------------------
+# Current naming conventions (to maintain or standardize):
+# - plot_slice: show_uncertainty (Union[bool, List[float]])
+# - plot_parity: show_error_bars (bool)
+# - Both: show_experiments (bool)
+# - plot_slice: n_points (int)
+# - plot_contour: grid_resolution (int)
+#
+# These differences are currently intentional (slice shows bands, parity shows
+# error bars; 1D sampling vs 2D grid density), but could be unified in future
+# refactoring for better API consistency.
+#
+# ==============================================================================

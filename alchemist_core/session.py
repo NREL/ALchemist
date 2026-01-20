@@ -2585,6 +2585,391 @@ class OptimizationSession:
         
         return predicted_means, predicted_stds
     
+    def plot_acquisition_slice(
+        self,
+        x_var: str,
+        acq_func: str = 'ei',
+        fixed_values: Optional[Dict[str, Any]] = None,
+        n_points: int = 100,
+        acq_func_kwargs: Optional[Dict[str, Any]] = None,
+        goal: str = 'maximize',
+        show_experiments: bool = True,
+        show_suggestions: bool = True,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 1D slice plot showing acquisition function along one variable.
+        
+        Visualizes how the acquisition function value changes as one variable is varied
+        while all other variables are held constant. This shows which regions along that
+        variable axis are most promising for the next experiment.
+        
+        Args:
+            x_var: Variable name to vary along X axis (must be 'real' or 'integer')
+            acq_func: Acquisition function name ('ei', 'pi', 'ucb', 'logei', 'logpi')
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            n_points: Number of points to evaluate along the slice
+            acq_func_kwargs: Additional acquisition parameters (xi, kappa, beta)
+            goal: 'maximize' or 'minimize' - optimization direction
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Visualize Expected Improvement along temperature
+            >>> fig = session.plot_acquisition_slice(
+            ...     'temperature',
+            ...     acq_func='ei',
+            ...     fixed_values={'pressure': 5.0, 'catalyst': 'Pt'}
+            ... )
+            >>> fig.savefig('acq_slice.png', dpi=300)
+            
+            >>> # See where UCB is highest
+            >>> fig = session.plot_acquisition_slice(
+            ...     'pressure',
+            ...     acq_func='ucb',
+            ...     acq_func_kwargs={'beta': 0.5}
+            ... )
+        
+        Note:
+            - Model must be trained before plotting
+            - Higher acquisition values indicate more promising regions
+            - Use this to understand where the algorithm wants to explore next
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        from alchemist_core.utils.acquisition_utils import evaluate_acquisition
+        from alchemist_core.visualization.plots import create_slice_plot
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get variable info
+        var_names = self.search_space.get_variable_names()
+        if x_var not in var_names:
+            raise ValueError(f"Variable '{x_var}' not in search space")
+        
+        # Get x variable definition
+        x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+        
+        if x_var_def['type'] not in ['real', 'integer']:
+            raise ValueError(f"Variable '{x_var}' must be 'real' or 'integer' type for slice plot")
+        
+        # Create range for x variable
+        x_min, x_max = x_var_def['min'], x_var_def['max']
+        x_values = np.linspace(x_min, x_max, n_points)
+        
+        # Build acquisition evaluation grid
+        slice_data = {x_var: x_values}
+        
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name == x_var:
+                continue
+            
+            if var_name in fixed_values:
+                slice_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    slice_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    slice_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        slice_df = pd.DataFrame(slice_data, columns=column_order)
+        
+        # Evaluate acquisition function
+        acq_values, _ = evaluate_acquisition(
+            self.model,
+            slice_df,
+            acq_func=acq_func,
+            acq_func_kwargs=acq_func_kwargs,
+            goal=goal
+        )
+        
+        # Prepare experimental data for plotting
+        exp_x = None
+        exp_y = None
+        if show_experiments and len(self.experiment_manager.df) > 0:
+            df = self.experiment_manager.df
+            
+            # Filter points that match the fixed values
+            mask = pd.Series([True] * len(df))
+            for var_name, fixed_val in fixed_values.items():
+                if var_name in df.columns:
+                    if isinstance(fixed_val, str):
+                        mask &= (df[var_name] == fixed_val)
+                    else:
+                        mask &= np.isclose(df[var_name], fixed_val, atol=1e-6)
+            
+            if mask.any():
+                filtered_df = df[mask]
+                exp_x = filtered_df[x_var].values
+                # For acquisition, we just mark where experiments exist (no y-value)
+                exp_y = np.zeros_like(exp_x)
+        
+        # Prepare suggestion data
+        sugg_x = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+        
+        # Generate title if not provided
+        if title is None:
+            acq_name = acq_func.upper()
+            if fixed_values:
+                fixed_str = ', '.join([f'{k}={v}' for k, v in fixed_values.items()])
+                title = f"Acquisition Function ({acq_name}): {x_var}\n({fixed_str})"
+            else:
+                title = f"Acquisition Function ({acq_name}): {x_var}"
+        
+        # Use create_slice_plot but with acquisition values
+        # Note: We pass None for std since acquisition functions are deterministic
+        fig, ax = create_slice_plot(
+            x_values=x_values,
+            predictions=acq_values,
+            x_var=x_var,
+            std=None,
+            sigma_bands=None,  # No uncertainty for acquisition
+            exp_x=exp_x,
+            exp_y=None,  # Don't show experiment y-values for acquisition
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        # Update y-label for acquisition
+        ax.set_ylabel(f'{acq_func.upper()} Value')
+        
+        # Add suggestions as vertical lines if present
+        if sugg_x is not None and len(sugg_x) > 0:
+            for sx in sugg_x:
+                ax.axvline(sx, color='red', linestyle='--', alpha=0.5, linewidth=1.5, label='Suggestion')
+        
+        logger.info(f"Generated acquisition slice plot for {x_var} using {acq_func}")
+        return fig
+    
+    def plot_acquisition_contour(
+        self,
+        x_var: str,
+        y_var: str,
+        acq_func: str = 'ei',
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 50,
+        acq_func_kwargs: Optional[Dict[str, Any]] = None,
+        goal: str = 'maximize',
+        show_experiments: bool = True,
+        show_suggestions: bool = True,
+        cmap: str = 'viridis',
+        use_log_scale: Optional[bool] = None,
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 2D contour plot of acquisition function over variable space.
+        
+        Visualizes the acquisition function surface by varying two variables
+        while holding others constant. Shows "hot spots" where the algorithm
+        believes the next experiment should be conducted. Higher values indicate
+        more promising regions to explore.
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' type)
+            y_var: Variable name for Y axis (must be 'real' type)
+            acq_func: Acquisition function name ('ei', 'pi', 'ucb', 'logei', 'logpi')
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxN points)
+            acq_func_kwargs: Additional acquisition parameters (xi, kappa, beta)
+            goal: 'maximize' or 'minimize' - optimization direction
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (e.g., 'viridis', 'hot', 'plasma')
+            use_log_scale: Use logarithmic color scale (default: auto-enable for logei/logpi)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Visualize Expected Improvement surface
+            >>> fig = session.plot_acquisition_contour(
+            ...     'temperature', 'pressure',
+            ...     acq_func='ei'
+            ... )
+            >>> fig.savefig('acq_contour.png', dpi=300)
+            
+            >>> # See UCB landscape with custom exploration
+            >>> fig = session.plot_acquisition_contour(
+            ...     'temperature', 'pressure',
+            ...     acq_func='ucb',
+            ...     acq_func_kwargs={'beta': 1.0},
+            ...     cmap='hot'
+            ... )
+        
+        Note:
+            - Requires at least 2 'real' type variables
+            - Model must be trained before plotting
+            - Higher acquisition values = more promising regions
+            - Suggestions are overlaid to show why they were chosen
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        from alchemist_core.utils.acquisition_utils import evaluate_acquisition
+        from alchemist_core.visualization.plots import create_contour_plot
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get variable names
+        var_names = self.search_space.get_variable_names()
+        
+        # Validate variables exist
+        if x_var not in var_names:
+            raise ValueError(f"Variable '{x_var}' not in search space")
+        if y_var not in var_names:
+            raise ValueError(f"Variable '{y_var}' not in search space")
+        
+        # Get variable info
+        x_var_info = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_info = next(v for v in self.search_space.variables if v['name'] == y_var)
+        
+        if x_var_info['type'] != 'real':
+            raise ValueError(f"X variable '{x_var}' must be 'real' type, got '{x_var_info['type']}'")
+        if y_var_info['type'] != 'real':
+            raise ValueError(f"Y variable '{y_var}' must be 'real' type, got '{y_var_info['type']}'")
+        
+        # Get bounds
+        x_bounds = (x_var_info['min'], x_var_info['max'])
+        y_bounds = (y_var_info['min'], y_var_info['max'])
+        
+        # Create meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        X_grid, Y_grid = np.meshgrid(x, y)
+        
+        # Build acquisition evaluation grid
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Evaluate acquisition function
+        acq_values, _ = evaluate_acquisition(
+            self.model,
+            grid_df,
+            acq_func=acq_func,
+            acq_func_kwargs=acq_func_kwargs,
+            goal=goal
+        )
+        
+        # Reshape to grid
+        acq_grid = acq_values.reshape(X_grid.shape)
+        
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns:
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
+        
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
+        
+        # Auto-enable log scale for logei/logpi if not explicitly set
+        if use_log_scale is None:
+            use_log_scale = acq_func.lower() in ['logei', 'logpi']
+        
+        # Generate title if not provided
+        if title is None:
+            acq_name = acq_func.upper()
+            title = f"Acquisition Function ({acq_name}): {x_var} vs {y_var}"
+        
+        # Delegate to visualization module
+        fig, ax, cbar = create_contour_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            predictions_grid=acq_grid,
+            x_var=x_var,
+            y_var=y_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            cmap=cmap,
+            use_log_scale=use_log_scale,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        # Update colorbar label for acquisition
+        cbar.set_label(f'{acq_func.upper()} Value', rotation=270, labelpad=20)
+        
+        logger.info(f"Generated acquisition contour plot for {x_var} vs {y_var} using {acq_func}")
+        return fig
+    
     def plot_probability_of_improvement(
         self,
         goal: Literal['maximize', 'minimize'] = 'maximize',

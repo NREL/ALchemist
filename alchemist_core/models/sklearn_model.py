@@ -4,6 +4,7 @@ from alchemist_core.data.experiment_manager import ExperimentManager
 from alchemist_core.config import get_logger
 import numpy as np
 import pandas as pd
+from typing import Union, Tuple, Optional
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, MinMaxScaler, RobustScaler
@@ -797,3 +798,98 @@ class SklearnModel(BaseModel):
         Z = predictions.reshape(X.shape)
         
         return X, Y, Z
+
+    def evaluate_acquisition(
+        self, 
+        X: Union[pd.DataFrame, np.ndarray], 
+        acq_func: str = 'ucb', 
+        acq_func_kwargs: Optional[dict] = None, 
+        maximize: bool = True
+    ) -> Tuple[np.ndarray, None]:
+        """
+        Evaluate acquisition function at given points using skopt functions.
+        
+        Args:
+            X: Points to evaluate (DataFrame or array with shape (n, d))
+            acq_func: Acquisition function name ('ei', 'pi', 'ucb/lcb')
+            acq_func_kwargs: Additional parameters (e.g., {'xi': 0.01, 'kappa': 1.96})
+            maximize: Whether we're maximizing (True) or minimizing (False)
+            
+        Returns:
+            Tuple of (acq_values, None) - None because acq functions are deterministic
+            
+        Example:
+            >>> points = pd.DataFrame({'temp': [300, 350, 400], 'pressure': [1, 2, 3]})\n            >>> acq_vals, _ = model.evaluate_acquisition(points, acq_func='ei', maximize=True)
+        """
+        from skopt.acquisition import gaussian_ei, gaussian_pi, gaussian_lcb
+        
+        if not self.is_trained:
+            raise ValueError("Model must be trained before evaluating acquisition functions.")
+        
+        # Convert input to expected format
+        X_processed = self._preprocess_X(X)
+        
+        # Get y_opt from training data (in scaled space)
+        if maximize:
+            y_opt = np.max(self.y_train_)
+        else:
+            y_opt = np.min(self.y_train_)
+        
+        # Map acquisition function names
+        acq_func_lower = acq_func.lower()
+        
+        # Parse kwargs with defaults
+        if acq_func_kwargs is None:
+            acq_func_kwargs = {}
+        
+        xi = acq_func_kwargs.get('xi', 0.01)
+        kappa = acq_func_kwargs.get('kappa', 1.96)
+        
+        # Evaluate acquisition function
+        # Note: skopt always minimizes, so for maximization we negate
+        if acq_func_lower in ['ei', 'expectedimprovement']:
+            acq_values = gaussian_ei(
+                X_processed, 
+                self.model, 
+                y_opt=y_opt, 
+                xi=xi,
+                return_grad=False
+            )
+            # EI returns negative values for minimization, negate for maximization
+            if not maximize:
+                acq_values = -acq_values
+        elif acq_func_lower in ['pi', 'probabilityofimprovement']:
+            acq_values = gaussian_pi(
+                X_processed, 
+                self.model, 
+                y_opt=y_opt, 
+                xi=xi,
+                return_grad=False
+            )
+            # PI returns negative values for minimization
+            if not maximize:
+                acq_values = -acq_values
+        elif acq_func_lower in ['ucb', 'lcb', 'upperconfidencebound', 'lowerconfidencebound']:
+            # LCB in skopt is for minimization (lower is better)
+            # For maximization, we want UCB (upper is better)
+            acq_values = gaussian_lcb(
+                X_processed, 
+                self.model, 
+                kappa=kappa,
+                return_grad=False
+            )
+            # LCB returns mean - kappa*std (lower is better for minimization)
+            # For maximization, we want mean + kappa*std, so negate
+            if maximize:
+                acq_values = -acq_values
+        else:
+            raise ValueError(
+                f"Unknown acquisition function '{acq_func}' for sklearn backend. "
+                f"Valid options are: 'ei', 'pi', 'ucb/lcb'"
+            )
+        
+        # Ensure output is 1D array
+        if acq_values.ndim > 1:
+            acq_values = acq_values.ravel()
+        
+        return acq_values, None

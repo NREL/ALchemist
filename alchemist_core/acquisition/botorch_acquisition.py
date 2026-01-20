@@ -312,6 +312,10 @@ class BoTorchAcquisition(BaseAcquisition):
                         options=options,
                     )
                     
+                    # Log the acquisition value found
+                    acq_val = batch_acq_values.item() if batch_acq_values.numel() == 1 else batch_acq_values.max().item()
+                    logger.info(f"Optimization found acquisition value: {acq_val:.4f}")
+                    
                     # Get the best candidate(s)
                     best_candidates = batch_candidates.detach().cpu()
                     

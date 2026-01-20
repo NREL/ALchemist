@@ -4,4 +4,6 @@ Utility functions for ALchemist Core.
 Will be populated in future branches.
 """
 
-__all__ = []
+from .acquisition_utils import evaluate_acquisition
+
+__all__ = ['evaluate_acquisition']

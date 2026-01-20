@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pandas as pd
+from typing import Union, Tuple, Optional
 from botorch.models import SingleTaskGP
 from botorch.models.gp_regression_mixed import MixedSingleTaskGP
 from botorch.models.transforms import Normalize, Standardize
@@ -972,3 +973,119 @@ class BoTorchModel(BaseModel):
             logger.info("  ✓ Uncertainty appears well-calibrated")
         
         logger.info(f"{'='*60}\n")
+
+    def evaluate_acquisition(
+        self, 
+        X: Union[pd.DataFrame, np.ndarray], 
+        acq_func: str = 'ucb', 
+        acq_func_kwargs: Optional[dict] = None, 
+        maximize: bool = True
+    ) -> Tuple[np.ndarray, None]:
+        """
+        Evaluate acquisition function at given points using BoTorch functions.
+        
+        Args:
+            X: Points to evaluate (DataFrame or array with shape (n, d))
+            acq_func: Acquisition function name ('ei', 'logei', 'pi', 'logpi', 'ucb')
+            acq_func_kwargs: Additional parameters (e.g., {'beta': 0.5})
+            maximize: Whether we're maximizing (True) or minimizing (False)
+            
+        Returns:
+            Tuple of (acq_values, None) - None because acq functions are deterministic
+            
+        Example:
+            >>> points = pd.DataFrame({'temp': [300, 350, 400], 'pressure': [1, 2, 3]})
+            >>> acq_vals, _ = model.evaluate_acquisition(points, acq_func='ei', maximize=True)
+        """
+        from botorch.acquisition.analytic import (
+            ExpectedImprovement,
+            LogExpectedImprovement,
+            ProbabilityOfImprovement,
+            LogProbabilityOfImprovement,
+            UpperConfidenceBound,
+        )
+        
+        if not self.is_trained:
+            raise ValueError("Model must be trained before evaluating acquisition functions.")
+        
+        # Encode categorical variables (same preprocessing as predict())
+        X_encoded = self._encode_categorical_data(X)
+        
+        # Convert to torch tensor
+        if isinstance(X_encoded, pd.DataFrame):
+            X_tensor = torch.tensor(X_encoded.values, dtype=torch.float64)
+        else:
+            # If X_encoded is already a numpy array
+            X_tensor = torch.tensor(X_encoded, dtype=torch.float64)
+        
+        # Add q=1 dimension if not present (batch_size, d) -> (batch_size, 1, d)
+        if X_tensor.ndim == 2:
+            X_tensor = X_tensor.unsqueeze(-2)
+        
+        # Calculate best_f from training data
+        y_train_tensor = self.model.train_targets
+        if maximize:
+            best_f = torch.max(y_train_tensor)
+        else:
+            best_f = torch.min(y_train_tensor)
+        
+        # Map acquisition function names
+        acq_func_lower = acq_func.lower()
+        
+        # Parse kwargs with defaults
+        if acq_func_kwargs is None:
+            acq_func_kwargs = {}
+        
+        beta = acq_func_kwargs.get('beta', 0.5)
+        
+        # Create acquisition function
+        try:
+            if acq_func_lower in ['ei', 'expectedimprovement']:
+                acq_fn = ExpectedImprovement(
+                    model=self.model,
+                    best_f=best_f,
+                    maximize=maximize
+                )
+            elif acq_func_lower in ['logei', 'logexpectedimprovement']:
+                acq_fn = LogExpectedImprovement(
+                    model=self.model,
+                    best_f=best_f,
+                    maximize=maximize
+                )
+            elif acq_func_lower in ['pi', 'probabilityofimprovement']:
+                acq_fn = ProbabilityOfImprovement(
+                    model=self.model,
+                    best_f=best_f,
+                    maximize=maximize
+                )
+            elif acq_func_lower in ['logpi', 'logprobabilityofimprovement']:
+                acq_fn = LogProbabilityOfImprovement(
+                    model=self.model,
+                    best_f=best_f,
+                    maximize=maximize
+                )
+            elif acq_func_lower in ['ucb', 'upperconfidencebound']:
+                acq_fn = UpperConfidenceBound(
+                    model=self.model,
+                    beta=beta,
+                    maximize=maximize
+                )
+            else:
+                raise ValueError(
+                    f"Unknown acquisition function '{acq_func}' for BoTorch backend. "
+                    f"Valid options are: 'ei', 'logei', 'pi', 'logpi', 'ucb'"
+                )
+            
+            # Evaluate acquisition function
+            with torch.no_grad():
+                acq_values = acq_fn(X_tensor).cpu().numpy()
+            
+            # Ensure output is 1D array
+            if acq_values.ndim > 1:
+                acq_values = acq_values.ravel()
+            
+            return acq_values, None
+            
+        except Exception as e:
+            logger.error(f"Error evaluating acquisition function: {e}")
+            raise
