@@ -206,7 +206,27 @@ def create_contour_plot(
                                 norm=SymLogNorm(linthresh=linthresh, vmin=min_val, vmax=max_val))
             cbar = fig.colorbar(contour, ax=ax)
     else:
-        contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=20, cmap=cmap)
+        # Use explicit vmin/vmax to ensure colorbar spans full data range
+        min_val = predictions_grid.min()
+        max_val = predictions_grid.max()
+        
+        # Generate levels that better handle extreme outliers
+        # Use percentile-based approach to create more levels in the dense region
+        percentiles = np.percentile(predictions_grid.ravel(), [0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100])
+        
+        # If there's a large gap between percentiles, use adaptive levels
+        if (percentiles[-1] - percentiles[-2]) > 2 * (percentiles[-2] - percentiles[-3]):
+            # Extreme outliers detected - create custom levels
+            # More levels in the main data range, fewer in the outlier range
+            main_levels = np.linspace(percentiles[1], percentiles[-2], 40)
+            outlier_levels = np.linspace(percentiles[-2], max_val, 10)
+            levels = np.concatenate([main_levels, outlier_levels])
+        else:
+            # Normal distribution - use uniform levels
+            levels = np.linspace(min_val, max_val, 50)
+        
+        contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=levels, cmap=cmap, 
+                            vmin=min_val, vmax=max_val)
         cbar = fig.colorbar(contour, ax=ax)
     
     # Only set label if we haven't already created colorbar

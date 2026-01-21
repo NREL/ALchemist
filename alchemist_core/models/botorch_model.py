@@ -986,8 +986,10 @@ class BoTorchModel(BaseModel):
         
         Args:
             X: Points to evaluate (DataFrame or array with shape (n, d))
-            acq_func: Acquisition function name ('ei', 'logei', 'pi', 'logpi', 'ucb')
-            acq_func_kwargs: Additional parameters (e.g., {'beta': 0.5})
+            acq_func: Acquisition function name 
+                     Analytic: 'ei', 'logei', 'pi', 'logpi', 'ucb'
+                     Batch: 'qei', 'qucb', 'qnipv'
+            acq_func_kwargs: Additional parameters (e.g., {'beta': 0.5, 'mc_samples': 128})
             maximize: Whether we're maximizing (True) or minimizing (False)
             
         Returns:
@@ -1004,6 +1006,12 @@ class BoTorchModel(BaseModel):
             LogProbabilityOfImprovement,
             UpperConfidenceBound,
         )
+        from botorch.acquisition.monte_carlo import (
+            qExpectedImprovement,
+            qUpperConfidenceBound,
+        )
+        from botorch.acquisition.active_learning import qNegIntegratedPosteriorVariance
+        from botorch.sampling import SobolQMCNormalSampler
         
         if not self.is_trained:
             raise ValueError("Model must be trained before evaluating acquisition functions.")
@@ -1022,8 +1030,14 @@ class BoTorchModel(BaseModel):
         if X_tensor.ndim == 2:
             X_tensor = X_tensor.unsqueeze(-2)
         
-        # Calculate best_f from training data
-        y_train_tensor = self.model.train_targets
+        # Calculate best_f from ORIGINAL (untransformed) training data
+        # When using Standardize transform, best_f must be in original scale
+        if hasattr(self, 'Y_orig') and self.Y_orig is not None:
+            y_train_tensor = self.Y_orig
+        else:
+            # Fallback: use model's train_targets (may be transformed)
+            y_train_tensor = self.model.train_targets
+        
         if maximize:
             best_f = torch.max(y_train_tensor)
         else:
@@ -1037,6 +1051,10 @@ class BoTorchModel(BaseModel):
             acq_func_kwargs = {}
         
         beta = acq_func_kwargs.get('beta', 0.5)
+        mc_samples = acq_func_kwargs.get('mc_samples', 128)
+        
+        # Determine if this is a batch (q) acquisition function
+        is_batch_acq = acq_func_lower.startswith('q')
         
         # Create acquisition function
         try:
@@ -1070,15 +1088,59 @@ class BoTorchModel(BaseModel):
                     beta=beta,
                     maximize=maximize
                 )
+            elif acq_func_lower in ['qei', 'qexpectedimprovement']:
+                sampler = SobolQMCNormalSampler(sample_shape=torch.Size([mc_samples]))
+                acq_fn = qExpectedImprovement(
+                    model=self.model,
+                    best_f=best_f,
+                    sampler=sampler
+                )
+            elif acq_func_lower in ['qucb', 'qupperconfidencebound']:
+                sampler = SobolQMCNormalSampler(sample_shape=torch.Size([mc_samples]))
+                acq_fn = qUpperConfidenceBound(
+                    model=self.model,
+                    beta=beta,
+                    sampler=sampler
+                )
+            elif acq_func_lower in ['qnipv', 'qnegintegratedposteriorvariance', 'qipv']:
+                # qNIPV requires mc_points for integration over the search space
+                n_mc_points = acq_func_kwargs.get('n_mc_points', 500)
+                
+                # Generate MC points uniformly over the input space
+                # Get bounds from the encoded input space
+                if hasattr(self, 'X_train') and self.X_train is not None:
+                    # Use training data bounds
+                    lower_bounds = self.X_train.min(dim=0)[0]
+                    upper_bounds = self.X_train.max(dim=0)[0]
+                else:
+                    # Fallback: assume normalized space [0, 1]
+                    n_dims = X_tensor.shape[-1]
+                    lower_bounds = torch.zeros(n_dims, dtype=torch.float64)
+                    upper_bounds = torch.ones(n_dims, dtype=torch.float64)
+                
+                # Generate random points
+                mc_points = torch.rand(n_mc_points, len(lower_bounds), dtype=torch.float64)
+                mc_points = mc_points * (upper_bounds - lower_bounds) + lower_bounds
+                
+                acq_fn = qNegIntegratedPosteriorVariance(
+                    model=self.model,
+                    mc_points=mc_points
+                )
             else:
                 raise ValueError(
                     f"Unknown acquisition function '{acq_func}' for BoTorch backend. "
-                    f"Valid options are: 'ei', 'logei', 'pi', 'logpi', 'ucb'"
+                    f"Valid options are: 'ei', 'logei', 'pi', 'logpi', 'ucb', 'qei', 'qucb', 'qnipv'"
                 )
             
             # Evaluate acquisition function
             with torch.no_grad():
-                acq_values = acq_fn(X_tensor).cpu().numpy()
+                if is_batch_acq:
+                    # For batch acquisitions, evaluate each point as q=1
+                    # X_tensor is already (batch_size, 1, d)
+                    acq_values = acq_fn(X_tensor).cpu().numpy()
+                else:
+                    # For analytic acquisitions
+                    acq_values = acq_fn(X_tensor).cpu().numpy()
             
             # Ensure output is 1D array
             if acq_values.ndim > 1:

@@ -814,20 +814,56 @@ class OptimizationSession:
         Suggest next experiment(s) using acquisition function.
         
         Args:
-            strategy: Acquisition strategy ('EI', 'PI', 'UCB', 'qEI', etc.)
+            strategy: Acquisition strategy
+                - 'EI': Expected Improvement
+                - 'PI': Probability of Improvement
+                - 'UCB': Upper Confidence Bound
+                - 'LogEI': Log Expected Improvement (BoTorch only)
+                - 'LogPI': Log Probability of Improvement (BoTorch only)
+                - 'qEI', 'qUCB', 'qIPV': Batch acquisition (BoTorch only)
             goal: 'maximize' or 'minimize'
             n_suggestions: Number of suggestions (batch acquisition)
-            **kwargs: Strategy-specific parameters
+            **kwargs: Strategy-specific parameters:
+            
+                **Sklearn backend:**
+                - xi (float): Exploration parameter for EI/PI (default: 0.01)
+                  Higher values favor exploration over exploitation
+                - kappa (float): Exploration parameter for UCB (default: 1.96)
+                  Higher values favor exploration (typically 1.96 for 95% CI)
+                
+                **BoTorch backend:**
+                - beta (float): Exploration parameter for UCB (default: 0.5)
+                  Trades off mean vs. variance (higher = more exploration)
+                - mc_samples (int): Monte Carlo samples for batch acquisition (default: 128)
         
         Returns:
             DataFrame with suggested experiment(s)
         
-        Example:
-            > next_point = session.suggest_next(strategy='EI', goal='maximize')
-            > print(next_point)
+        Examples:
+            >>> # Expected Improvement with custom exploration
+            >>> next_point = session.suggest_next(strategy='EI', goal='maximize', xi=0.05)
+            
+            >>> # Upper Confidence Bound with high exploration
+            >>> next_point = session.suggest_next(strategy='UCB', goal='maximize', kappa=2.5)
+            
+            >>> # BoTorch UCB with beta parameter
+            >>> next_point = session.suggest_next(strategy='UCB', goal='maximize', beta=1.0)
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
+        
+        # Validate and log kwargs
+        supported_kwargs = self._get_supported_kwargs(strategy, self.model_backend)
+        if kwargs:
+            unsupported = set(kwargs.keys()) - supported_kwargs
+            if unsupported:
+                logger.warning(
+                    f"Unsupported parameters for {strategy} with {self.model_backend} backend: "
+                    f"{unsupported}. Supported parameters: {supported_kwargs or 'none'}"
+                )
+            used_kwargs = {k: v for k, v in kwargs.items() if k in supported_kwargs}
+            if used_kwargs:
+                logger.info(f"Using acquisition parameters: {used_kwargs}")
         
         # Import appropriate acquisition class
         if self.model_backend == 'sklearn':
@@ -854,10 +890,14 @@ class OptimizationSession:
                 search_space=self.search_space,
                 acq_func=strategy,
                 maximize=(goal.lower() == 'maximize'),
-                batch_size=n_suggestions
+                batch_size=n_suggestions,
+                acq_func_kwargs=kwargs  # FIX: Pass kwargs to BoTorch acquisition!
             )
         
-        logger.info(f"Running acquisition: {strategy} ({goal})")
+        # Check if this is a pure exploration acquisition (doesn't use best_f)
+        is_exploratory = strategy.lower() in ['qnipv', 'qipv']
+        goal_desc = 'pure exploration' if is_exploratory else goal
+        logger.info(f"Running acquisition: {strategy} ({goal_desc})")
         self.events.emit('acquisition_started', {'strategy': strategy, 'goal': goal})
         
         # Get suggestion
@@ -899,6 +939,38 @@ class OptimizationSession:
         }
         
         return result_df
+    
+    def _get_supported_kwargs(self, strategy: str, backend: str) -> set:
+        """
+        Return supported kwargs for given acquisition strategy and backend.
+        
+        Args:
+            strategy: Acquisition strategy name
+            backend: Model backend ('sklearn' or 'botorch')
+            
+        Returns:
+            Set of supported kwarg names
+        """
+        strategy_lower = strategy.lower()
+        
+        if backend == 'sklearn':
+            if strategy_lower in ['ei', 'pi', 'expectedimprovement', 'probabilityofimprovement']:
+                return {'xi'}
+            elif strategy_lower in ['ucb', 'lcb', 'upperconfidencebound', 'lowerconfidencebound']:
+                return {'kappa'}
+            elif strategy_lower == 'gp_hedge':
+                return {'xi', 'kappa'}
+        elif backend == 'botorch':
+            if strategy_lower in ['ei', 'logei', 'pi', 'logpi', 'expectedimprovement', 'probabilityofimprovement']:
+                return set()  # No additional parameters for these
+            elif strategy_lower in ['ucb', 'upperconfidencebound']:
+                return {'beta'}
+            elif strategy_lower in ['qei', 'qucb']:
+                return {'mc_samples', 'beta'}
+            elif strategy_lower in ['qipv', 'qnipv']:
+                return {'mc_samples', 'n_mc_points'}
+        
+        return set()
     
     def find_optimum(self, goal: str = 'maximize', n_grid_points: int = 10000) -> Dict[str, Any]:
         """
