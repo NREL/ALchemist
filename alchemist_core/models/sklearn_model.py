@@ -846,42 +846,62 @@ class SklearnModel(BaseModel):
         kappa = acq_func_kwargs.get('kappa', 1.96)
         
         # Evaluate acquisition function
-        # Note: skopt always minimizes, so for maximization we negate
+        # NOTE: skopt's gaussian_ei/pi/lcb are designed for MINIMIZATION
+        # For maximization, we need to adapt the formulas
         if acq_func_lower in ['ei', 'expectedimprovement']:
-            acq_values = gaussian_ei(
-                X_processed, 
-                self.model, 
-                y_opt=y_opt, 
-                xi=xi,
-                return_grad=False
-            )
-            # EI returns negative values for minimization, negate for maximization
-            if not maximize:
-                acq_values = -acq_values
-        elif acq_func_lower in ['pi', 'probabilityofimprovement']:
-            acq_values = gaussian_pi(
-                X_processed, 
-                self.model, 
-                y_opt=y_opt, 
-                xi=xi,
-                return_grad=False
-            )
-            # PI returns negative values for minimization
-            if not maximize:
-                acq_values = -acq_values
-        elif acq_func_lower in ['ucb', 'lcb', 'upperconfidencebound', 'lowerconfidencebound']:
-            # LCB in skopt is for minimization (lower is better)
-            # For maximization, we want UCB (upper is better)
-            acq_values = gaussian_lcb(
-                X_processed, 
-                self.model, 
-                kappa=kappa,
-                return_grad=False
-            )
-            # LCB returns mean - kappa*std (lower is better for minimization)
-            # For maximization, we want mean + kappa*std, so negate
             if maximize:
-                acq_values = -acq_values
+                # For maximization: EI = E[max(f(x) - f(x_best) - xi, 0)]
+                # where f(x_best) = y_opt = max(y_train)
+                mu, std = self.model.predict(X_processed, return_std=True)
+                from scipy.stats import norm
+                improve = mu - y_opt + xi  # Improvement over current max
+                z = improve / (std + 1e-9)  # Avoid division by zero
+                ei = improve * norm.cdf(z) + std * norm.pdf(z)
+                acq_values = ei
+            else:
+                # For minimization: use gaussian_ei directly
+                acq_values = gaussian_ei(
+                    X_processed, 
+                    self.model, 
+                    y_opt=y_opt, 
+                    xi=xi,
+                    return_grad=False
+                )
+            
+        elif acq_func_lower in ['pi', 'probabilityofimprovement']:
+            if maximize:
+                # For maximization: PI = P(f(x) > f(x_best) + xi)
+                mu, std = self.model.predict(X_processed, return_std=True)
+                from scipy.stats import norm
+                improve = mu - y_opt + xi
+                z = improve / (std + 1e-9)
+                pi = norm.cdf(z)
+                acq_values = pi
+            else:
+                # For minimization: use gaussian_pi directly
+                acq_values = gaussian_pi(
+                    X_processed, 
+                    self.model, 
+                    y_opt=y_opt, 
+                    xi=xi,
+                    return_grad=False
+                )
+                
+        elif acq_func_lower in ['ucb', 'lcb', 'upperconfidencebound', 'lowerconfidencebound']:
+            # For maximization: UCB = mean + kappa*std (higher is better)
+            # For minimization: LCB = mean - kappa*std (lower is better)
+            if maximize:
+                # Calculate UCB directly from predictions
+                mu, std = self.model.predict(X_processed, return_std=True)
+                acq_values = mu + kappa * std
+            else:
+                # Use gaussian_lcb for minimization
+                acq_values = gaussian_lcb(
+                    X_processed, 
+                    self.model, 
+                    kappa=kappa,
+                    return_grad=False
+                )
         else:
             raise ValueError(
                 f"Unknown acquisition function '{acq_func}' for sklearn backend. "
