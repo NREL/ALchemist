@@ -392,6 +392,173 @@ def create_slice_plot(
     return fig, ax
 
 
+def create_voxel_plot(
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    z_grid: np.ndarray,
+    predictions_grid: np.ndarray,
+    x_var: str,
+    y_var: str,
+    z_var: str,
+    exp_x: Optional[np.ndarray] = None,
+    exp_y: Optional[np.ndarray] = None,
+    exp_z: Optional[np.ndarray] = None,
+    suggest_x: Optional[np.ndarray] = None,
+    suggest_y: Optional[np.ndarray] = None,
+    suggest_z: Optional[np.ndarray] = None,
+    cmap: str = 'viridis',
+    alpha: float = 0.5,
+    use_log_scale: bool = False,
+    figsize: Tuple[float, float] = (10, 8),
+    dpi: int = 100,
+    title: str = "3D Voxel Plot of Model Predictions",
+    ax: Optional[Any] = None  # 3D axes
+) -> Tuple[Figure, Any]:
+    """
+    Create 3D voxel plot of model predictions over a variable space.
+    
+    Visualizes the model's predicted response surface by varying three variables
+    while holding others constant. Uses volumetric rendering to show the 3D
+    prediction landscape.
+    
+    Args:
+        x_grid: X-axis meshgrid values (3D array)
+        y_grid: Y-axis meshgrid values (3D array)
+        z_grid: Z-axis meshgrid values (3D array)
+        predictions_grid: Model predictions on grid (3D array)
+        x_var: X variable name for axis label
+        y_var: Y variable name for axis label
+        z_var: Z variable name for axis label
+        exp_x: Experimental X values to overlay (optional)
+        exp_y: Experimental Y values to overlay (optional)
+        exp_z: Experimental Z values to overlay (optional)
+        suggest_x: Suggested X values to overlay (optional)
+        suggest_y: Suggested Y values to overlay (optional)
+        suggest_z: Suggested Z values to overlay (optional)
+        cmap: Matplotlib colormap name
+        alpha: Transparency level (0=transparent, 1=opaque)
+        use_log_scale: Use logarithmic color scale
+        figsize: Figure size (width, height) in inches
+        dpi: Resolution
+        title: Plot title
+        ax: Existing 3D axes (creates new if None)
+    
+    Returns:
+        Tuple of (Figure, Axes3D) objects
+    
+    Example:
+        >>> # Create 3D grid
+        >>> x = np.linspace(0, 10, 20)
+        >>> y = np.linspace(0, 10, 20)
+        >>> z = np.linspace(0, 10, 20)
+        >>> X, Y, Z = np.meshgrid(x, y, z)
+        >>> predictions = model.predict(grid)
+        >>> fig, ax = create_voxel_plot(X, Y, Z, predictions, 'temp', 'pressure', 'flow')
+    
+    Note:
+        - Requires 3D arrays for x_grid, y_grid, z_grid, predictions_grid
+        - Use alpha to control transparency (lower values show interior structure)
+        - Computationally expensive for high-resolution grids
+    """
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.colors import Normalize, LogNorm
+    
+    # Create figure and 3D axes if not provided
+    if ax is None:
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        ax = fig.add_subplot(111, projection='3d')
+        should_tight_layout = True
+    else:
+        fig = ax.figure
+        should_tight_layout = False
+    
+    # Normalize predictions for colormapping
+    min_val = predictions_grid.min()
+    max_val = predictions_grid.max()
+    
+    if use_log_scale and min_val > 0:
+        norm = LogNorm(vmin=min_val, vmax=max_val)
+    else:
+        norm = Normalize(vmin=min_val, vmax=max_val)
+    
+    # Get colormap
+    cm = plt.get_cmap(cmap)
+    
+    # Create voxel colors based on predictions
+    # Flatten arrays for easier manipulation
+    colors = cm(norm(predictions_grid))
+    colors[..., -1] = alpha  # Set alpha channel
+    
+    # Create voxel plot using scatter3D with marker size based on grid resolution
+    # Flatten the 3D grids
+    x_flat = x_grid.ravel()
+    y_flat = y_grid.ravel()
+    z_flat = z_grid.ravel()
+    pred_flat = predictions_grid.ravel()
+    
+    # Calculate marker size based on grid spacing
+    # Use smaller markers for denser grids
+    n_points = len(x_flat)
+    marker_size = max(10, 1000 / (n_points ** (1/3)))
+    
+    # Plot as 3D scatter with colors
+    scatter = ax.scatter(
+        x_flat, y_flat, z_flat,
+        c=pred_flat,
+        cmap=cmap,
+        norm=norm,
+        alpha=alpha,
+        s=marker_size,
+        marker='o',
+        edgecolors='none'
+    )
+    
+    # Add colorbar
+    cbar = fig.colorbar(scatter, ax=ax, pad=0.1, shrink=0.8)
+    cbar.set_label('Predicted Output', rotation=270, labelpad=20)
+    
+    # Overlay experimental points if provided
+    if exp_x is not None and exp_y is not None and exp_z is not None and len(exp_x) > 0:
+        ax.scatter(
+            exp_x, exp_y, exp_z,
+            c='white', 
+            edgecolors='black',
+            s=100, 
+            marker='o', 
+            label='Experiments',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Overlay suggestion points if provided
+    if suggest_x is not None and suggest_y is not None and suggest_z is not None and len(suggest_x) > 0:
+        ax.scatter(
+            suggest_x, suggest_y, suggest_z,
+            c='red',
+            edgecolors='black',
+            s=150,
+            marker='*',
+            label='Suggestions',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Set labels and title
+    ax.set_xlabel(x_var)
+    ax.set_ylabel(y_var)
+    ax.set_zlabel(z_var)
+    ax.set_title(title)
+    
+    # Add legend if we have overlays
+    if (exp_x is not None and len(exp_x) > 0) or (suggest_x is not None and len(suggest_x) > 0):
+        ax.legend(loc='upper left')
+    
+    if should_tight_layout:
+        fig.tight_layout()
+    
+    return fig, ax
+
+
 def create_metrics_plot(
     training_sizes: np.ndarray,
     metric_values: np.ndarray,
@@ -809,62 +976,75 @@ def create_probability_of_improvement_plot(
 #    ------------------------------------------------
 #    a) Posterior Mean
 #       - Model's best estimate of the objective function
-#       - Already implemented: slice plots, contour plots
-#       - Not yet: 3D voxel plots
+#       - ✅ IMPLEMENTED: 1D slice plots, 2D contour plots, 3D voxel plots
 #    
 #    b) Posterior Uncertainty
 #       - Model's confidence/uncertainty in predictions
-#       - Already implemented: slice plots (as bands around mean)
-#       - Not yet: contour plots of uncertainty, 3D voxel plots
+#       - ✅ IMPLEMENTED: 1D slice plots (as bands around mean)
+#       - ❌ NOT YET: 2D contour plots of uncertainty, 3D voxel plots
 #    
-#    c) Acquisition Function (NOT YET IMPLEMENTED)
+#    c) Acquisition Function
 #       - Decision-making criteria under uncertainty (EI, PI, UCB, etc.)
 #       - Shows where the optimization algorithm will sample next
 #       - Same dimensionality as posterior mean/uncertainty
-#       - Would greatly aid in understanding optimization behavior
-#       - Potential plots: 1D slice, 2D contour, 3D voxel
+#       - ✅ IMPLEMENTED: 1D slice plots, 2D contour plots (via session API)
+#       - ❌ NOT YET: 3D voxel plots
 #
 # 2. HOW TO VISUALIZE (dimensionality of visualization):
 #    -----------------------------------------------------
-#    a) 1D Slice - Fix all but 1 variable (IMPLEMENTED)
-#       - plot_slice(): Shows posterior mean + uncertainty bands
+#    a) 1D Slice - Fix all but 1 variable (✅ FULLY IMPLEMENTED)
+#       - create_slice_plot(): Shows posterior mean + uncertainty bands
 #       - Experimental points can be overlaid
 #       - Custom sigma bands: [1.0, 2.0, 3.0] for ±1σ, ±2σ, ±3σ
+#       - Used by: session.plot_slice(), session.plot_acquisition_slice()
 #    
-#    b) 2D Contour - Fix all but 2 variables (PARTIALLY IMPLEMENTED)
-#       - plot_contour(): Shows posterior mean as colored contours
+#    b) 2D Contour - Fix all but 2 variables (✅ MOSTLY IMPLEMENTED)
+#       - create_contour_plot(): Shows posterior mean as colored contours
 #       - Experimental points and suggestions can be overlaid
-#       - Not yet: uncertainty as separate subplot or transparency overlay
-#       - Not yet: acquisition function contours
+#       - Used by: session.plot_contour(), session.plot_acquisition_contour()
+#       - ❌ NOT YET: uncertainty as separate subplot or transparency overlay
 #    
-#    c) 3D Voxel - Fix all but 3 variables (NOT YET IMPLEMENTED)
-#       - Interactive 3D visualization for exploring 3D response surfaces
-#       - Could use plotly/mayavi for interactivity
-#       - Useful for understanding 3-variable interactions
-#       - Volume rendering for uncertainty
+#    c) 3D Voxel - Fix all but 3 variables (✅ NEWLY IMPLEMENTED - Jan 2026)
+#       - create_voxel_plot(): 3D scatter visualization for response surfaces
+#       - Uses matplotlib 3D scatter with color mapping and transparency
+#       - Adjustable alpha parameter for seeing interior structure
+#       - Experimental points and suggestions can be overlaid
+#       - Used by: session.plot_voxel()
+#       - Requires 3+ continuous (real/integer) variables
+#       - ❌ NOT YET: uncertainty visualization, acquisition function plots
+#       - Note: Computationally expensive (O(N³) evaluations)
+#
+# IMPLEMENTATION STATUS MATRIX (Jan 2026):
+# -----------------------------------------
+#                     1D Slice    2D Contour    3D Voxel
+# Posterior Mean         ✅           ✅           ✅
+# Posterior Uncertainty  ✅           ❌           ❌
+# Acquisition Function   ✅           ✅           ❌
 #
 # FUTURE WORK:
 # ------------
-# - Add acquisition function visualization (1D, 2D, 3D)
 # - Add uncertainty contour plots (2D)
-# - Add 3D voxel plotting capabilities
+# - Add uncertainty voxel plots (3D)
+# - Add acquisition function voxel plots (3D)
 # - Standardize parameter naming across all plot types:
 #   * Consider: show_uncertainty vs show_error_bars
 #   * Consider: n_points vs grid_resolution
 # - Add subplot layouts (e.g., mean + uncertainty side-by-side)
 # - Add animation support for time-varying optimization campaigns
+# - Consider plotly backend for interactive 3D rotation
 #
 # API CONSISTENCY NOTES:
 # ----------------------
 # Current naming conventions (to maintain or standardize):
 # - plot_slice: show_uncertainty (Union[bool, List[float]])
 # - plot_parity: show_error_bars (bool)
-# - Both: show_experiments (bool)
-# - plot_slice: n_points (int)
-# - plot_contour: grid_resolution (int)
+# - All: show_experiments (bool)
+# - plot_slice: n_points (int) - 1D sampling
+# - plot_contour: grid_resolution (int) - 2D grid (N×N)
+# - plot_voxel: grid_resolution (int) - 3D grid (N×N×N, default: 15)
+# - plot_voxel: alpha (float) - transparency (0-1, default: 0.5)
 #
-# These differences are currently intentional (slice shows bands, parity shows
-# error bars; 1D sampling vs 2D grid density), but could be unified in future
-# refactoring for better API consistency.
+# These differences are intentional (slice shows bands, parity shows error bars;
+# 1D/2D/3D sampling densities), but maintain consistency within dimensionality.
 #
 # ==============================================================================

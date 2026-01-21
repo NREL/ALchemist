@@ -2051,6 +2051,222 @@ class OptimizationSession:
         # Return figure only for backwards compatibility (colorbar accessible via fig/ax)
         return fig
     
+    def plot_voxel(
+        self,
+        x_var: str,
+        y_var: str,
+        z_var: str,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 15,
+        show_experiments: bool = True,
+        show_suggestions: bool = False,
+        cmap: str = 'viridis',
+        alpha: float = 0.5,
+        use_log_scale: bool = False,
+        figsize: Tuple[float, float] = (10, 8),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 3D voxel plot of model predictions over a variable space.
+        
+        Visualizes the model's predicted response surface by varying three variables
+        while holding others constant. Uses volumetric rendering to show the 3D
+        prediction landscape with adjustable transparency.
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' or 'integer' type)
+            y_var: Variable name for Y axis (must be 'real' or 'integer' type)
+            z_var: Variable name for Z axis (must be 'real' or 'integer' type)
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxNxN points, default: 15)
+                           Note: 15³ = 3375 points, scales as N³
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (e.g., 'viridis', 'coolwarm', 'plasma')
+            alpha: Transparency level (0.0=transparent, 1.0=opaque, default: 0.5)
+                  Lower values reveal interior structure better
+            use_log_scale: Use logarithmic color scale for values spanning orders of magnitude
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: "3D Voxel Plot of Model Predictions")
+        
+        Returns:
+            matplotlib Figure object with 3D axes
+        
+        Example:
+            >>> # Basic 3D voxel plot
+            >>> fig = session.plot_voxel('temperature', 'pressure', 'flow_rate')
+            
+            >>> # With transparency to see interior
+            >>> fig = session.plot_voxel(
+            ...     'temperature', 'pressure', 'flow_rate',
+            ...     alpha=0.3,
+            ...     grid_resolution=20
+            ... )
+            >>> fig.savefig('voxel_plot.png', dpi=150, bbox_inches='tight')
+            
+            >>> # With fixed values for other variables
+            >>> fig = session.plot_voxel(
+            ...     'temperature', 'pressure', 'flow_rate',
+            ...     fixed_values={'catalyst': 'Pt', 'pH': 7.0},
+            ...     cmap='coolwarm'
+            ... )
+        
+        Raises:
+            ValueError: If search space doesn't have at least 3 continuous variables
+        
+        Note:
+            - Requires at least 3 'real' or 'integer' type variables
+            - Model must be trained before plotting
+            - Computationally expensive: O(N³) evaluations
+            - Lower grid_resolution for faster rendering
+            - Use alpha < 0.5 to see interior structure
+            - Interactive rotation available in some backends (notebook)
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get all variable names and check for continuous variables
+        var_names = self.search_space.get_variable_names()
+        
+        # Count continuous variables (real or integer)
+        continuous_vars = []
+        for var in self.search_space.variables:
+            if var['type'] in ['real', 'integer']:
+                continuous_vars.append(var['name'])
+        
+        # Check if we have at least 3 continuous variables
+        if len(continuous_vars) < 3:
+            raise ValueError(
+                f"3D voxel plot requires at least 3 continuous (real or integer) variables. "
+                f"Found only {len(continuous_vars)}: {continuous_vars}. "
+                f"Use plot_slice() for 1D or plot_contour() for 2D visualization instead."
+            )
+        
+        # Validate that the requested variables exist and are continuous
+        for var_name, var_label in [(x_var, 'X'), (y_var, 'Y'), (z_var, 'Z')]:
+            if var_name not in var_names:
+                raise ValueError(f"{var_label} variable '{var_name}' not in search space")
+            
+            var_def = next(v for v in self.search_space.variables if v['name'] == var_name)
+            if var_def['type'] not in ['real', 'integer']:
+                raise ValueError(
+                    f"{var_label} variable '{var_name}' must be 'real' or 'integer' type for voxel plot, "
+                    f"got '{var_def['type']}'"
+                )
+        
+        # Get variable definitions
+        x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+        z_var_def = next(v for v in self.search_space.variables if v['name'] == z_var)
+        
+        # Get bounds
+        x_bounds = (x_var_def['min'], x_var_def['max'])
+        y_bounds = (y_var_def['min'], y_var_def['max'])
+        z_bounds = (z_var_def['min'], z_var_def['max'])
+        
+        # Create 3D meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        z = np.linspace(z_bounds[0], z_bounds[1], grid_resolution)
+        X_grid, Y_grid, Z_grid = np.meshgrid(x, y, z, indexing='ij')
+        
+        # Build prediction dataframe with ALL variables in proper order
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel(),
+            z_var: Z_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var, z_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with columns in correct order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Get predictions
+        predictions, _ = self.predict(grid_df)
+        
+        # Reshape to 3D grid
+        predictions_grid = predictions.reshape(X_grid.shape)
+        
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
+        exp_z = None
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns and z_var in exp_df.columns:
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
+                exp_z = exp_df[z_var].values
+        
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
+        sugg_z = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns and z_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
+                sugg_z = sugg_df[z_var].values
+        
+        # Delegate to visualization module
+        from alchemist_core.visualization.plots import create_voxel_plot
+        
+        fig, ax = create_voxel_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            z_grid=Z_grid,
+            predictions_grid=predictions_grid,
+            x_var=x_var,
+            y_var=y_var,
+            z_var=z_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            exp_z=exp_z,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            suggest_z=sugg_z,
+            cmap=cmap,
+            alpha=alpha,
+            use_log_scale=use_log_scale,
+            figsize=figsize,
+            dpi=dpi,
+            title=title or "3D Voxel Plot of Model Predictions"
+        )
+        
+        logger.info(f"Generated 3D voxel plot for {x_var} vs {y_var} vs {z_var}")
+        return fig
+    
     def plot_metrics(
         self,
         metric: Literal['rmse', 'mae', 'r2', 'mape'] = 'rmse',
