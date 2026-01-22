@@ -4046,7 +4046,7 @@ class OptimizationSession:
                 if mask.any():
                     filtered_df = df[mask]
                     exp_x = filtered_df[x_var].values
-                    exp_y = filtered_df[self.experiment_manager.target_column].values
+                    exp_y = filtered_df[self.experiment_manager.target_columns[0]].values
             
             # Determine sigma bands
             sigma_bands = None
