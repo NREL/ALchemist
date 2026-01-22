@@ -2,13 +2,37 @@
 
 **Module**: `alchemist_core.visualization`  
 **Created**: January 8, 2026  
-**Status**: Phase 1 Complete
+**Updated**: January 22, 2026  
+**Status**: Complete (3x3 Grid Implemented)
 
 ---
 
 ## Overview
 
-The visualization module provides pure plotting functions for creating matplotlib figures without any session or UI dependencies. All functions are framework-agnostic and return `(Figure, Axes)` tuples for maximum flexibility.
+The visualization module provides a complete framework for visualizing Gaussian Process models in Bayesian optimization. It implements a systematic 3×3 grid of visualization types:
+
+- **What to visualize**: Posterior Mean, Posterior Uncertainty, Acquisition Function
+- **Dimensionality**: 1D Slice, 2D Contour, 3D Voxel
+
+All functions are pure plotting utilities with no session or UI dependencies, returning matplotlib `Figure` and `Axes` objects for maximum flexibility.
+
+## Complete 3×3 Visualization Grid
+
+| Quantity | 1D Slice | 2D Contour | 3D Voxel |
+|----------|----------|------------|----------|
+| **Posterior Mean** | `create_slice_plot()` | `create_contour_plot()` | `create_voxel_plot()` |
+| **Posterior Uncertainty** | `create_slice_plot()` (with σ bands) | `create_uncertainty_contour_plot()` | `create_uncertainty_voxel_plot()` |
+| **Acquisition Function** | `create_slice_plot()` (reused) | `create_contour_plot()` (reused) | `create_acquisition_voxel_plot()` |
+
+### Session API Methods
+
+The `OptimizationSession` class provides high-level methods that wrap these plotting functions:
+
+| Quantity | 1D | 2D | 3D |
+|----------|----|----|-----|
+| **Mean** | `plot_slice()` | `plot_contour()` | `plot_voxel()` |
+| **Uncertainty** | `plot_slice(show_uncertainty=True)` | `plot_uncertainty_contour()` | `plot_uncertainty_voxel()` |
+| **Acquisition** | `plot_acquisition_slice()` | `plot_acquisition_contour()` | `plot_acquisition_voxel()` |
 
 ## Architecture
 
@@ -130,6 +154,177 @@ fig, ax = create_slice_plot(
 - Sigmoid-based alpha scaling
 - Smart legend ordering (Prediction → bands → Experiments)
 - Professional styling (colorblind-friendly colors)
+
+#### `create_voxel_plot()`
+
+Create 3D voxel plot of model predictions.
+
+```python
+from alchemist_core.visualization import create_voxel_plot
+
+X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+predictions = model.predict(grid)
+
+fig, ax = create_voxel_plot(
+    x_grid=X,
+    y_grid=Y,
+    z_grid=Z,
+    predictions_grid=predictions.reshape(X.shape),
+    x_var='temperature',
+    y_var='pressure',
+    z_var='flow_rate',
+    exp_x=exp_x,                   # Optional overlays
+    exp_y=exp_y,
+    exp_z=exp_z,
+    suggest_x=next_x,
+    suggest_y=next_y,
+    suggest_z=next_z,
+    cmap='viridis',
+    alpha=0.5,                     # Transparency
+    use_log_scale=False,
+    figsize=(10, 8),
+    dpi=100,
+    title='3D Voxel Plot',
+    ax=None                        # Can pass existing 3D axes
+)
+```
+
+**Features**:
+- 3D scatter visualization with color mapping
+- Adjustable transparency (alpha) to see interior
+- Experimental and suggestion point overlays
+- Colorbar with proper 3D positioning
+- Automatic marker sizing based on grid resolution
+
+#### `create_uncertainty_contour_plot()`
+
+Create 2D contour plot of posterior uncertainty (standard deviation).
+
+```python
+from alchemist_core.visualization import create_uncertainty_contour_plot
+
+X, Y = np.meshgrid(x_range, y_range)
+_, std = model.predict(grid, return_std=True)
+uncertainty = std.reshape(X.shape)
+
+fig, ax, cbar = create_uncertainty_contour_plot(
+    x_grid=X,
+    y_grid=Y,
+    uncertainty_grid=uncertainty,
+    x_var='temperature',
+    y_var='pressure',
+    exp_x=exp_x,
+    exp_y=exp_y,
+    suggest_x=sugg_x,
+    suggest_y=sugg_y,
+    cmap='Reds',                   # Darker = more uncertain
+    figsize=(8, 6),
+    dpi=100,
+    title='Posterior Uncertainty',
+    ax=None
+)
+```
+
+**Features**:
+- Shows where model is most uncertain
+- Default 'Reds' colormap (darker = higher uncertainty)
+- Useful for identifying under-explored regions
+- Experimental points show where data exists
+- Can guide exploration strategies
+
+**Use Cases**:
+- Planning where to sample next (high uncertainty regions)
+- Validating model coverage across variable space
+- Identifying data-sparse regions
+
+#### `create_uncertainty_voxel_plot()`
+
+Create 3D voxel plot of posterior uncertainty.
+
+```python
+from alchemist_core.visualization import create_uncertainty_voxel_plot
+
+X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+_, std = model.predict(grid, return_std=True)
+uncertainty = std.reshape(X.shape)
+
+fig, ax = create_uncertainty_voxel_plot(
+    x_grid=X,
+    y_grid=Y,
+    z_grid=Z,
+    uncertainty_grid=uncertainty,
+    x_var='temperature',
+    y_var='pressure',
+    z_var='flow_rate',
+    exp_x=exp_x,
+    exp_y=exp_y,
+    exp_z=exp_z,
+    suggest_x=sugg_x,
+    suggest_y=sugg_y,
+    suggest_z=sugg_z,
+    cmap='Reds',
+    alpha=0.5,
+    figsize=(10, 8),
+    dpi=100,
+    title='3D Posterior Uncertainty',
+    ax=None
+)
+```
+
+**Features**:
+- 3D visualization of model uncertainty
+- Shows data-sparse volumes in 3D space
+- Adjustable transparency for interior visibility
+- Helps plan 3D exploration strategies
+
+**Performance Note**: O(N³) evaluations - use `grid_resolution=10-15` for reasonable speed.
+
+#### `create_acquisition_voxel_plot()`
+
+Create 3D voxel plot of acquisition function values.
+
+```python
+from alchemist_core.visualization import create_acquisition_voxel_plot
+
+X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+acq_values = evaluate_acquisition(model, grid, acq_func='ei')
+acq_grid = acq_values.reshape(X.shape)
+
+fig, ax = create_acquisition_voxel_plot(
+    x_grid=X,
+    y_grid=Y,
+    z_grid=Z,
+    acquisition_grid=acq_grid,
+    x_var='temperature',
+    y_var='pressure',
+    z_var='flow_rate',
+    exp_x=exp_x,
+    exp_y=exp_y,
+    exp_z=exp_z,
+    suggest_x=sugg_x,              # Should align with hot spots
+    suggest_y=sugg_y,
+    suggest_z=sugg_z,
+    cmap='hot',
+    alpha=0.5,
+    use_log_scale=False,           # Auto-enabled for logei/logpi
+    figsize=(10, 8),
+    dpi=100,
+    title='3D Acquisition Function (EI)',
+    ax=None
+)
+```
+
+**Features**:
+- Visualizes where to sample next in 3D
+- "Hot spots" indicate promising regions
+- Use with EI, PI, UCB, or other acquisition functions
+- Suggestions overlay to show algorithm decisions
+- Helps understand exploration-exploitation tradeoff in 3D
+
+**Colormap Recommendations**:
+- 'hot': Good for acquisition (bright = high value)
+- 'plasma': Alternative with good perceptual uniformity
+- 'viridis': Also works, but 'hot' is more intuitive
 
 #### `create_metrics_plot()`
 

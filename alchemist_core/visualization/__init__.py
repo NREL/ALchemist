@@ -15,6 +15,9 @@ from alchemist_core.visualization.plots import (
     create_calibration_plot,
     create_regret_plot,
     create_probability_of_improvement_plot,
+    create_uncertainty_contour_plot,
+    create_uncertainty_voxel_plot,
+    create_acquisition_voxel_plot,
 )
 
 from alchemist_core.visualization.helpers import (
@@ -33,6 +36,9 @@ __all__ = [
     'create_calibration_plot',
     'create_regret_plot',
     'create_probability_of_improvement_plot',
+    'create_uncertainty_contour_plot',
+    'create_uncertainty_voxel_plot',
+    'create_acquisition_voxel_plot',
     'check_matplotlib',
     'compute_z_scores',
     'compute_calibration_metrics',

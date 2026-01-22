@@ -242,7 +242,7 @@ def create_contour_plot(
     
     # Overlay suggestion points
     if suggest_x is not None and suggest_y is not None and len(suggest_x) > 0:
-        ax.scatter(suggest_x, suggest_y, c='red', edgecolors='black',
+        ax.scatter(suggest_x, suggest_y, c='black',
                   s=120, marker='*', label='Suggestions', zorder=6)
     
     # Labels and title
@@ -271,7 +271,10 @@ def create_slice_plot(
     figsize: Tuple[float, float] = (8, 6),
     dpi: int = 100,
     title: Optional[str] = None,
-    ax: Optional[Axes] = None
+    ax: Optional[Axes] = None,
+    prediction_label: str = 'Prediction',
+    line_color: Optional[str] = None,
+    line_width: Optional[float] = None
 ) -> Tuple[Figure, Axes]:
     """
     Create 1D slice plot with uncertainty bands.
@@ -291,6 +294,9 @@ def create_slice_plot(
         dpi: Resolution
         title: Custom title (optional)
         ax: Existing axes (creates new if None)
+        prediction_label: Label for the prediction line in legend (default: 'Prediction')
+        line_color: Color for the prediction line (default: dark blue)
+        line_width: Width of the prediction line (default: 2.6)
     
     Returns:
         Tuple of (Figure, Axes)
@@ -348,9 +354,9 @@ def create_slice_plot(
     ax.plot(
         x_values,
         predictions,
-        color=mean_color,
-        linewidth=2.6,
-        label='Prediction',
+        color=line_color if line_color is not None else mean_color,
+        linewidth=line_width if line_width is not None else 2.6,
+        label=prediction_label,
         zorder=3
     )
     
@@ -534,8 +540,7 @@ def create_voxel_plot(
     if suggest_x is not None and suggest_y is not None and suggest_z is not None and len(suggest_x) > 0:
         ax.scatter(
             suggest_x, suggest_y, suggest_z,
-            c='red',
-            edgecolors='black',
+            c='black',
             s=150,
             marker='*',
             label='Suggestions',
@@ -1014,28 +1019,18 @@ def create_probability_of_improvement_plot(
 #       - ❌ NOT YET: uncertainty visualization, acquisition function plots
 #       - Note: Computationally expensive (O(N³) evaluations)
 #
-# IMPLEMENTATION STATUS MATRIX (Jan 2026):
+# IMPLEMENTATION STATUS MATRIX (Jan 22, 2026):
 # -----------------------------------------
 #                     1D Slice    2D Contour    3D Voxel
 # Posterior Mean         ✅           ✅           ✅
-# Posterior Uncertainty  ✅           ❌           ❌
-# Acquisition Function   ✅           ✅           ❌
+# Posterior Uncertainty  ✅           ✅           ✅
+# Acquisition Function   ✅           ✅           ✅
 #
-# FUTURE WORK:
-# ------------
-# - Add uncertainty contour plots (2D)
-# - Add uncertainty voxel plots (3D)
-# - Add acquisition function voxel plots (3D)
-# - Standardize parameter naming across all plot types:
-#   * Consider: show_uncertainty vs show_error_bars
-#   * Consider: n_points vs grid_resolution
-# - Add subplot layouts (e.g., mean + uncertainty side-by-side)
-# - Add animation support for time-varying optimization campaigns
-# - Consider plotly backend for interactive 3D rotation
+# COMPLETE! All 9 visualization combinations implemented.
 #
 # API CONSISTENCY NOTES:
 # ----------------------
-# Current naming conventions (to maintain or standardize):
+# Current naming conventions:
 # - plot_slice: show_uncertainty (Union[bool, List[float]])
 # - plot_parity: show_error_bars (bool)
 # - All: show_experiments (bool)
@@ -1048,3 +1043,407 @@ def create_probability_of_improvement_plot(
 # 1D/2D/3D sampling densities), but maintain consistency within dimensionality.
 #
 # ==============================================================================
+
+
+def create_uncertainty_contour_plot(
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    uncertainty_grid: np.ndarray,
+    x_var: str,
+    y_var: str,
+    exp_x: Optional[np.ndarray] = None,
+    exp_y: Optional[np.ndarray] = None,
+    suggest_x: Optional[np.ndarray] = None,
+    suggest_y: Optional[np.ndarray] = None,
+    cmap: str = 'Reds',
+    figsize: Tuple[float, float] = (8, 6),
+    dpi: int = 100,
+    title: str = "Posterior Uncertainty (Standard Deviation)",
+    ax: Optional[Axes] = None
+) -> Tuple[Figure, Axes, Any]:
+    """
+    Create 2D contour plot of posterior uncertainty (standard deviation).
+    
+    Visualizes where the model is most uncertain about predictions, showing
+    regions that may benefit from additional sampling. Higher values indicate
+    greater uncertainty.
+    
+    Args:
+        x_grid: X-axis meshgrid values (2D array)
+        y_grid: Y-axis meshgrid values (2D array)
+        uncertainty_grid: Posterior standard deviations on grid (2D array)
+        x_var: X variable name for axis label
+        y_var: Y variable name for axis label
+        exp_x: Experimental X values to overlay (optional)
+        exp_y: Experimental Y values to overlay (optional)
+        suggest_x: Suggested X values to overlay (optional)
+        suggest_y: Suggested Y values to overlay (optional)
+        cmap: Matplotlib colormap name (default: 'Reds' - darker = more uncertain)
+        figsize: Figure size (width, height) in inches
+        dpi: Resolution
+        title: Plot title
+        ax: Existing axes (creates new if None)
+    
+    Returns:
+        Tuple of (Figure, Axes, Colorbar)
+    
+    Example:
+        >>> X, Y = np.meshgrid(x_range, y_range)
+        >>> _, std = model.predict(grid, return_std=True)
+        >>> uncertainty = std.reshape(X.shape)
+        >>> fig, ax, cbar = create_uncertainty_contour_plot(X, Y, uncertainty, 'temp', 'pressure')
+    
+    Note:
+        - Useful for identifying under-explored regions
+        - Typically used with 'Reds' or 'YlOrRd' colormaps
+        - High uncertainty near data gaps is expected
+        - Can guide where to sample next for exploration
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        should_tight_layout = True
+    else:
+        fig = ax.figure
+        should_tight_layout = False
+    
+    # Contour plot of uncertainty
+    min_val = uncertainty_grid.min()
+    max_val = uncertainty_grid.max()
+    
+    levels = np.linspace(min_val, max_val, 50)
+    contour = ax.contourf(x_grid, y_grid, uncertainty_grid, levels=levels, 
+                         cmap=cmap, vmin=min_val, vmax=max_val)
+    
+    cbar = fig.colorbar(contour, ax=ax)
+    cbar.set_label('Posterior Standard Deviation', rotation=270, labelpad=20)
+    
+    # Overlay experimental points
+    if exp_x is not None and exp_y is not None and len(exp_x) > 0:
+        ax.scatter(exp_x, exp_y, c='white', edgecolors='black', 
+                  s=80, marker='o', label='Experiments', zorder=5)
+    
+    # Overlay suggestion points
+    if suggest_x is not None and suggest_y is not None and len(suggest_x) > 0:
+        ax.scatter(suggest_x, suggest_y, c='black',
+                  s=120, marker='*', label='Suggestions', zorder=6)
+    
+    # Labels and title
+    ax.set_xlabel(x_var)
+    ax.set_ylabel(y_var)
+    ax.set_title(title)
+    
+    # Legend if we have overlays
+    if (exp_x is not None and len(exp_x) > 0) or (suggest_x is not None and len(suggest_x) > 0):
+        ax.legend()
+    
+    if should_tight_layout:
+        fig.tight_layout()
+    
+    return fig, ax, cbar
+
+
+def create_uncertainty_voxel_plot(
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    z_grid: np.ndarray,
+    uncertainty_grid: np.ndarray,
+    x_var: str,
+    y_var: str,
+    z_var: str,
+    exp_x: Optional[np.ndarray] = None,
+    exp_y: Optional[np.ndarray] = None,
+    exp_z: Optional[np.ndarray] = None,
+    suggest_x: Optional[np.ndarray] = None,
+    suggest_y: Optional[np.ndarray] = None,
+    suggest_z: Optional[np.ndarray] = None,
+    cmap: str = 'Reds',
+    alpha: float = 0.5,
+    figsize: Tuple[float, float] = (10, 8),
+    dpi: int = 100,
+    title: str = "3D Posterior Uncertainty",
+    ax: Optional[Any] = None
+) -> Tuple[Figure, Any]:
+    """
+    Create 3D voxel plot of posterior uncertainty over variable space.
+    
+    Visualizes where the model is most uncertain in 3D, helping identify
+    under-explored regions that may benefit from additional sampling.
+    
+    Args:
+        x_grid: X-axis meshgrid values (3D array)
+        y_grid: Y-axis meshgrid values (3D array)
+        z_grid: Z-axis meshgrid values (3D array)
+        uncertainty_grid: Posterior standard deviations on grid (3D array)
+        x_var: X variable name for axis label
+        y_var: Y variable name for axis label
+        z_var: Z variable name for axis label
+        exp_x: Experimental X values to overlay (optional)
+        exp_y: Experimental Y values to overlay (optional)
+        exp_z: Experimental Z values to overlay (optional)
+        suggest_x: Suggested X values to overlay (optional)
+        suggest_y: Suggested Y values to overlay (optional)
+        suggest_z: Suggested Z values to overlay (optional)
+        cmap: Matplotlib colormap name (default: 'Reds')
+        alpha: Transparency level (0=transparent, 1=opaque)
+        figsize: Figure size (width, height) in inches
+        dpi: Resolution
+        title: Plot title
+        ax: Existing 3D axes (creates new if None)
+    
+    Returns:
+        Tuple of (Figure, Axes3D) objects
+    
+    Example:
+        >>> X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+        >>> _, std = model.predict(grid, return_std=True)
+        >>> uncertainty = std.reshape(X.shape)
+        >>> fig, ax = create_uncertainty_voxel_plot(X, Y, Z, uncertainty, 'temp', 'press', 'flow')
+    
+    Note:
+        - Higher values = greater uncertainty
+        - Useful for planning exploration strategies
+        - Shows data-sparse regions in 3D
+        - Computationally expensive (O(N³) evaluations)
+    """
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.colors import Normalize
+    
+    if ax is None:
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        ax = fig.add_subplot(111, projection='3d')
+        should_tight_layout = True
+    else:
+        fig = ax.figure
+        should_tight_layout = False
+    
+    # Normalize uncertainty for colormapping
+    min_val = uncertainty_grid.min()
+    max_val = uncertainty_grid.max()
+    norm = Normalize(vmin=min_val, vmax=max_val)
+    
+    # Get colormap
+    cm = plt.get_cmap(cmap)
+    
+    # Flatten arrays
+    x_flat = x_grid.ravel()
+    y_flat = y_grid.ravel()
+    z_flat = z_grid.ravel()
+    uncertainty_flat = uncertainty_grid.ravel()
+    
+    # Calculate marker size based on grid spacing
+    n_points = len(x_flat)
+    marker_size = max(10, 1000 / (n_points ** (1/3)))
+    
+    # Plot as 3D scatter with colors
+    scatter = ax.scatter(
+        x_flat, y_flat, z_flat,
+        c=uncertainty_flat,
+        cmap=cmap,
+        norm=norm,
+        alpha=alpha,
+        s=marker_size,
+        marker='o',
+        edgecolors='none'
+    )
+    
+    # Add colorbar
+    cbar = fig.colorbar(scatter, ax=ax, pad=0.1, shrink=0.8)
+    cbar.set_label('Posterior Standard Deviation', rotation=270, labelpad=20)
+    
+    # Overlay experimental points
+    if exp_x is not None and exp_y is not None and exp_z is not None and len(exp_x) > 0:
+        ax.scatter(
+            exp_x, exp_y, exp_z,
+            c='white', 
+            edgecolors='black',
+            s=100, 
+            marker='o', 
+            label='Experiments',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Overlay suggestion points
+    if suggest_x is not None and suggest_y is not None and suggest_z is not None and len(suggest_x) > 0:
+        ax.scatter(
+            suggest_x, suggest_y, suggest_z,
+            c='blue',
+            edgecolors='black',
+            s=150,
+            marker='*',
+            label='Suggestions',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Set labels and title
+    ax.set_xlabel(x_var)
+    ax.set_ylabel(y_var)
+    ax.set_zlabel(z_var)
+    ax.set_title(title)
+    
+    # Add legend if we have overlays
+    if (exp_x is not None and len(exp_x) > 0) or (suggest_x is not None and len(suggest_x) > 0):
+        ax.legend(loc='upper left')
+    
+    if should_tight_layout:
+        fig.tight_layout()
+    
+    return fig, ax
+
+
+def create_acquisition_voxel_plot(
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    z_grid: np.ndarray,
+    acquisition_grid: np.ndarray,
+    x_var: str,
+    y_var: str,
+    z_var: str,
+    exp_x: Optional[np.ndarray] = None,
+    exp_y: Optional[np.ndarray] = None,
+    exp_z: Optional[np.ndarray] = None,
+    suggest_x: Optional[np.ndarray] = None,
+    suggest_y: Optional[np.ndarray] = None,
+    suggest_z: Optional[np.ndarray] = None,
+    cmap: str = 'hot',
+    alpha: float = 0.5,
+    use_log_scale: bool = False,
+    figsize: Tuple[float, float] = (10, 8),
+    dpi: int = 100,
+    title: str = "3D Acquisition Function",
+    ax: Optional[Any] = None
+) -> Tuple[Figure, Any]:
+    """
+    Create 3D voxel plot of acquisition function over variable space.
+    
+    Visualizes the acquisition function in 3D, showing "hot spots" where
+    the optimization algorithm believes the next experiment should be conducted.
+    Higher values indicate more promising regions.
+    
+    Args:
+        x_grid: X-axis meshgrid values (3D array)
+        y_grid: Y-axis meshgrid values (3D array)
+        z_grid: Z-axis meshgrid values (3D array)
+        acquisition_grid: Acquisition function values on grid (3D array)
+        x_var: X variable name for axis label
+        y_var: Y variable name for axis label
+        z_var: Z variable name for axis label
+        exp_x: Experimental X values to overlay (optional)
+        exp_y: Experimental Y values to overlay (optional)
+        exp_z: Experimental Z values to overlay (optional)
+        suggest_x: Suggested X values to overlay (optional)
+        suggest_y: Suggested Y values to overlay (optional)
+        suggest_z: Suggested Z values to overlay (optional)
+        cmap: Matplotlib colormap name (default: 'hot')
+        alpha: Transparency level (0=transparent, 1=opaque)
+        use_log_scale: Use logarithmic color scale
+        figsize: Figure size (width, height) in inches
+        dpi: Resolution
+        title: Plot title
+        ax: Existing 3D axes (creates new if None)
+    
+    Returns:
+        Tuple of (Figure, Axes3D) objects
+    
+    Example:
+        >>> X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+        >>> acq_values = evaluate_acquisition(model, grid, acq_func='ei')
+        >>> acq_grid = acq_values.reshape(X.shape)
+        >>> fig, ax = create_acquisition_voxel_plot(X, Y, Z, acq_grid, 'temp', 'press', 'flow')
+    
+    Note:
+        - Higher values = more promising for next experiment
+        - Use with EI, PI, UCB, or other acquisition functions
+        - Helps visualize exploration-exploitation tradeoff
+        - Suggestions should align with high-value regions
+        - Computationally expensive (O(N³) evaluations)
+    """
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.colors import Normalize, LogNorm
+    
+    if ax is None:
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        ax = fig.add_subplot(111, projection='3d')
+        should_tight_layout = True
+    else:
+        fig = ax.figure
+        should_tight_layout = False
+    
+    # Normalize acquisition values for colormapping
+    min_val = acquisition_grid.min()
+    max_val = acquisition_grid.max()
+    
+    if use_log_scale and min_val > 0:
+        norm = LogNorm(vmin=min_val, vmax=max_val)
+    else:
+        norm = Normalize(vmin=min_val, vmax=max_val)
+    
+    # Get colormap
+    cm = plt.get_cmap(cmap)
+    
+    # Flatten arrays
+    x_flat = x_grid.ravel()
+    y_flat = y_grid.ravel()
+    z_flat = z_grid.ravel()
+    acq_flat = acquisition_grid.ravel()
+    
+    # Calculate marker size based on grid spacing
+    n_points = len(x_flat)
+    marker_size = max(10, 1000 / (n_points ** (1/3)))
+    
+    # Plot as 3D scatter with colors
+    scatter = ax.scatter(
+        x_flat, y_flat, z_flat,
+        c=acq_flat,
+        cmap=cmap,
+        norm=norm,
+        alpha=alpha,
+        s=marker_size,
+        marker='o',
+        edgecolors='none'
+    )
+    
+    # Add colorbar
+    cbar = fig.colorbar(scatter, ax=ax, pad=0.1, shrink=0.8)
+    cbar.set_label('Acquisition Function Value', rotation=270, labelpad=20)
+    
+    # Overlay experimental points
+    if exp_x is not None and exp_y is not None and exp_z is not None and len(exp_x) > 0:
+        ax.scatter(
+            exp_x, exp_y, exp_z,
+            c='cyan', 
+            edgecolors='black',
+            s=100, 
+            marker='o', 
+            label='Experiments',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Overlay suggestion points (should be in high-acquisition regions)
+    if suggest_x is not None and suggest_y is not None and suggest_z is not None and len(suggest_x) > 0:
+        ax.scatter(
+            suggest_x, suggest_y, suggest_z,
+            c='black',
+            s=150,
+            marker='*',
+            label='Suggestions',
+            linewidths=2,
+            depthshade=True
+        )
+    
+    # Set labels and title
+    ax.set_xlabel(x_var)
+    ax.set_ylabel(y_var)
+    ax.set_zlabel(z_var)
+    ax.set_title(title)
+    
+    # Add legend if we have overlays
+    if (exp_x is not None and len(exp_x) > 0) or (suggest_x is not None and len(suggest_x) > 0):
+        ax.legend(loc='upper left')
+    
+    if should_tight_layout:
+        fig.tight_layout()
+    
+    return fig, ax

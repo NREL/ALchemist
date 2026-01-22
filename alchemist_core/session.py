@@ -931,12 +931,14 @@ class OptimizationSession:
         # Store suggestions for UI/API access
         self.last_suggestions = result_df.to_dict('records')
         
-        # Cache suggestion info for audit log
+        # Cache suggestion info for audit log and visualization
         self._last_acquisition_info = {
             'strategy': strategy,
             'goal': goal,
             'parameters': kwargs
         }
+        self._last_acq_func = strategy.lower()
+        self._last_goal = goal.lower()
         
         return result_df
     
@@ -3044,16 +3046,27 @@ class OptimizationSession:
             exp_y=None,  # Don't show experiment y-values for acquisition
             figsize=figsize,
             dpi=dpi,
-            title=title
+            title=title,
+            prediction_label=acq_func.upper(),
+            line_color='darkgreen',
+            line_width=1.5
         )
+        
+        # Add green fill under acquisition curve
+        ax.fill_between(x_values, 0, acq_values, alpha=0.3, color='green', zorder=0)
         
         # Update y-label for acquisition
         ax.set_ylabel(f'{acq_func.upper()} Value')
         
-        # Add suggestions as vertical lines if present
+        # Mark suggestions with star markers if present
         if sugg_x is not None and len(sugg_x) > 0:
-            for sx in sugg_x:
-                ax.axvline(sx, color='red', linestyle='--', alpha=0.5, linewidth=1.5, label='Suggestion')
+            # Evaluate acquisition at suggested points
+            for i, sx in enumerate(sugg_x):
+                # Find acquisition value at this x
+                idx = np.argmin(np.abs(x_values - sx))
+                sy = acq_values[idx]
+                label = 'Suggestion' if i == 0 else None  # Only label first marker
+                ax.scatter([sx], [sy], color='black', s=102, marker='*', zorder=10, label=label)
         
         logger.info(f"Generated acquisition slice plot for {x_var} using {acq_func}")
         return fig
@@ -3245,7 +3258,7 @@ class OptimizationSession:
             exp_y=exp_y,
             suggest_x=sugg_x,
             suggest_y=sugg_y,
-            cmap=cmap,
+            cmap='Greens',  # Green colormap for acquisition
             use_log_scale=use_log_scale,
             figsize=figsize,
             dpi=dpi,
@@ -3256,6 +3269,1088 @@ class OptimizationSession:
         cbar.set_label(f'{acq_func.upper()} Value', rotation=270, labelpad=20)
         
         logger.info(f"Generated acquisition contour plot for {x_var} vs {y_var} using {acq_func}")
+        return fig
+    
+    def plot_uncertainty_contour(
+        self,
+        x_var: str,
+        y_var: str,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 50,
+        show_experiments: bool = True,
+        show_suggestions: bool = False,
+        cmap: str = 'Reds',
+        figsize: Tuple[float, float] = (8, 6),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 2D contour plot of posterior uncertainty over a variable space.
+        
+        Visualizes where the model is most uncertain about predictions, showing
+        regions that may benefit from additional sampling. Higher values indicate
+        greater uncertainty (standard deviation).
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' type)
+            y_var: Variable name for Y axis (must be 'real' type)
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxN points)
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (default: 'Reds' - darker = more uncertain)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object
+        
+        Example:
+            >>> # Visualize uncertainty landscape
+            >>> fig = session.plot_uncertainty_contour('temperature', 'pressure')
+            
+            >>> # Custom colormap
+            >>> fig = session.plot_uncertainty_contour(
+            ...     'temperature', 'pressure',
+            ...     cmap='YlOrRd',
+            ...     grid_resolution=100
+            ... )
+            >>> fig.savefig('uncertainty_contour.png', dpi=300)
+        
+        Note:
+            - Requires at least 2 'real' type variables
+            - Model must be trained and support std predictions
+            - High uncertainty near data gaps is expected
+            - Useful for planning exploration strategies
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        from alchemist_core.visualization.plots import create_uncertainty_contour_plot
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get variable names
+        var_names = self.search_space.get_variable_names()
+        
+        # Validate variables exist
+        if x_var not in var_names:
+            raise ValueError(f"Variable '{x_var}' not in search space")
+        if y_var not in var_names:
+            raise ValueError(f"Variable '{y_var}' not in search space")
+        
+        # Get variable info
+        x_var_info = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_info = next(v for v in self.search_space.variables if v['name'] == y_var)
+        
+        if x_var_info['type'] != 'real':
+            raise ValueError(f"X variable '{x_var}' must be 'real' type, got '{x_var_info['type']}'")
+        if y_var_info['type'] != 'real':
+            raise ValueError(f"Y variable '{y_var}' must be 'real' type, got '{y_var_info['type']}'")
+        
+        # Get bounds
+        x_bounds = (x_var_info['min'], x_var_info['max'])
+        y_bounds = (y_var_info['min'], y_var_info['max'])
+        
+        # Create meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        X_grid, Y_grid = np.meshgrid(x, y)
+        
+        # Build prediction grid
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Get predictions with uncertainty
+        _, std = self.predict(grid_df)
+        
+        # Reshape to grid
+        uncertainty_grid = std.reshape(X_grid.shape)
+        
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns:
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
+        
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
+        
+        # Generate title if not provided
+        if title is None:
+            title = f"Posterior Uncertainty: {x_var} vs {y_var}"
+        
+        # Delegate to visualization module
+        fig, ax, cbar = create_uncertainty_contour_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            uncertainty_grid=uncertainty_grid,
+            x_var=x_var,
+            y_var=y_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            cmap=cmap,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info(f"Generated uncertainty contour plot for {x_var} vs {y_var}")
+        return fig
+    
+    def plot_uncertainty_voxel(
+        self,
+        x_var: str,
+        y_var: str,
+        z_var: str,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 15,
+        show_experiments: bool = True,
+        show_suggestions: bool = False,
+        cmap: str = 'Reds',
+        alpha: float = 0.5,
+        figsize: Tuple[float, float] = (10, 8),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 3D voxel plot of posterior uncertainty over variable space.
+        
+        Visualizes where the model is most uncertain in 3D, helping identify
+        under-explored regions that may benefit from additional sampling.
+        Higher values indicate greater uncertainty (standard deviation).
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' or 'integer' type)
+            y_var: Variable name for Y axis (must be 'real' or 'integer' type)
+            z_var: Variable name for Z axis (must be 'real' or 'integer' type)
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxNxN points, default: 15)
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (default: 'Reds')
+            alpha: Transparency level (0=transparent, 1=opaque)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object with 3D axes
+        
+        Example:
+            >>> # Visualize uncertainty in 3D
+            >>> fig = session.plot_uncertainty_voxel('temperature', 'pressure', 'flow_rate')
+            
+            >>> # With transparency to see interior
+            >>> fig = session.plot_uncertainty_voxel(
+            ...     'temperature', 'pressure', 'flow_rate',
+            ...     alpha=0.3,
+            ...     grid_resolution=20
+            ... )
+            >>> fig.savefig('uncertainty_voxel.png', dpi=150)
+        
+        Raises:
+            ValueError: If search space doesn't have at least 3 continuous variables
+        
+        Note:
+            - Requires at least 3 'real' or 'integer' type variables
+            - Model must be trained and support std predictions
+            - Computationally expensive: O(N³) evaluations
+            - Useful for planning exploration in 3D space
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        from alchemist_core.visualization.plots import create_uncertainty_voxel_plot
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get all variable names
+        var_names = self.search_space.get_variable_names()
+        
+        # Validate that the requested variables exist and are continuous
+        for var_name, var_label in [(x_var, 'X'), (y_var, 'Y'), (z_var, 'Z')]:
+            if var_name not in var_names:
+                raise ValueError(f"{var_label} variable '{var_name}' not in search space")
+            
+            var_def = next(v for v in self.search_space.variables if v['name'] == var_name)
+            if var_def['type'] not in ['real', 'integer']:
+                raise ValueError(
+                    f"{var_label} variable '{var_name}' must be 'real' or 'integer' type for voxel plot, "
+                    f"got '{var_def['type']}'"
+                )
+        
+        # Get variable definitions
+        x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+        z_var_def = next(v for v in self.search_space.variables if v['name'] == z_var)
+        
+        # Get bounds
+        x_bounds = (x_var_def['min'], x_var_def['max'])
+        y_bounds = (y_var_def['min'], y_var_def['max'])
+        z_bounds = (z_var_def['min'], z_var_def['max'])
+        
+        # Create 3D meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        z = np.linspace(z_bounds[0], z_bounds[1], grid_resolution)
+        X_grid, Y_grid, Z_grid = np.meshgrid(x, y, z, indexing='ij')
+        
+        # Build prediction grid
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel(),
+            z_var: Z_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var, z_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Get predictions with uncertainty
+        _, std = self.predict(grid_df)
+        
+        # Reshape to 3D grid
+        uncertainty_grid = std.reshape(X_grid.shape)
+        
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
+        exp_z = None
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns and z_var in exp_df.columns:
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
+                exp_z = exp_df[z_var].values
+        
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
+        sugg_z = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns and z_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
+                sugg_z = sugg_df[z_var].values
+        
+        # Generate title if not provided
+        if title is None:
+            title = f"3D Posterior Uncertainty: {x_var} vs {y_var} vs {z_var}"
+        
+        # Delegate to visualization module
+        fig, ax = create_uncertainty_voxel_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            z_grid=Z_grid,
+            uncertainty_grid=uncertainty_grid,
+            x_var=x_var,
+            y_var=y_var,
+            z_var=z_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            exp_z=exp_z,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            suggest_z=sugg_z,
+            cmap=cmap,
+            alpha=alpha,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info(f"Generated 3D uncertainty voxel plot for {x_var} vs {y_var} vs {z_var}")
+        return fig
+    
+    def plot_acquisition_voxel(
+        self,
+        x_var: str,
+        y_var: str,
+        z_var: str,
+        acq_func: str = 'ei',
+        fixed_values: Optional[Dict[str, Any]] = None,
+        grid_resolution: int = 15,
+        acq_func_kwargs: Optional[Dict[str, Any]] = None,
+        goal: str = 'maximize',
+        show_experiments: bool = True,
+        show_suggestions: bool = True,
+        cmap: str = 'hot',
+        alpha: float = 0.5,
+        use_log_scale: Optional[bool] = None,
+        figsize: Tuple[float, float] = (10, 8),
+        dpi: int = 100,
+        title: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create 3D voxel plot of acquisition function over variable space.
+        
+        Visualizes the acquisition function in 3D, showing "hot spots" where
+        the optimization algorithm believes the next experiment should be conducted.
+        Higher values indicate more promising regions.
+        
+        Args:
+            x_var: Variable name for X axis (must be 'real' or 'integer' type)
+            y_var: Variable name for Y axis (must be 'real' or 'integer' type)
+            z_var: Variable name for Z axis (must be 'real' or 'integer' type)
+            acq_func: Acquisition function name ('ei', 'pi', 'ucb', 'logei', 'logpi')
+            fixed_values: Dict of {var_name: value} for other variables.
+                         If not provided, uses midpoint for real/integer,
+                         first category for categorical.
+            grid_resolution: Grid density (NxNxN points, default: 15)
+            acq_func_kwargs: Additional acquisition parameters (xi, kappa, beta)
+            goal: 'maximize' or 'minimize' - optimization direction
+            show_experiments: Plot experimental data points as scatter
+            show_suggestions: Plot last suggested points (if available)
+            cmap: Matplotlib colormap name (default: 'hot')
+            alpha: Transparency level (0=transparent, 1=opaque)
+            use_log_scale: Use logarithmic color scale (default: auto for logei/logpi)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch for figure resolution
+            title: Custom title (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object with 3D axes
+        
+        Example:
+            >>> # Visualize Expected Improvement in 3D
+            >>> fig = session.plot_acquisition_voxel(
+            ...     'temperature', 'pressure', 'flow_rate',
+            ...     acq_func='ei'
+            ... )
+            
+            >>> # UCB with custom exploration
+            >>> fig = session.plot_acquisition_voxel(
+            ...     'temperature', 'pressure', 'flow_rate',
+            ...     acq_func='ucb',
+            ...     acq_func_kwargs={'beta': 1.0},
+            ...     alpha=0.3
+            ... )
+            >>> fig.savefig('acq_voxel.png', dpi=150)
+        
+        Raises:
+            ValueError: If search space doesn't have at least 3 continuous variables
+        
+        Note:
+            - Requires at least 3 'real' or 'integer' type variables
+            - Model must be trained before plotting
+            - Computationally expensive: O(N³) evaluations
+            - Higher values = more promising for next experiment
+            - Suggestions should align with high-value regions
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        from alchemist_core.utils.acquisition_utils import evaluate_acquisition
+        from alchemist_core.visualization.plots import create_acquisition_voxel_plot
+        
+        if fixed_values is None:
+            fixed_values = {}
+        
+        # Get all variable names
+        var_names = self.search_space.get_variable_names()
+        
+        # Validate that the requested variables exist and are continuous
+        for var_name, var_label in [(x_var, 'X'), (y_var, 'Y'), (z_var, 'Z')]:
+            if var_name not in var_names:
+                raise ValueError(f"{var_label} variable '{var_name}' not in search space")
+            
+            var_def = next(v for v in self.search_space.variables if v['name'] == var_name)
+            if var_def['type'] not in ['real', 'integer']:
+                raise ValueError(
+                    f"{var_label} variable '{var_name}' must be 'real' or 'integer' type for voxel plot, "
+                    f"got '{var_def['type']}'"
+                )
+        
+        # Get variable definitions
+        x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+        y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+        z_var_def = next(v for v in self.search_space.variables if v['name'] == z_var)
+        
+        # Get bounds
+        x_bounds = (x_var_def['min'], x_var_def['max'])
+        y_bounds = (y_var_def['min'], y_var_def['max'])
+        z_bounds = (z_var_def['min'], z_var_def['max'])
+        
+        # Create 3D meshgrid
+        x = np.linspace(x_bounds[0], x_bounds[1], grid_resolution)
+        y = np.linspace(y_bounds[0], y_bounds[1], grid_resolution)
+        z = np.linspace(z_bounds[0], z_bounds[1], grid_resolution)
+        X_grid, Y_grid, Z_grid = np.meshgrid(x, y, z, indexing='ij')
+        
+        # Build acquisition evaluation grid
+        grid_data = {
+            x_var: X_grid.ravel(),
+            y_var: Y_grid.ravel(),
+            z_var: Z_grid.ravel()
+        }
+        
+        # Add fixed values for other variables
+        for var in self.search_space.variables:
+            var_name = var['name']
+            if var_name in [x_var, y_var, z_var]:
+                continue
+            
+            if var_name in fixed_values:
+                grid_data[var_name] = fixed_values[var_name]
+            else:
+                # Use default value
+                if var['type'] in ['real', 'integer']:
+                    grid_data[var_name] = (var['min'] + var['max']) / 2
+                elif var['type'] == 'categorical':
+                    grid_data[var_name] = var['values'][0]
+        
+        # Create DataFrame with correct column order
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+        else:
+            column_order = self.search_space.get_variable_names()
+        
+        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        
+        # Evaluate acquisition function
+        acq_values, _ = evaluate_acquisition(
+            self.model,
+            grid_df,
+            acq_func=acq_func,
+            acq_func_kwargs=acq_func_kwargs,
+            goal=goal
+        )
+        
+        # Reshape to 3D grid
+        acquisition_grid = acq_values.reshape(X_grid.shape)
+        
+        # Prepare experimental data for overlay
+        exp_x = None
+        exp_y = None
+        exp_z = None
+        if show_experiments and not self.experiment_manager.df.empty:
+            exp_df = self.experiment_manager.df
+            if x_var in exp_df.columns and y_var in exp_df.columns and z_var in exp_df.columns:
+                exp_x = exp_df[x_var].values
+                exp_y = exp_df[y_var].values
+                exp_z = exp_df[z_var].values
+        
+        # Prepare suggestion data for overlay
+        sugg_x = None
+        sugg_y = None
+        sugg_z = None
+        if show_suggestions and len(self.last_suggestions) > 0:
+            if isinstance(self.last_suggestions, pd.DataFrame):
+                sugg_df = self.last_suggestions
+            else:
+                sugg_df = pd.DataFrame(self.last_suggestions)
+            
+            if x_var in sugg_df.columns and y_var in sugg_df.columns and z_var in sugg_df.columns:
+                sugg_x = sugg_df[x_var].values
+                sugg_y = sugg_df[y_var].values
+                sugg_z = sugg_df[z_var].values
+        
+        # Auto-enable log scale for logei/logpi if not explicitly set
+        if use_log_scale is None:
+            use_log_scale = acq_func.lower() in ['logei', 'logpi']
+        
+        # Generate title if not provided
+        if title is None:
+            acq_name = acq_func.upper()
+            title = f"3D Acquisition Function ({acq_name}): {x_var} vs {y_var} vs {z_var}"
+        
+        # Delegate to visualization module
+        fig, ax = create_acquisition_voxel_plot(
+            x_grid=X_grid,
+            y_grid=Y_grid,
+            z_grid=Z_grid,
+            acquisition_grid=acquisition_grid,
+            x_var=x_var,
+            y_var=y_var,
+            z_var=z_var,
+            exp_x=exp_x,
+            exp_y=exp_y,
+            exp_z=exp_z,
+            suggest_x=sugg_x,
+            suggest_y=sugg_y,
+            suggest_z=sugg_z,
+            cmap=cmap,
+            alpha=alpha,
+            use_log_scale=use_log_scale,
+            figsize=figsize,
+            dpi=dpi,
+            title=title
+        )
+        
+        logger.info(f"Generated 3D acquisition voxel plot for {x_var} vs {y_var} vs {z_var} using {acq_func}")
+        return fig
+    
+    def plot_suggested_next(
+        self,
+        x_var: str,
+        y_var: Optional[str] = None,
+        z_var: Optional[str] = None,
+        acq_func: Optional[str] = None,
+        fixed_values: Optional[Dict[str, Any]] = None,
+        suggestion_index: int = 0,
+        n_points: int = 100,
+        grid_resolution: int = 50,
+        show_uncertainty: Optional[Union[bool, List[float]]] = [1.0, 2.0],
+        show_experiments: bool = True,
+        acq_func_kwargs: Optional[Dict[str, Any]] = None,
+        goal: Optional[str] = None,
+        figsize: Tuple[float, float] = (10, 12),
+        dpi: int = 100,
+        title_prefix: Optional[str] = None
+    ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
+        """
+        Create visualization of suggested next experiment with posterior and acquisition.
+        
+        This creates a stacked subplot showing:
+        - Top: Posterior mean prediction (slice/contour/voxel)
+        - Bottom: Acquisition function with suggested point marked
+        
+        The fixed values for non-varying dimensions are automatically extracted from
+        the suggested point coordinates, making it easy to visualize why that point
+        was chosen.
+        
+        Args:
+            x_var: Variable name for X axis (required)
+            y_var: Variable name for Y axis (optional, creates 2D plot if provided)
+            z_var: Variable name for Z axis (optional, creates 3D plot if provided with y_var)
+            acq_func: Acquisition function used (if None, extracts from last run or defaults to 'ei')
+            fixed_values: Override automatic fixed values from suggestion (optional)
+            suggestion_index: Which suggestion to visualize if multiple (default: 0 = most recent)
+            n_points: Points to evaluate for 1D slice (default: 100)
+            grid_resolution: Grid density for 2D/3D plots (default: 50)
+            show_uncertainty: For posterior plot - True, False, or list of sigma values (e.g., [1.0, 2.0])
+            show_experiments: Overlay experimental data points
+            acq_func_kwargs: Additional acquisition parameters (xi, kappa, beta)
+            goal: 'maximize' or 'minimize' (if None, uses session's last goal)
+            figsize: Figure size as (width, height) in inches
+            dpi: Dots per inch
+            title_prefix: Custom prefix for titles (default: auto-generated)
+        
+        Returns:
+            matplotlib Figure object with 2 subplots
+        
+        Example:
+            >>> # After running suggest_next()
+            >>> session.suggest_next(strategy='ei')
+            >>> 
+            >>> # Visualize the suggestion in 1D
+            >>> fig = session.plot_suggested_next('temperature')
+            >>> 
+            >>> # Visualize in 2D
+            >>> fig = session.plot_suggested_next('temperature', 'pressure')
+            >>> 
+            >>> # Visualize in 3D
+            >>> fig = session.plot_suggested_next('temperature', 'pressure', 'time')
+            >>> fig.savefig('suggestion_3d.png', dpi=300)
+        
+        Note:
+            - Must call suggest_next() before using this function
+            - Automatically extracts fixed values from the suggested point
+            - Creates intuitive visualization showing why the point was chosen
+        """
+        self._check_matplotlib()
+        self._check_model_trained()
+        
+        # Check if we have suggestions
+        if not self.last_suggestions or len(self.last_suggestions) == 0:
+            raise ValueError("No suggestions available. Call suggest_next() first.")
+        
+        # Get the suggestion to visualize
+        if isinstance(self.last_suggestions, pd.DataFrame):
+            sugg_df = self.last_suggestions
+        else:
+            sugg_df = pd.DataFrame(self.last_suggestions)
+        
+        if suggestion_index >= len(sugg_df):
+            raise ValueError(f"Suggestion index {suggestion_index} out of range (have {len(sugg_df)} suggestions)")
+        
+        suggestion = sugg_df.iloc[suggestion_index].to_dict()
+        
+        # Determine plot dimensionality
+        if z_var is not None and y_var is None:
+            raise ValueError("Must provide y_var if z_var is specified")
+        
+        is_1d = (y_var is None)
+        is_2d = (y_var is not None and z_var is None)
+        is_3d = (z_var is not None)
+        
+        # Cap 3D resolution to prevent kernel crashes
+        if is_3d and grid_resolution > 30:
+            logger.warning(f"3D voxel resolution capped at 30 (requested {grid_resolution})")
+            grid_resolution = 30
+        
+        # Get variable names for the plot
+        plot_vars = [x_var]
+        if y_var is not None:
+            plot_vars.append(y_var)
+        if z_var is not None:
+            plot_vars.append(z_var)
+        
+        # Extract fixed values from suggestion (for non-varying dimensions)
+        if fixed_values is None:
+            fixed_values = {}
+            for var_name in self.search_space.get_variable_names():
+                if var_name not in plot_vars and var_name in suggestion:
+                    fixed_values[var_name] = suggestion[var_name]
+        
+        # Get acquisition function and goal from last run if not specified
+        if acq_func is None:
+            # Try to get from last acquisition run
+            if hasattr(self, '_last_acq_func'):
+                acq_func = self._last_acq_func
+            else:
+                acq_func = 'ei'  # Default fallback
+        
+        if goal is None:
+            if hasattr(self, '_last_goal'):
+                goal = self._last_goal
+            else:
+                goal = 'maximize'  # Default fallback
+        
+        # Create figure with 2 subplots (stacked vertically)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, dpi=dpi)
+        
+        # Generate titles
+        if title_prefix is None:
+            title_prefix = "Suggested Next Experiment"
+        
+        # Format fixed values with smart rounding (2 decimals for floats, no .00 for integers)
+        def format_value(v):
+            if isinstance(v, float):
+                # Round to 2 decimals, but strip trailing zeros
+                rounded = round(v, 2)
+                # Check if it's effectively an integer
+                if rounded == int(rounded):
+                    return str(int(rounded))
+                return f"{rounded:.2f}".rstrip('0').rstrip('.')
+            return str(v)
+        
+        fixed_str = ', '.join([f'{k}={format_value(v)}' for k, v in fixed_values.items()])
+        
+        # Plot 1: Posterior Mean
+        if is_1d:
+            # 1D slice plot
+            x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+            x_values = np.linspace(x_var_def['min'], x_var_def['max'], n_points)
+            
+            # Build grid
+            grid_data = {x_var: x_values}
+            
+            for var in self.search_space.variables:
+                var_name = var['name']
+                if var_name == x_var:
+                    continue
+                
+                if var_name in fixed_values:
+                    grid_data[var_name] = fixed_values[var_name]
+                else:
+                    if var['type'] in ['real', 'integer']:
+                        grid_data[var_name] = (var['min'] + var['max']) / 2
+                    elif var['type'] == 'categorical':
+                        grid_data[var_name] = var['values'][0]
+            
+            # Create DataFrame with correct column order
+            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+                column_order = self.model.original_feature_names
+            else:
+                column_order = self.search_space.get_variable_names()
+            
+            grid_df = pd.DataFrame(grid_data, columns=column_order)
+            
+            # Get predictions
+            predictions, std = self.predict(grid_df)
+            
+            # Prepare experiment overlay
+            exp_x, exp_y = None, None
+            if show_experiments and not self.experiment_manager.df.empty:
+                df = self.experiment_manager.df
+                mask = pd.Series([True] * len(df))
+                for var_name, fixed_val in fixed_values.items():
+                    if var_name in df.columns:
+                        if isinstance(fixed_val, str):
+                            mask &= (df[var_name] == fixed_val)
+                        else:
+                            mask &= np.isclose(df[var_name], fixed_val, atol=1e-6)
+                if mask.any():
+                    filtered_df = df[mask]
+                    exp_x = filtered_df[x_var].values
+                    exp_y = filtered_df[self.experiment_manager.target_column].values
+            
+            # Determine sigma bands
+            sigma_bands = None
+            if show_uncertainty is not None:
+                if isinstance(show_uncertainty, bool):
+                    sigma_bands = [1.0, 2.0] if show_uncertainty else None
+                else:
+                    sigma_bands = show_uncertainty
+            
+            from alchemist_core.visualization.plots import create_slice_plot
+            create_slice_plot(
+                x_values=x_values,
+                predictions=predictions,
+                x_var=x_var,
+                std=std,
+                sigma_bands=sigma_bands,
+                exp_x=exp_x,
+                exp_y=exp_y,
+                title=f"{title_prefix} - Posterior Mean\n({fixed_str})" if fixed_str else f"{title_prefix} - Posterior Mean",
+                ax=ax1
+            )
+            
+            # Mark the suggested point on posterior plot
+            sugg_x = suggestion[x_var]
+            sugg_y_pred, _ = self.predict(pd.DataFrame([suggestion]))
+            ax1.scatter([sugg_x], sugg_y_pred, color='black', s=102, marker='*', zorder=10, 
+                       linewidths=1.5, label='Suggested')
+            ax1.legend()
+            
+        elif is_2d:
+            # 2D contour plot
+            x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+            y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+            
+            x_values = np.linspace(x_var_def['min'], x_var_def['max'], grid_resolution)
+            y_values = np.linspace(y_var_def['min'], y_var_def['max'], grid_resolution)
+            X_grid, Y_grid = np.meshgrid(x_values, y_values)
+            
+            grid_data = {
+                x_var: X_grid.ravel(),
+                y_var: Y_grid.ravel()
+            }
+            
+            for var in self.search_space.variables:
+                var_name = var['name']
+                if var_name in [x_var, y_var]:
+                    continue
+                
+                if var_name in fixed_values:
+                    grid_data[var_name] = fixed_values[var_name]
+                else:
+                    if var['type'] in ['real', 'integer']:
+                        grid_data[var_name] = (var['min'] + var['max']) / 2
+                    elif var['type'] == 'categorical':
+                        grid_data[var_name] = var['values'][0]
+            
+            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+                column_order = self.model.original_feature_names
+            else:
+                column_order = self.search_space.get_variable_names()
+            
+            grid_df = pd.DataFrame(grid_data, columns=column_order)
+            
+            predictions, _ = self.predict(grid_df)
+            prediction_grid = predictions.reshape(X_grid.shape)
+            
+            # Prepare overlays
+            exp_x, exp_y = None, None
+            if show_experiments and not self.experiment_manager.df.empty:
+                exp_df = self.experiment_manager.df
+                if x_var in exp_df.columns and y_var in exp_df.columns:
+                    exp_x = exp_df[x_var].values
+                    exp_y = exp_df[y_var].values
+            
+            from alchemist_core.visualization.plots import create_contour_plot
+            _, _, _ = create_contour_plot(
+                x_grid=X_grid,
+                y_grid=Y_grid,
+                predictions_grid=prediction_grid,
+                x_var=x_var,
+                y_var=y_var,
+                exp_x=exp_x,
+                exp_y=exp_y,
+                suggest_x=None,
+                suggest_y=None,
+                title=f"{title_prefix} - Posterior Mean\n({fixed_str})" if fixed_str else f"{title_prefix} - Posterior Mean",
+                ax=ax1
+            )
+            
+            # Mark the suggested point
+            sugg_x = suggestion[x_var]
+            sugg_y = suggestion[y_var]
+            ax1.scatter([sugg_x], [sugg_y], color='black', s=102, marker='*', zorder=10, 
+                       linewidths=1.5, label='Suggested')
+            ax1.legend()
+            
+        else:  # 3D
+            # 3D voxel plot
+            x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+            y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+            z_var_def = next(v for v in self.search_space.variables if v['name'] == z_var)
+            
+            x_values = np.linspace(x_var_def['min'], x_var_def['max'], grid_resolution)
+            y_values = np.linspace(y_var_def['min'], y_var_def['max'], grid_resolution)
+            z_values = np.linspace(z_var_def['min'], z_var_def['max'], grid_resolution)
+            X_grid, Y_grid, Z_grid = np.meshgrid(x_values, y_values, z_values, indexing='ij')
+            
+            grid_data = {
+                x_var: X_grid.ravel(),
+                y_var: Y_grid.ravel(),
+                z_var: Z_grid.ravel()
+            }
+            
+            for var in self.search_space.variables:
+                var_name = var['name']
+                if var_name in [x_var, y_var, z_var]:
+                    continue
+                
+                if var_name in fixed_values:
+                    grid_data[var_name] = fixed_values[var_name]
+                else:
+                    if var['type'] in ['real', 'integer']:
+                        grid_data[var_name] = (var['min'] + var['max']) / 2
+                    elif var['type'] == 'categorical':
+                        grid_data[var_name] = var['values'][0]
+            
+            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+                column_order = self.model.original_feature_names
+            else:
+                column_order = self.search_space.get_variable_names()
+            
+            grid_df = pd.DataFrame(grid_data, columns=column_order)
+            
+            predictions, _ = self.predict(grid_df)
+            prediction_grid = predictions.reshape(X_grid.shape)
+            
+            # Prepare overlays
+            exp_x, exp_y, exp_z = None, None, None
+            if show_experiments and not self.experiment_manager.df.empty:
+                exp_df = self.experiment_manager.df
+                if all(v in exp_df.columns for v in [x_var, y_var, z_var]):
+                    exp_x = exp_df[x_var].values
+                    exp_y = exp_df[y_var].values
+                    exp_z = exp_df[z_var].values
+            
+            from alchemist_core.visualization.plots import create_voxel_plot
+            # Note: voxel plots don't support ax parameter yet, need to create separately
+            # For now, we'll note this limitation
+            logger.warning("3D voxel plots for suggestions not yet fully supported with subplots")
+            ax1.text(0.5, 0.5, "3D voxel posterior visualization\n(use plot_voxel separately)",
+                    ha='center', va='center', transform=ax1.transAxes)
+            ax1.axis('off')
+        
+        # Plot 2: Acquisition Function
+        if is_1d:
+            # 1D acquisition slice
+            from alchemist_core.utils.acquisition_utils import evaluate_acquisition
+            from alchemist_core.visualization.plots import create_slice_plot
+            
+            x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+            x_values = np.linspace(x_var_def['min'], x_var_def['max'], n_points)
+            
+            grid_data = {x_var: x_values}
+            
+            for var in self.search_space.variables:
+                var_name = var['name']
+                if var_name == x_var:
+                    continue
+                
+                if var_name in fixed_values:
+                    grid_data[var_name] = fixed_values[var_name]
+                else:
+                    if var['type'] in ['real', 'integer']:
+                        grid_data[var_name] = (var['min'] + var['max']) / 2
+                    elif var['type'] == 'categorical':
+                        grid_data[var_name] = var['values'][0]
+            
+            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+                column_order = self.model.original_feature_names
+            else:
+                column_order = self.search_space.get_variable_names()
+            
+            grid_df = pd.DataFrame(grid_data, columns=column_order)
+            
+            acq_values, _ = evaluate_acquisition(
+                self.model,
+                grid_df,
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+            
+            create_slice_plot(
+                x_values=x_values,
+                predictions=acq_values,
+                x_var=x_var,
+                std=None,
+                sigma_bands=None,
+                exp_x=None,
+                exp_y=None,
+                title=None,  # No title for acquisition subplot
+                ax=ax2,
+                prediction_label=acq_func.upper(),
+                line_color='darkgreen',
+                line_width=1.5
+            )
+            
+            # Add green fill under acquisition curve
+            ax2.fill_between(x_values, 0, acq_values, alpha=0.3, color='green', zorder=0)
+            
+            ax2.set_ylabel(f'{acq_func.upper()} Value')
+            
+            # Mark the suggested point
+            sugg_x = suggestion[x_var]
+            # Evaluate acquisition at the suggested point
+            sugg_acq, _ = evaluate_acquisition(
+                self.model,
+                pd.DataFrame([suggestion]),
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+            ax2.scatter([sugg_x], sugg_acq, color='black', s=102, marker='*', zorder=10,
+                       linewidths=1.5, label=f'{acq_func.upper()} (suggested)')
+            ax2.legend()
+            
+        elif is_2d:
+            # 2D acquisition contour
+            from alchemist_core.utils.acquisition_utils import evaluate_acquisition
+            from alchemist_core.visualization.plots import create_contour_plot
+            
+            x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
+            y_var_def = next(v for v in self.search_space.variables if v['name'] == y_var)
+            
+            x_values = np.linspace(x_var_def['min'], x_var_def['max'], grid_resolution)
+            y_values = np.linspace(y_var_def['min'], y_var_def['max'], grid_resolution)
+            X_grid, Y_grid = np.meshgrid(x_values, y_values)
+            
+            grid_data = {
+                x_var: X_grid.ravel(),
+                y_var: Y_grid.ravel()
+            }
+            
+            for var in self.search_space.variables:
+                var_name = var['name']
+                if var_name in [x_var, y_var]:
+                    continue
+                
+                if var_name in fixed_values:
+                    grid_data[var_name] = fixed_values[var_name]
+                else:
+                    if var['type'] in ['real', 'integer']:
+                        grid_data[var_name] = (var['min'] + var['max']) / 2
+                    elif var['type'] == 'categorical':
+                        grid_data[var_name] = var['values'][0]
+            
+            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+                column_order = self.model.original_feature_names
+            else:
+                column_order = self.search_space.get_variable_names()
+            
+            grid_df = pd.DataFrame(grid_data, columns=column_order)
+            
+            acq_values, _ = evaluate_acquisition(
+                self.model,
+                grid_df,
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+            acquisition_grid = acq_values.reshape(X_grid.shape)
+            
+            _, _, _ = create_contour_plot(
+                x_grid=X_grid,
+                y_grid=Y_grid,
+                predictions_grid=acquisition_grid,
+                x_var=x_var,
+                y_var=y_var,
+                exp_x=None,
+                exp_y=None,
+                suggest_x=None,
+                suggest_y=None,
+                cmap='Greens',  # Green colormap for acquisition
+                title=None,  # No title for acquisition subplot
+                ax=ax2
+            )
+            
+            # Mark the suggested point
+            sugg_x = suggestion[x_var]
+            sugg_y = suggestion[y_var]
+            ax2.scatter([sugg_x], [sugg_y], color='black', s=102, marker='*', zorder=10,
+                       linewidths=1.5, label=f'{acq_func.upper()} (suggested)')
+            ax2.legend()
+            
+        else:  # 3D
+            # 3D acquisition voxel
+            logger.warning("3D voxel plots for acquisition not yet fully supported with subplots")
+            ax2.text(0.5, 0.5, "3D voxel acquisition visualization\n(use plot_acquisition_voxel separately)",
+                    ha='center', va='center', transform=ax2.transAxes)
+            ax2.axis('off')
+        
+        plt.tight_layout()
+        
+        logger.info(f"Generated suggested next experiment visualization ({len(plot_vars)}D)")
         return fig
     
     def plot_probability_of_improvement(
