@@ -11,7 +11,7 @@ ALchemist is a modular Python toolkit that brings active learning and Bayesian o
 ## Documentation
 
 Full user guide and documentation:  
-[https://nrel.github.io/ALchemist/](https://nrel.github.io/ALchemist/)
+[https://natlabrockies.github.io/ALchemist/](https://natlabrockies.github.io/ALchemist/)
 
 ---
 
@@ -49,7 +49,7 @@ Session files (JSON format) are fully interoperable between desktop and web appl
 - **Autonomous Optimization**: Use the REST API to integrate ALchemist with automated laboratory equipment for real-time process control
 - **Remote Monitoring**: Web dashboard provides read-only monitoring mode when ALchemist is being remote-controlled
 
-For detailed application examples, see [Use Cases](https://nrel.github.io/ALchemist/use_cases/) in the documentation.
+For detailed application examples, see [Use Cases](https://natlabrockies.github.io/ALchemist/use_cases/) in the documentation.
 
 ---
 
@@ -74,10 +74,10 @@ pip install alchemist-nrel
 > *Note: This installs the latest unreleased version. The web application is not pre-built with this method because static build files are not included in the repository.*
 
 ```bash
-pip install git+https://github.com/NREL/ALchemist.git
+pip install git+https://github.com/NatLabRockies/ALchemist.git
 ```
 
-For advanced installation options, Docker deployment, and development setup, see the [Advanced Installation Guide](https://nrel.github.io/ALchemist/#advanced-installation) in the documentation.
+For advanced installation options, Docker deployment, and development setup, see the [Advanced Installation Guide](https://natlabrockies.github.io/ALchemist/#advanced-installation) in the documentation.
 
 ---
 
@@ -94,7 +94,7 @@ Opens at [http://localhost:8000/app](http://localhost:8000/app)
 alchemist
 ```
 
-For detailed usage instructions, see [Getting Started](https://nrel.github.io/ALchemist/) in the documentation.
+For detailed usage instructions, see [Getting Started](https://natlabrockies.github.io/ALchemist/) in the documentation.
 
 ---
 
@@ -106,7 +106,7 @@ ALchemist is under active development at NLR as part of the DataHub project with
 
 ## Issues & Troubleshooting
 
-If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or contact ccoatney@nrel.gov.
+If you encounter any issues or have questions, please [open an issue on GitHub](https://github.com/NatLabRockies/ALchemist/issues) or contact ccoatney@nrel.gov.
 
 For the latest known issues and troubleshooting tips, see the [Issues & Troubleshooting Log](docs/ISSUES_LOG.md).
 
@@ -122,5 +122,5 @@ This project is licensed under the BSD 3-Clause License. See the [LICENSE](LICEN
 
 ## Repository
 
-[https://github.com/NREL/ALchemist](https://github.com/NREL/ALchemist)
+[https://github.com/NatLabRockies/ALchemist](https://github.com/NatLabRockies/ALchemist)
 

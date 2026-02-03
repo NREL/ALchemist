@@ -47,6 +47,6 @@ all = [
 include = ["alchemist_core*"]
 
 [project.urls]
-"Homepage" = "https://github.com/NREL/ALchemist"
-"Source" = "https://github.com/NREL/ALchemist"
-"Documentation" = "https://github.com/NREL/ALchemist/tree/main/docs"
+"Homepage" = "https://github.com/NatLabRockies/ALchemist"
+"Source" = "https://github.com/NatLabRockies/ALchemist"
+"Documentation" = "https://github.com/NatLabRockies/ALchemist/tree/main/docs"

@@ -698,4 +698,4 @@ def plot_parity(self):
 
 Questions or issues? See main ALchemist documentation or contact:
 - Email: ccoatney@nrel.gov
-- GitHub: https://github.com/NREL/ALchemist
+- GitHub: https://github.com/NatLabRockies/ALchemist

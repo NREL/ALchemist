@@ -77,11 +77,11 @@ include = ["ui*", "alchemist_core*", "api*"]
 api = ["static/**/*"]
 
 [project.urls]
-"Homepage" = "https://github.com/NREL/ALchemist"
-"Documentation" = "https://nrel.github.io/ALchemist/"
-"Source" = "https://github.com/NREL/ALchemist"
-"Bug Tracker" = "https://github.com/NREL/ALchemist/issues"
-"Changelog" = "https://github.com/NREL/ALchemist/releases"
+"Homepage" = "https://github.com/NatLabRockies/ALchemist"
+"Documentation" = "https://natlabrockies.github.io/ALchemist/"
+"Source" = "https://github.com/NatLabRockies/ALchemist"
+"Bug Tracker" = "https://github.com/NatLabRockies/ALchemist/issues"
+"Changelog" = "https://github.com/NatLabRockies/ALchemist/releases"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -174,4 +174,4 @@ For a detailed comparison, see the [Python API Overview](api/python_overview.md)
 
 ---
 
-**Questions?** [Open an issue on GitHub](https://github.com/NREL/ALchemist/issues) or contact ccoatney@nrel.gov
+**Questions?** [Open an issue on GitHub](https://github.com/NatLabRockies/ALchemist/issues) or contact ccoatney@nrel.gov

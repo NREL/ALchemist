@@ -1,6 +1,6 @@
 site_name: ALchemist Documentation
-repo_url: https://github.com/NREL/ALchemist
-site_url: https://nrel.github.io/ALchemist/
+repo_url: https://github.com/NatLabRockies/ALchemist
+site_url: https://natlabrockies.github.io/ALchemist/
 repo_name: ALchemist
 
 theme:

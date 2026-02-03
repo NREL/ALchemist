@@ -101,7 +101,7 @@ The desktop GUI launches directly.
 
 **Desktop app only (GitHub install):**
 ```bash
-pip install git+https://github.com/NREL/ALchemist.git
+pip install git+https://github.com/NatLabRockies/ALchemist.git
 ```
 
 This installs the latest unreleased version. 
@@ -109,7 +109,7 @@ This installs the latest unreleased version.
 
 **Web and desktop apps (clone and build):**
 ```bash
-git clone https://github.com/NREL/ALchemist.git
+git clone https://github.com/NatLabRockies/ALchemist.git
 cd ALchemist
 pip install -e .
 cd alchemist-web
@@ -127,7 +127,7 @@ ALchemist can be deployed as a Docker container for production environments.
 
 **Quick start:**
 ```bash
-git clone https://github.com/NREL/ALchemist.git
+git clone https://github.com/NatLabRockies/ALchemist.git
 cd ALchemist/docker
 docker-compose up -d
 ```
