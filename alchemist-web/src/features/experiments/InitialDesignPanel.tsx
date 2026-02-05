@@ -6,18 +6,21 @@ import { useState } from 'react';
 import { useGenerateInitialDesign } from '../../hooks/api/useExperiments';
 import { useVariables } from '../../hooks/api/useVariables';
 import type { DoEMethod, LHSCriterion } from '../../api/types';
-import { Download } from 'lucide-react';
+import { Download, ListPlus } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface InitialDesignPanelProps {
   sessionId: string;
+  onStageSuggestions?: (pending: any[]) => void;
 }
 
-export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
+export function InitialDesignPanel({ sessionId, onStageSuggestions }: InitialDesignPanelProps) {
   const [method, setMethod] = useState<DoEMethod>('lhs');
   const [nPoints, setNPoints] = useState<number>(10);
   const [randomSeed, setRandomSeed] = useState<string>('');
   const [lhsCriterion, setLhsCriterion] = useState<LHSCriterion>('maximin');
   const [generatedPoints, setGeneratedPoints] = useState<Array<Record<string, any>> | null>(null);
+  const [isStaging, setIsStaging] = useState(false);
 
   const { data: variablesData } = useVariables(sessionId);
   const generateDesign = useGenerateInitialDesign(sessionId);
@@ -60,6 +63,66 @@ export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleStagePoints = async () => {
+    if (!generatedPoints || generatedPoints.length === 0) return;
+    
+    setIsStaging(true);
+    try {
+      // Tag points with reason for Add Point dialog
+      const taggedPoints = generatedPoints.map(p => ({
+        ...p,
+        _reason: `Initial DoE (${method.toUpperCase()})`
+      }));
+      
+      // 1. Stage to API (for persistence across page reloads)
+      const stageResponse = await fetch(`/api/v1/sessions/${sessionId}/experiments/staged/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          experiments: generatedPoints,
+          reason: `Initial DoE (${method.toUpperCase()})`
+        })
+      });
+      
+      if (!stageResponse.ok) {
+        throw new Error('Failed to stage experiments');
+      }
+      
+      // 2. Also log to audit for reproducibility
+      await fetch(`/api/v1/sessions/${sessionId}/audit/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lock_type: 'acquisition',
+          strategy: `Initial DoE (${method.toUpperCase()})`,
+          parameters: {
+            method,
+            n_points: nPoints,
+            random_seed: randomSeed || null,
+            lhs_criterion: method === 'lhs' ? lhsCriterion : undefined
+          },
+          suggestions: generatedPoints,
+          notes: 'Initial design points staged for execution'
+        })
+      });
+      
+      // 3. Update local React state for immediate UI feedback
+      if (onStageSuggestions) {
+        onStageSuggestions(taggedPoints);
+      }
+      
+      toast.success(`✓ ${generatedPoints.length} DoE points staged`, {
+        description: 'Use "Add Point" in Experiments panel to add results'
+      });
+      
+    } catch (e: any) {
+      toast.error('Failed to stage points: ' + (e?.message || String(e)));
+      console.error('Failed to stage DoE points:', e);
+    } finally {
+      setIsStaging(false);
+    }
   };
 
   return (
@@ -147,13 +210,24 @@ export function InitialDesignPanel({ sessionId }: InitialDesignPanelProps) {
                 <span className="text-xs text-muted-foreground">
                   {generatedPoints.length} points generated
                 </span>
-                <button
-                  onClick={handleDownloadCSV}
-                  className="flex items-center gap-1 text-xs border px-2 py-1 rounded hover:bg-accent"
-                >
-                  <Download className="h-3 w-3" />
-                  CSV
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleStagePoints}
+                    disabled={isStaging}
+                    className="flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                    title="Stage points for execution via Add Point dialog"
+                  >
+                    <ListPlus className="h-3 w-3" />
+                    {isStaging ? 'Staging...' : 'Stage'}
+                  </button>
+                  <button
+                    onClick={handleDownloadCSV}
+                    className="flex items-center gap-1 text-xs border px-2 py-1 rounded hover:bg-accent"
+                  >
+                    <Download className="h-3 w-3" />
+                    CSV
+                  </button>
+                </div>
               </div>
               
               <div className="border rounded overflow-hidden">

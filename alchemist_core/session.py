@@ -453,12 +453,20 @@ class OptimizationSession:
         # Add each experiment
         for i, inputs in enumerate(self.staged_experiments):
             noise = noises[i] if noises is not None else None
+            
+            # Strip any metadata fields (prefixed with _) from inputs
+            # These are used for UI/workflow tracking but shouldn't be stored as variables
+            clean_inputs = {k: v for k, v in inputs.items() if not k.startswith('_')}
+            
+            # Use per-experiment reason if stored in _reason, otherwise use batch reason
+            exp_reason = inputs.get('_reason', reason)
+            
             self.add_experiment(
-                inputs=inputs,
+                inputs=clean_inputs,
                 output=outputs[i],
                 noise=noise,
                 iteration=iteration,
-                reason=reason
+                reason=exp_reason
             )
         
         count = len(self.staged_experiments)

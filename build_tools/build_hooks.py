@@ -30,8 +30,8 @@ class BuildWithFrontend(_build_py):
         print("CUSTOM BUILD: Compiling React frontend...")
         print("="*60 + "\n")
         
-        # Get project root
-        root = Path(__file__).resolve().parent
+        # Get project root (build_hooks.py is in build_tools/, so go up one level)
+        root = Path(__file__).resolve().parent.parent
         frontend_dir = root / "alchemist-web"
         api_static = root / "api" / "static"
         

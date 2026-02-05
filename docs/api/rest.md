@@ -531,6 +531,171 @@ with open('experiments.csv', 'wb') as f:
 
 ---
 
+## Staged Experiments API
+
+Staged experiments provide a workflow queue for autonomous optimization. Use these endpoints to track which experiments are pending execution.
+
+### Stage Experiment
+
+**Endpoint**: `POST /sessions/{session_id}/experiments/staged`
+
+**Purpose**: Queue an experiment for later execution
+
+**Request Body**:
+```json
+{
+  "inputs": {
+    "temperature": 375.2,
+    "catalyst_loading": 3.1,
+    "solvent": "DMF"
+  },
+  "reason": "qEI"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Experiment staged successfully",
+  "n_staged": 1,
+  "staged_inputs": {"temperature": 375.2, "catalyst_loading": 3.1, "solvent": "DMF"}
+}
+```
+
+### Stage Multiple Experiments
+
+**Endpoint**: `POST /sessions/{session_id}/experiments/staged/batch`
+
+**Purpose**: Queue multiple experiments at once (e.g., from batch acquisition)
+
+**Request Body**:
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "catalyst_loading": 3.1, "solvent": "DMF"},
+    {"temperature": 412.5, "catalyst_loading": 1.8, "solvent": "THF"}
+  ],
+  "reason": "qEI batch"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "catalyst_loading": 3.1, "solvent": "DMF", "_reason": "qEI batch"},
+    {"temperature": 412.5, "catalyst_loading": 1.8, "solvent": "THF", "_reason": "qEI batch"}
+  ],
+  "n_staged": 2
+}
+```
+
+### Get Staged Experiments
+
+**Endpoint**: `GET /sessions/{session_id}/experiments/staged`
+
+**Purpose**: Retrieve all experiments awaiting execution
+
+**Response** (200 OK):
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "catalyst_loading": 3.1, "solvent": "DMF", "_reason": "qEI"}
+  ],
+  "n_staged": 1
+}
+```
+
+### Clear Staged Experiments
+
+**Endpoint**: `DELETE /sessions/{session_id}/experiments/staged`
+
+**Purpose**: Remove all staged experiments
+
+**Response** (200 OK):
+```json
+{
+  "message": "Staged experiments cleared",
+  "n_cleared": 2
+}
+```
+
+### Complete Staged Experiments
+
+**Endpoint**: `POST /sessions/{session_id}/experiments/staged/complete`
+
+**Purpose**: Finalize staged experiments by providing output values
+
+**Query Parameters**:
+
+- `auto_train`: Auto-retrain model (default: false)
+- `training_backend`: "sklearn" or "botorch"
+- `training_kernel`: Kernel type
+
+**Request Body**:
+```json
+{
+  "outputs": [85.3, 78.9],
+  "noises": [1.2, 0.8],
+  "iteration": 5,
+  "reason": "qEI"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Staged experiments completed and added to dataset",
+  "n_added": 2,
+  "n_experiments": 27,
+  "model_trained": true,
+  "training_metrics": {
+    "rmse": 2.3,
+    "r2": 0.94,
+    "backend": "botorch"
+  }
+}
+```
+
+### Autonomous Workflow Example
+
+```python
+import requests
+
+BASE_URL = "http://localhost:8000/api/v1"
+session_id = "your-session-id"
+
+# 1. Get suggestion from acquisition
+response = requests.post(
+    f"{BASE_URL}/sessions/{session_id}/acquisition/suggest",
+    json={"strategy": "qEI", "goal": "maximize", "n_suggestions": 2}
+)
+suggestions = response.json()["suggestions"]
+
+# 2. Stage suggestions
+for suggestion in suggestions:
+    requests.post(
+        f"{BASE_URL}/sessions/{session_id}/experiments/staged",
+        json={"inputs": suggestion, "reason": "qEI"}
+    )
+
+# 3. Get staged experiments (e.g., for hardware controller)
+response = requests.get(f"{BASE_URL}/sessions/{session_id}/experiments/staged")
+pending = response.json()["experiments"]
+
+# 4. Execute experiments and collect outputs
+outputs = [run_experiment(**exp) for exp in pending]
+
+# 5. Complete staged experiments with outputs
+response = requests.post(
+    f"{BASE_URL}/sessions/{session_id}/experiments/staged/complete",
+    json={"outputs": outputs},
+    params={"auto_train": True}
+)
+```
+
+---
+
 ## Models API
 
 ### Train Model

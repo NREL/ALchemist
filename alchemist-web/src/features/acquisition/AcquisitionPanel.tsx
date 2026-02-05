@@ -501,7 +501,7 @@ export function AcquisitionPanel({ sessionId, modelBackend, pendingSuggestions: 
           <div className="mt-3 flex flex-col gap-2">
             <button
               onClick={async () => {
-                // Stage to audit log (desktop workflow: lock_acquisition)
+                // Stage to both API and audit log
                 const { toast } = await import('sonner');
                 try {
                   // Extract strategy info from first pending suggestion
@@ -514,7 +514,20 @@ export function AcquisitionPanel({ sessionId, modelBackend, pendingSuggestions: 
                     return rest;
                   });
                   
-                  const response = await fetch(`/api/v1/sessions/${sessionId}/audit/lock`, {
+                  // 1. Stage to experiments API (for persistence and queue management)
+                  const stageResponse = await fetch(`/api/v1/sessions/${sessionId}/experiments/staged/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      experiments: cleanSuggestions,
+                      reason: strategyName
+                    })
+                  });
+                  
+                  if (!stageResponse.ok) throw new Error('Failed to stage experiments');
+                  
+                  // 2. Also log to audit for reproducibility
+                  const auditResponse = await fetch(`/api/v1/sessions/${sessionId}/audit/lock`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -526,12 +539,14 @@ export function AcquisitionPanel({ sessionId, modelBackend, pendingSuggestions: 
                     })
                   });
                   
-                  if (!response.ok) throw new Error('Failed to stage suggestions');
+                  if (!auditResponse.ok) {
+                    console.warn('Audit log failed, but experiments were staged');
+                  }
                   
-                  toast.success(`✓ ${cleanSuggestions.length} suggestion(s) staged to audit log`, {
+                  toast.success(`✓ ${cleanSuggestions.length} suggestion(s) staged`, {
                     description: 'Use "Add Point" button in Experiments panel to add results'
                   });
-                  console.log(`✓ Suggestions staged to audit log (${strategyName})`);
+                  console.log(`✓ Suggestions staged (${strategyName})`);
                 } catch (e: any) {
                   toast.error('Failed to stage suggestions: ' + (e?.message || String(e)));
                   console.error('Failed to stage suggestions:', e);
@@ -539,7 +554,7 @@ export function AcquisitionPanel({ sessionId, modelBackend, pendingSuggestions: 
               }}
               className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-medium flex items-center justify-center gap-2"
             >
-              📝 Stage to Audit Log
+              📝 Stage Suggestions
             </button>
             <p className="text-xs text-muted-foreground text-center">
               Staging persists suggestions across page reloads. Use "Add Point" to enter experimental results.

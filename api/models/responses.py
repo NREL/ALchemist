@@ -201,6 +201,83 @@ class InitialDesignResponse(BaseModel):
 
 
 # ============================================================
+# Staged Experiments Models
+# ============================================================
+
+class StagedExperimentResponse(BaseModel):
+    """Response when staging an experiment."""
+    message: str = "Experiment staged successfully"
+    n_staged: int = Field(..., description="Total number of staged experiments")
+    staged_inputs: Dict[str, Any] = Field(..., description="The staged experiment inputs")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Experiment staged successfully",
+                "n_staged": 3,
+                "staged_inputs": {"temperature": 375.2, "catalyst": "B"}
+            }
+        }
+    )
+
+
+class StagedExperimentsListResponse(BaseModel):
+    """Response containing all staged experiments."""
+    experiments: List[Dict[str, Any]] = Field(..., description="List of staged experiment inputs (variable values only)")
+    n_staged: int = Field(..., description="Number of staged experiments")
+    reason: Optional[str] = Field(None, description="Reason/strategy for these staged experiments")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "experiments": [
+                    {"temperature": 375.2, "catalyst": "B"},
+                    {"temperature": 412.8, "catalyst": "A"}
+                ],
+                "n_staged": 2,
+                "reason": "qEI"
+            }
+        }
+    )
+
+
+class StagedExperimentsClearResponse(BaseModel):
+    """Response when clearing staged experiments."""
+    message: str = "Staged experiments cleared"
+    n_cleared: int = Field(..., description="Number of experiments cleared")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Staged experiments cleared",
+                "n_cleared": 3
+            }
+        }
+    )
+
+
+class StagedExperimentsCompletedResponse(BaseModel):
+    """Response when completing staged experiments with outputs."""
+    message: str = "Staged experiments completed and added to dataset"
+    n_added: int = Field(..., description="Number of experiments added")
+    n_experiments: int = Field(..., description="Total experiments in dataset")
+    model_trained: bool = Field(default=False, description="Whether model was auto-trained")
+    training_metrics: Optional[Dict[str, Any]] = Field(None, description="Training metrics if auto-trained")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Staged experiments completed and added to dataset",
+                "n_added": 2,
+                "n_experiments": 15,
+                "model_trained": True,
+                "training_metrics": {"rmse": 0.05, "r2": 0.92}
+            }
+        }
+    )
+
+
+# ============================================================
 # Model Training Models
 # ============================================================
 

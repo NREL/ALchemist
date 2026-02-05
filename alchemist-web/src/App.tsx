@@ -10,7 +10,7 @@ import {
   useImportSession,
   useUpdateSessionMetadata
 } from './hooks/api/useSessions';
-import { useLockStatus } from './hooks/useLockStatus';
+import { useSessionEvents } from './hooks/useSessionEvents';
 import { VariablesPanel } from './features/variables/VariablesPanel';
 import { ExperimentsPanel } from './features/experiments/ExperimentsPanel';
 import { InitialDesignPanel } from './features/experiments/InitialDesignPanel';
@@ -33,6 +33,8 @@ function AppContent() {
   const [showRecoveryBanner, setShowRecoveryBanner] = useState(false);
   const [recoverySession, setRecoverySession] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const urlSessionRef = useRef<string | null>(null);
+  const [joinSessionId, setJoinSessionId] = useState('');
   
   const createSession = useCreateSession();
   const exportSession = useExportSession();
@@ -42,24 +44,43 @@ function AppContent() {
   const { theme, toggleTheme } = useTheme();
   const { isVisualizationOpen, closeVisualization, sessionId: vizSessionId } = useVisualization();
   
-  // Monitor lock status and auto-switch to monitoring mode
-  const { lockStatus } = useLockStatus(sessionId, 5000, (locked) => {
+  // Monitor session events (lock status, experiment updates, model training) via WebSocket
+  const { lockStatus } = useSessionEvents(sessionId, (locked) => {
     setIsMonitoringMode(locked);
   });
   
   // Global staged suggestions to mirror desktop main_app.pending_suggestions
   const [pendingSuggestions, setPendingSuggestions] = useState<any[]>([]);
 
-  // Restore pending suggestions from audit log on session load (desktop workflow)
+  // Restore pending suggestions from staged experiments API on session load
   useEffect(() => {
     if (!sessionId) return;
     
-    async function restorePendingSuggestions() {
+    async function restoreStagedExperiments() {
       try {
-        const response = await fetch(`/api/v1/sessions/${sessionId}/audit?entry_type=acquisition_locked`);
-        if (!response.ok) return;
+        // First try the staged experiments API (preferred)
+        const stagedResponse = await fetch(`/api/v1/sessions/${sessionId}/experiments/staged`);
+        if (stagedResponse.ok) {
+          const stagedData = await stagedResponse.json();
+          if (stagedData.experiments && stagedData.experiments.length > 0) {
+            // API now returns clean experiments + reason separately
+            // Tag each experiment with the reason for the Add Point dialog
+            const reason = stagedData.reason || 'Staged';
+            const taggedExperiments = stagedData.experiments.map((exp: any) => ({
+              ...exp,
+              _reason: reason  // UI-only metadata for dialog auto-fill
+            }));
+            setPendingSuggestions(taggedExperiments);
+            console.log(`✓ Restored ${stagedData.experiments.length} staged experiments from API (reason: ${reason})`);
+            return;
+          }
+        }
         
-        const data = await response.json();
+        // Fallback: check audit log for backward compatibility
+        const auditResponse = await fetch(`/api/v1/sessions/${sessionId}/audit?entry_type=acquisition_locked`);
+        if (!auditResponse.ok) return;
+        
+        const data = await auditResponse.json();
         if (data.entries && data.entries.length > 0) {
           // Get latest acquisition entry
           const latestAcq = data.entries[data.entries.length - 1];
@@ -74,24 +95,41 @@ function AppContent() {
               Iteration: latestAcq.parameters?.iteration
             }));
             setPendingSuggestions(taggedSuggestions);
-            console.log(`✓ Restored ${suggestions.length} pending suggestions from audit log`);
+            console.log(`✓ Restored ${suggestions.length} pending suggestions from audit log (fallback)`);
           }
         }
       } catch (e) {
-        console.error('Failed to restore pending suggestions:', e);
+        console.error('Failed to restore staged experiments:', e);
       }
     }
     
-    restorePendingSuggestions();
+    restoreStagedExperiments();
   }, [sessionId]);
 
-  // Check for recovery sessions on startup (before URL/localStorage)
+  // Check URL parameters on mount (always takes priority over recovery)
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSessionId = urlParams.get('session');
+    if (urlSessionId) {
+      urlSessionRef.current = urlSessionId;
+      setSessionId(urlSessionId);
+      setSessionFromUrl(true);
+      console.log(`✓ Loaded session from URL: ${urlSessionId}`);
+    }
+    const monitorParam = urlParams.get('mode');
+    if (monitorParam === 'monitor') {
+      setIsMonitoringMode(true);
+      console.log('✓ Monitoring mode enabled');
+    }
+  }, []);
+
+  // Check for recovery sessions on startup — skip if URL session is present
+  useEffect(() => {
+    if (urlSessionRef.current) return; // URL intent takes priority
     fetch('/api/v1/recovery/list')
       .then(res => res.json())
       .then(data => {
         if (data.recoveries && data.recoveries.length > 0) {
-          // Show recovery banner for newest session
           setRecoverySession(data.recoveries[0]);
           setShowRecoveryBanner(true);
           console.log('✓ Found recovery session:', data.recoveries[0]);
@@ -99,37 +137,6 @@ function AppContent() {
       })
       .catch(err => console.warn('Failed to check for recovery sessions:', err));
   }, []);
-
-  // Check for URL parameters (session ID and monitoring mode) - ONLY if no recovery
-  useEffect(() => {
-    // Don't auto-load sessions if there's a recovery banner showing
-    if (showRecoveryBanner) {
-      console.log('Recovery banner showing - skipping auto-load');
-      return;
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log('URL search params:', window.location.search);
-    
-    // Check for session ID in URL
-    const urlSessionId = urlParams.get('session');
-    console.log('Session ID from URL:', urlSessionId);
-    
-    if (urlSessionId) {
-      setSessionId(urlSessionId);
-      setSessionFromUrl(true);  // Mark that this session came from URL
-      console.log(`✓ Loaded session from URL: ${urlSessionId}`);
-    }
-    // NOTE: Removed localStorage auto-restore - user must explicitly create or load session
-    
-    // Check for monitoring mode
-    const monitorParam = urlParams.get('mode');
-    console.log('Monitoring mode from URL:', monitorParam);
-    if (monitorParam === 'monitor') {
-      setIsMonitoringMode(true);
-      console.log('✓ Monitoring mode enabled');
-    }
-  }, [showRecoveryBanner]);
 
   // Auto-clear invalid session (but not if it came from URL - let user see the error)
   useEffect(() => {
@@ -316,6 +323,15 @@ function AppContent() {
     }
   };
 
+  // Handle joining an existing session by ID
+  const handleJoinSession = () => {
+    const trimmed = joinSessionId.trim();
+    if (!trimmed) return;
+    setSessionId(trimmed);
+    setSessionFromUrl(true); // Prevent auto-clear on 404
+    setJoinSessionId('');
+  };
+
   // Debug: Log state before render
   console.log('=== Render State ===');
   console.log('sessionId:', sessionId);
@@ -428,13 +444,13 @@ function AppContent() {
                     </div>
                     <button
                       onClick={handleCopySessionId}
-                      className="p-1.5 rounded hover:bg-accent transition-colors"
+                      className="p-1.5 rounded hover:bg-accent transition-colors border border-transparent hover:border-border"
                       title="Copy full session ID to clipboard"
                     >
                       {copiedSessionId ? (
-                        <Check className="h-3.5 w-3.5 text-green-500" />
+                        <Check className="h-4 w-4 text-green-500" />
                       ) : (
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        <Copy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                       )}
                     </button>
                   </div>
@@ -489,6 +505,23 @@ function AppContent() {
                     onChange={handleFileSelected}
                     className="hidden"
                   />
+                  <div className="flex gap-2 items-center ml-4 pl-4 border-l border-border">
+                    <input
+                      type="text"
+                      value={joinSessionId}
+                      onChange={(e) => setJoinSessionId(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleJoinSession()}
+                      placeholder="Paste session ID..."
+                      className="text-sm px-3 py-2 rounded border border-input bg-background w-64"
+                    />
+                    <button
+                      onClick={handleJoinSession}
+                      disabled={!joinSessionId.trim()}
+                      className="text-sm bg-accent text-accent-foreground px-4 py-2 rounded hover:bg-accent/80 disabled:opacity-50"
+                    >
+                      Join
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -505,7 +538,10 @@ function AppContent() {
                   pendingSuggestions={pendingSuggestions}
                   onStageSuggestions={(s:any[])=>setPendingSuggestions(s)}
                 />
-                <InitialDesignPanel sessionId={sessionId} />
+                <InitialDesignPanel 
+                  sessionId={sessionId}
+                  onStageSuggestions={(s:any[])=>setPendingSuggestions(s)}
+                />
               </div>
 
               {/* CENTER - Visualization Area (expandable) */}

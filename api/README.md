@@ -160,6 +160,14 @@ predictions = response.json()["predictions"]
 - `POST /sessions/{session_id}/experiments/upload` - Upload CSV file
 - `GET /sessions/{session_id}/experiments/summary` - Get data summary
 
+### Staged Experiments (Workflow Queue)
+
+- `POST /sessions/{session_id}/experiments/staged` - Stage experiment for later execution
+- `POST /sessions/{session_id}/experiments/staged/batch` - Stage multiple experiments
+- `GET /sessions/{session_id}/experiments/staged` - Get staged experiments
+- `DELETE /sessions/{session_id}/experiments/staged` - Clear staged experiments
+- `POST /sessions/{session_id}/experiments/staged/complete` - Complete staged experiments with outputs
+
 ### Models
 
 - `POST /sessions/{session_id}/model/train` - Train surrogate model
@@ -604,6 +612,7 @@ print(f"\nOptimization complete! View results at: http://localhost:5174?mode=mon
 5. **Steady-State Detection**: Only upload data when process is stable
 6. **Safety Validation**: Validate suggestions before applying to hardware
 7. **Session Persistence**: Export session periodically for backup
+8. **Use Staged Experiments**: Track pending experiments with staging endpoints
 
 ### API Endpoints Summary
 
@@ -611,6 +620,9 @@ print(f"\nOptimization complete! View results at: http://localhost:5174?mode=mon
 |----------|--------|---------|
 | `/sessions/{id}/initial-design` | POST | Generate DoE points |
 | `/sessions/{id}/experiments?auto_train=true` | POST | Add data + train |
+| `/sessions/{id}/experiments/staged` | POST | Stage experiment for execution |
+| `/sessions/{id}/experiments/staged` | GET | Get pending experiments |
+| `/sessions/{id}/experiments/staged/complete` | POST | Complete staged with outputs |
 | `/sessions/{id}/state` | GET | Query progress |
 | `/sessions/{id}/acquisition/suggest` | POST | Get next point |
 

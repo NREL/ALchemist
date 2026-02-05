@@ -109,6 +109,58 @@ class AddExperimentRequest(BaseModel):
     )
 
 
+class StageExperimentRequest(BaseModel):
+    """Request to stage an experiment for later execution."""
+    inputs: Dict[str, Union[float, int, str]] = Field(..., description="Variable values")
+    reason: Optional[str] = Field(None, description="Reason for this experiment (e.g., acquisition strategy)")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "inputs": {"temperature": 375.2, "catalyst": "B"},
+                "reason": "qEI"
+            }
+        }
+    )
+
+
+class StageExperimentsBatchRequest(BaseModel):
+    """Request to stage multiple experiments at once."""
+    experiments: List[Dict[str, Union[float, int, str]]] = Field(..., description="List of experiment inputs")
+    reason: Optional[str] = Field(None, description="Reason for these experiments")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "experiments": [
+                    {"temperature": 375.2, "catalyst": "B"},
+                    {"temperature": 412.8, "catalyst": "A"}
+                ],
+                "reason": "qEI batch"
+            }
+        }
+    )
+
+
+class CompleteStagedExperimentsRequest(BaseModel):
+    """Request to complete staged experiments with outputs."""
+    outputs: List[float] = Field(..., description="Output values for staged experiments (same order)")
+    noises: Optional[List[float]] = Field(None, description="Measurement uncertainties (optional)")
+    iteration: Optional[int] = Field(None, description="Iteration number (auto-assigned if None)")
+    reason: Optional[str] = Field(None, description="Reason (uses staged reason if not provided)")
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "outputs": [0.87, 0.92],
+                "noises": [0.02, 0.03],
+                "iteration": 5,
+                "reason": "qEI"
+            }
+        }
+    )
+
+
 class AddExperimentsBatchRequest(BaseModel):
     """Request to add multiple experiments."""
     experiments: List[AddExperimentRequest] = Field(..., description="List of experiments")

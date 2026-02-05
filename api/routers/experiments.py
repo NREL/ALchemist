@@ -3,15 +3,27 @@ Experiments router - Experimental data management.
 """
 
 from fastapi import APIRouter, Depends, UploadFile, File, Query
-from ..models.requests import AddExperimentRequest, AddExperimentsBatchRequest, InitialDesignRequest
+from ..models.requests import (
+    AddExperimentRequest, 
+    AddExperimentsBatchRequest, 
+    InitialDesignRequest,
+    StageExperimentRequest,
+    StageExperimentsBatchRequest,
+    CompleteStagedExperimentsRequest
+)
 from ..models.responses import (
     ExperimentResponse, 
     ExperimentsListResponse, 
     ExperimentsSummaryResponse,
-    InitialDesignResponse
+    InitialDesignResponse,
+    StagedExperimentResponse,
+    StagedExperimentsListResponse,
+    StagedExperimentsClearResponse,
+    StagedExperimentsCompletedResponse
 )
 from ..dependencies import get_session
 from ..middleware.error_handlers import NoVariablesError
+from .websocket import broadcast_to_session
 from alchemist_core.session import OptimizationSession
 import logging
 import pandas as pd
@@ -96,6 +108,17 @@ async def add_experiment(
             logger.error(f"Auto-train failed for session {session_id}: {e}")
             # Don't fail the whole request, just log it
     
+    # Broadcast experiment update to WebSocket clients
+    await broadcast_to_session(session_id, {
+        "event": "experiments_updated",
+        "n_experiments": n_experiments
+    })
+    if model_trained:
+        await broadcast_to_session(session_id, {
+            "event": "model_trained",
+            "metrics": training_metrics
+        })
+
     return ExperimentResponse(
         message="Experiment added successfully",
         n_experiments=n_experiments,
@@ -158,6 +181,17 @@ async def add_experiments_batch(
         except Exception as e:
             logger.error(f"Auto-train failed for session {session_id}: {e}")
     
+    # Broadcast experiment update to WebSocket clients
+    await broadcast_to_session(session_id, {
+        "event": "experiments_updated",
+        "n_experiments": n_experiments
+    })
+    if model_trained:
+        await broadcast_to_session(session_id, {
+            "event": "model_trained",
+            "metrics": training_metrics
+        })
+
     return ExperimentResponse(
         message=f"Added {len(batch.experiments)} experiments successfully",
         n_experiments=n_experiments,
@@ -325,12 +359,18 @@ async def upload_experiments(
         
         n_experiments = len(session.experiment_manager.df)
         logger.info(f"Loaded {n_experiments} experiments from CSV for session {session_id}")
-        
+
+        # Broadcast experiment update to WebSocket clients
+        await broadcast_to_session(session_id, {
+            "event": "experiments_updated",
+            "n_experiments": n_experiments
+        })
+
         return {
             "message": f"Loaded {n_experiments} experiments successfully",
             "n_experiments": n_experiments
         }
-        
+
     finally:
         # Clean up temp file
         if os.path.exists(tmp_path):
@@ -348,3 +388,220 @@ async def get_experiments_summary(
     Returns sample size, target variable statistics, and feature information.
     """
     return session.get_data_summary()
+
+
+# ============================================================
+# Staged Experiments Endpoints
+# ============================================================
+
+@router.post("/{session_id}/experiments/staged", response_model=StagedExperimentResponse)
+async def stage_experiment(
+    session_id: str,
+    request: StageExperimentRequest,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Stage an experiment for later execution.
+    
+    Staged experiments are stored in a queue awaiting evaluation.
+    This is useful for autonomous workflows where the controller
+    needs to track which experiments are pending execution.
+    
+    Use GET /experiments/staged to retrieve staged experiments,
+    and POST /experiments/staged/complete to finalize them with outputs.
+    """
+    # Check if variables are defined
+    if len(session.search_space.variables) == 0:
+        raise NoVariablesError("No variables defined. Add variables to search space first.")
+    
+    # Add reason metadata if provided
+    inputs_with_meta = dict(request.inputs)
+    if request.reason:
+        inputs_with_meta['_reason'] = request.reason
+    
+    session.add_staged_experiment(inputs_with_meta)
+    
+    n_staged = len(session.get_staged_experiments())
+    logger.info(f"Staged experiment for session {session_id}. Total staged: {n_staged}")
+    
+    return StagedExperimentResponse(
+        message="Experiment staged successfully",
+        n_staged=n_staged,
+        staged_inputs=request.inputs
+    )
+
+
+@router.post("/{session_id}/experiments/staged/batch", response_model=StagedExperimentsListResponse)
+async def stage_experiments_batch(
+    session_id: str,
+    request: StageExperimentsBatchRequest,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Stage multiple experiments at once.
+    
+    Useful after acquisition functions suggest multiple points for parallel execution.
+    The `reason` parameter is stored as metadata and will be used when completing
+    the experiments (recorded in the 'Reason' column of the experiment data).
+    """
+    # Check if variables are defined
+    if len(session.search_space.variables) == 0:
+        raise NoVariablesError("No variables defined. Add variables to search space first.")
+    
+    for inputs in request.experiments:
+        inputs_with_meta = dict(inputs)
+        if request.reason:
+            inputs_with_meta['_reason'] = request.reason
+        session.add_staged_experiment(inputs_with_meta)
+    
+    logger.info(f"Staged {len(request.experiments)} experiments for session {session_id}. Total staged: {len(session.get_staged_experiments())}")
+    
+    # Return clean experiments (without metadata) for client use
+    return StagedExperimentsListResponse(
+        experiments=request.experiments,  # Return the original clean inputs
+        n_staged=len(session.get_staged_experiments()),
+        reason=request.reason
+    )
+
+
+@router.get("/{session_id}/experiments/staged", response_model=StagedExperimentsListResponse)
+async def get_staged_experiments(
+    session_id: str,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Get all staged experiments awaiting execution.
+    
+    Returns the list of experiments that have been queued but not yet
+    completed with output values. The response includes:
+    - experiments: Clean variable inputs only (no metadata)
+    - reason: The strategy/reason for these experiments (if provided when staging)
+    """
+    staged = session.get_staged_experiments()
+    
+    # Extract reason from first experiment (if present) and clean all experiments
+    reason = None
+    clean_experiments = []
+    for exp in staged:
+        if '_reason' in exp and reason is None:
+            reason = exp['_reason']
+        # Return only variable values, not metadata
+        clean_exp = {k: v for k, v in exp.items() if not k.startswith('_')}
+        clean_experiments.append(clean_exp)
+    
+    return StagedExperimentsListResponse(
+        experiments=clean_experiments,
+        n_staged=len(staged),
+        reason=reason
+    )
+
+
+@router.delete("/{session_id}/experiments/staged", response_model=StagedExperimentsClearResponse)
+async def clear_staged_experiments(
+    session_id: str,
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Clear all staged experiments.
+    
+    Use this to reset the staging queue if experiments were cancelled
+    or need to be regenerated.
+    """
+    n_cleared = session.clear_staged_experiments()
+    logger.info(f"Cleared {n_cleared} staged experiments for session {session_id}")
+    
+    return StagedExperimentsClearResponse(
+        message="Staged experiments cleared",
+        n_cleared=n_cleared
+    )
+
+
+@router.post("/{session_id}/experiments/staged/complete", response_model=StagedExperimentsCompletedResponse)
+async def complete_staged_experiments(
+    session_id: str,
+    request: CompleteStagedExperimentsRequest,
+    auto_train: bool = Query(False, description="Auto-train model after adding data"),
+    training_backend: Optional[str] = Query(None, description="Model backend (sklearn/botorch)"),
+    training_kernel: Optional[str] = Query(None, description="Kernel type (rbf/matern)"),
+    session: OptimizationSession = Depends(get_session)
+):
+    """
+    Complete staged experiments by providing output values.
+    
+    This pairs the staged experiment inputs with the provided outputs,
+    adds them to the experiment dataset, and clears the staging queue.
+    
+    The number of outputs must match the number of staged experiments.
+    Outputs should be in the same order as the staged experiments were added.
+    
+    Args:
+        auto_train: If True, retrain model after adding data
+        training_backend: Model backend (uses last if None)
+        training_kernel: Kernel type (uses last or 'rbf' if None)
+    """
+    staged = session.get_staged_experiments()
+    
+    if len(staged) == 0:
+        return StagedExperimentsCompletedResponse(
+            message="No staged experiments to complete",
+            n_added=0,
+            n_experiments=len(session.experiment_manager.df),
+            model_trained=False
+        )
+    
+    if len(request.outputs) != len(staged):
+        raise ValueError(
+            f"Number of outputs ({len(request.outputs)}) must match "
+            f"number of staged experiments ({len(staged)})"
+        )
+    
+    # Use the core Session method to move staged experiments to dataset
+    n_added = session.move_staged_to_experiments(
+        outputs=request.outputs,
+        noises=request.noises,
+        iteration=request.iteration,
+        reason=request.reason
+    )
+    
+    n_experiments = len(session.experiment_manager.df)
+    logger.info(f"Completed {n_added} staged experiments for session {session_id}. Total: {n_experiments}")
+    
+    # Auto-train if requested
+    model_trained = False
+    training_metrics = None
+    
+    if auto_train and n_experiments >= 5:
+        try:
+            backend = training_backend or (session.model_backend if session.model else "sklearn")
+            kernel = training_kernel or "rbf"
+            
+            result = session.train_model(backend=backend, kernel=kernel)
+            model_trained = True
+            metrics = result.get("metrics", {})
+            training_metrics = {
+                "rmse": metrics.get("rmse"),
+                "r2": metrics.get("r2"),
+                "backend": backend
+            }
+            logger.info(f"Auto-trained model for session {session_id}: {training_metrics}")
+        except Exception as e:
+            logger.error(f"Auto-train failed for session {session_id}: {e}")
+    
+    # Broadcast experiment update to WebSocket clients
+    await broadcast_to_session(session_id, {
+        "event": "experiments_updated",
+        "n_experiments": n_experiments
+    })
+    if model_trained:
+        await broadcast_to_session(session_id, {
+            "event": "model_trained",
+            "metrics": training_metrics
+        })
+
+    return StagedExperimentsCompletedResponse(
+        message="Staged experiments completed and added to dataset",
+        n_added=n_added,
+        n_experiments=n_experiments,
+        model_trained=model_trained,
+        training_metrics=training_metrics
+    )

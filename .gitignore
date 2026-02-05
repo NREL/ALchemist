@@ -9,6 +9,7 @@ logs/
 images/
 memory/
 examples/
+CLAUDE.md
 
 # Build artifacts (excluded from git, but included in wheel via build hook)
 api/static/

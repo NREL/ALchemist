@@ -208,9 +208,31 @@ export function ExperimentsPanel({ sessionId, pendingSuggestions = [], onStageSu
                   queryClient.invalidateQueries({ queryKey: ['experiments-summary', sessionId] });
                   queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
                   
-                  // Remove current suggestion from staged list
+                  // Remove current suggestion from staged list (local state)
                   const updated = pendingSuggestions.filter((_, i) => i !== currentIndex);
                   onStageSuggestions && onStageSuggestions(updated);
+                  
+                  // Sync with staged experiments API - clear all and re-stage remaining
+                  // This keeps the API queue in sync with the UI
+                  try {
+                    await fetch(`/api/v1/sessions/${sessionId}/experiments/staged`, { method: 'DELETE' });
+                    if (updated.length > 0) {
+                      const cleanExperiments = updated.map(s => {
+                        const { _reason, _strategyParams, ...rest } = s;
+                        return rest;
+                      });
+                      await fetch(`/api/v1/sessions/${sessionId}/experiments/staged/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          experiments: cleanExperiments,
+                          reason: updated[0]?._reason || 'Acquisition'
+                        })
+                      });
+                    }
+                  } catch (syncError) {
+                    console.warn('Failed to sync staged experiments with API:', syncError);
+                  }
                   
                   // Show success message
                   toast.success('Experiment added successfully!');

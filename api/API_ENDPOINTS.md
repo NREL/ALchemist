@@ -408,6 +408,142 @@ GET /sessions/{session_id}/experiments/summary
 }
 ```
 
+### Stage Experiment
+
+```http
+POST /sessions/{session_id}/experiments/staged
+```
+
+**Purpose**: Queue an experiment for later execution in autonomous workflows.
+
+**Request Body**:
+```json
+{
+  "inputs": {
+    "temperature": 375.2,
+    "flow_rate": 5.8,
+    "catalyst": "B"
+  },
+  "reason": "qEI"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Experiment staged successfully",
+  "n_staged": 1,
+  "staged_inputs": {"temperature": 375.2, "flow_rate": 5.8, "catalyst": "B"}
+}
+```
+
+### Stage Multiple Experiments
+
+```http
+POST /sessions/{session_id}/experiments/staged/batch
+```
+
+**Purpose**: Queue multiple experiments at once (e.g., from batch acquisition).
+
+**Request Body**:
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "flow_rate": 5.8, "catalyst": "B"},
+    {"temperature": 412.5, "flow_rate": 3.2, "catalyst": "A"}
+  ],
+  "reason": "qEI batch"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "flow_rate": 5.8, "catalyst": "B"},
+    {"temperature": 412.5, "flow_rate": 3.2, "catalyst": "A"}
+  ],
+  "n_staged": 2,
+  "reason": "qEI batch"
+}
+```
+
+### Get Staged Experiments
+
+```http
+GET /sessions/{session_id}/experiments/staged
+```
+
+**Purpose**: Retrieve all experiments awaiting execution.
+
+**Response** (200 OK):
+```json
+{
+  "experiments": [
+    {"temperature": 375.2, "flow_rate": 5.8, "catalyst": "B"},
+    {"temperature": 412.5, "flow_rate": 3.2, "catalyst": "A"}
+  ],
+  "n_staged": 2,
+  "reason": "qEI"
+}
+```
+
+**Note**: The `experiments` array contains only variable values. The `reason` field (if provided when staging) is returned separately and will be recorded in the experiment data when you call the complete endpoint.
+
+### Clear Staged Experiments
+
+```http
+DELETE /sessions/{session_id}/experiments/staged
+```
+
+**Purpose**: Remove all staged experiments (e.g., to cancel pending work).
+
+**Response** (200 OK):
+```json
+{
+  "message": "Staged experiments cleared",
+  "n_cleared": 2
+}
+```
+
+### Complete Staged Experiments
+
+```http
+POST /sessions/{session_id}/experiments/staged/complete
+```
+
+**Purpose**: Finalize staged experiments by providing output values.
+
+**Query Parameters**:
+- `auto_train` (boolean, default: false) - Automatically retrain model after adding data
+- `training_backend` (string, optional) - "sklearn" or "botorch"
+- `training_kernel` (string, optional) - Kernel type
+
+**Request Body**:
+```json
+{
+  "outputs": [0.87, 0.91],
+  "noises": [0.02, 0.01],
+  "iteration": 5,
+  "reason": "qEI"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "Staged experiments completed and added to dataset",
+  "n_added": 2,
+  "n_experiments": 23,
+  "model_trained": true,
+  "training_metrics": {
+    "rmse": 0.042,
+    "r2": 0.94,
+    "backend": "sklearn"
+  }
+}
+```
+
 ---
 
 ## Models
