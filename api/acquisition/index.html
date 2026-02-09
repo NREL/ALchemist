@@ -1830,7 +1830,7 @@
 
 
 <h3 id="alchemist_core.acquisition.botorch_acquisition.BoTorchAcquisition" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">alchemist_core</span><span class="o">.</span><span class="n">acquisition</span><span class="o">.</span><span class="n">botorch_acquisition</span><span class="o">.</span><span class="n">BoTorchAcquisition</span><span class="p">(</span><span class="n">search_space</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">acq_func</span><span class="o">=</span><span class="s1">'ucb'</span><span class="p">,</span> <span class="n">maximize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">acq_func_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>              <code class="highlight language-python"><span class="n">alchemist_core</span><span class="o">.</span><span class="n">acquisition</span><span class="o">.</span><span class="n">botorch_acquisition</span><span class="o">.</span><span class="n">BoTorchAcquisition</span><span class="p">(</span><span class="n">search_space</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">acq_func</span><span class="o">=</span><span class="s1">'ucb'</span><span class="p">,</span> <span class="n">maximize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">acq_func_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ref_point</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">directions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">objective_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outcome_constraints</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#alchemist_core.acquisition.botorch_acquisition.BoTorchAcquisition" class="headerlink" title="Permanent link">¶</a></h3>
 
@@ -1969,6 +1969,66 @@
             </td>
             <td>
                   <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ref_point</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference point for MOBO hypervolume (list of floats)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>directions</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Per-objective direction list ('maximize'/'minimize')</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>objective_names</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of objective names (for multi-objective)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>outcome_constraints</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of outcome constraint callables for MOBO</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

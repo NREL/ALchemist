@@ -2172,7 +2172,7 @@ session.add_variable('temperature', 'real', bounds=(300, 500))
 session.add_variable('pressure', 'real', bounds=(1, 10))
 session.add_variable('catalyst', 'categorical', categories=['A', 'B', 'C'])</p>
 <h4 id="alchemist_core.session.OptimizationSession--load-experimental-data">Load experimental data<a class="headerlink" href="#alchemist_core.session.OptimizationSession--load-experimental-data" title="Permanent link">¶</a></h4>
-<p>session.load_data('experiments.csv', target_column='yield')</p>
+<p>session.load_data('experiments.csv', target_columns='yield')</p>
 <h4 id="alchemist_core.session.OptimizationSession--train-model">Train model<a class="headerlink" href="#alchemist_core.session.OptimizationSession--train-model" title="Permanent link">¶</a></h4>
 <p>session.train_model(backend='botorch', kernel='Matern')</p>
 <h4 id="alchemist_core.session.OptimizationSession--suggest-next-experiment">Suggest next experiment<a class="headerlink" href="#alchemist_core.session.OptimizationSession--suggest-next-experiment" title="Permanent link">¶</a></h4>
@@ -2641,7 +2641,7 @@ Default: 'Output'</p>
     <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">session</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="s1">'experiments.csv'</span><span class="p">,</span> <span class="n">target_columns</span><span class="o">=</span><span class="s1">'yield'</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">session</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="s1">'experiments.csv'</span><span class="p">,</span> <span class="n">target_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'yield'</span><span class="p">])</span>  <span class="c1"># also works</span>
 </code></pre></div>
-    <p>Multi-objective (future):</p>
+    <p>Multi-objective:</p>
     <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">session</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="s1">'experiments.csv'</span><span class="p">,</span> <span class="n">target_columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'yield'</span><span class="p">,</span> <span class="s1">'selectivity'</span><span class="p">])</span>
 </code></pre></div>
 
@@ -3278,7 +3278,7 @@ print(results['metrics'])</p>
 
 
 <h4 id="alchemist_core.session.OptimizationSession.suggest_next" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="n">n_suggestions</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="n">n_suggestions</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ref_point</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 <a href="#alchemist_core.session.OptimizationSession.suggest_next" class="headerlink" title="Permanent link">¶</a></h4>
 
@@ -3314,7 +3314,8 @@ print(results['metrics'])</p>
 - 'UCB': Upper Confidence Bound
 - 'LogEI': Log Expected Improvement (BoTorch only)
 - 'LogPI': Log Probability of Improvement (BoTorch only)
-- 'qEI', 'qUCB', 'qIPV': Batch acquisition (BoTorch only)</p>
+- 'qEI', 'qUCB', 'qIPV': Batch acquisition (BoTorch only)
+- 'qEHVI', 'qNEHVI': Multi-objective acquisition (BoTorch only)</p>
               </div>
             </td>
             <td>
@@ -3326,11 +3327,11 @@ print(results['metrics'])</p>
                 <code>goal</code>
             </td>
             <td>
-                  <code><span title="str">str</span></code>
+                  <code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.List">List</span>[<span title="str">str</span>]]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>'maximize' or 'minimize'</p>
+                <p>'maximize' or 'minimize' (str), or list of per-objective directions</p>
               </div>
             </td>
             <td>
@@ -3355,6 +3356,22 @@ print(results['metrics'])</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>ref_point</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="typing.List">List</span>[<span title="float">float</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference point for MOBO hypervolume (list of floats, optional)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>**kwargs</code>
             </td>
             <td>
@@ -3364,12 +3381,9 @@ print(results['metrics'])</p>
                 <p>Strategy-specific parameters:</p>
 <p><strong>Sklearn backend:</strong>
 - xi (float): Exploration parameter for EI/PI (default: 0.01)
-  Higher values favor exploration over exploitation
-- kappa (float): Exploration parameter for UCB (default: 1.96)
-  Higher values favor exploration (typically 1.96 for 95% CI)</p>
+- kappa (float): Exploration parameter for UCB (default: 1.96)</p>
 <p><strong>BoTorch backend:</strong>
 - beta (float): Exploration parameter for UCB (default: 0.5)
-  Trades off mean vs. variance (higher = more exploration)
 - mc_samples (int): Monte Carlo samples for batch acquisition (default: 128)</p>
               </div>
             </td>
@@ -3405,14 +3419,15 @@ print(results['metrics'])</p>
 
 
 <p><span class="doc-section-title">Examples:</span></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Expected Improvement with custom exploration</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">next_point</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="n">xi</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Single-objective</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">next_point</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'EI'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">)</span>
 </code></pre></div>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Upper Confidence Bound with high exploration</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">next_point</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'UCB'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="n">kappa</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
-</code></pre></div>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># BoTorch UCB with beta parameter</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">next_point</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'UCB'</span><span class="p">,</span> <span class="n">goal</span><span class="o">=</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Multi-objective</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">suggestions</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">suggest_next</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">strategy</span><span class="o">=</span><span class="s1">'qNEHVI'</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">goal</span><span class="o">=</span><span class="p">[</span><span class="s1">'maximize'</span><span class="p">,</span> <span class="s1">'maximize'</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">ref_point</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="gp">... </span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -3476,28 +3491,27 @@ print(results['metrics'])</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="typing.Tuple">Tuple</span>[<span title="numpy.ndarray">ndarray</span>, <span title="numpy.ndarray">ndarray</span>]</code>
+                  <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="numpy.ndarray">ndarray</span>, <span title="numpy.ndarray">ndarray</span>], <span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Tuple">Tuple</span>[<span title="numpy.ndarray">ndarray</span>, <span title="numpy.ndarray">ndarray</span>]]]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Tuple of (predictions, uncertainties)</p>
+                <p>Single-objective: Tuple of (predictions, uncertainties)</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="numpy.ndarray">ndarray</span>, <span title="numpy.ndarray">ndarray</span>], <span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Tuple">Tuple</span>[<span title="numpy.ndarray">ndarray</span>, <span title="numpy.ndarray">ndarray</span>]]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Multi-objective: dict[str, tuple[ndarray, ndarray]] keyed by objective name</p>
               </div>
             </td>
           </tr>
       </tbody>
     </table>
 
-
-<details class="example" open>
-  <summary>Example</summary>
-  <blockquote>
-<p>test_points = pd.DataFrame({
-...     'temperature': [350, 400],
-...     'catalyst': ['A', 'B']
-... })
-predictions, uncertainties = session.predict(test_points)</p>
-</blockquote>
-</details>
 
     </div>
 
