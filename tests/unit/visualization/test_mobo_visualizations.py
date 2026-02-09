@@ -187,12 +187,12 @@ class TestParityMOBO:
 
     def test_parity_mobo_specific_objective(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_parity(target_column='yield')
+        fig = mobo_session.plot_parity(target_columns='yield')
         assert isinstance(fig, Figure)
 
     def test_parity_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_parity(target_column='all')
+        fig = mobo_session.plot_parity(target_columns='all')
         assert isinstance(fig, Figure)
         # Should have 2 subplots
         assert len(fig.axes) == 2
@@ -216,12 +216,12 @@ class TestSliceMOBO:
 
     def test_slice_mobo_specific_objective(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_slice('x1', target_column='selectivity')
+        fig = mobo_session.plot_slice('x1', target_columns='selectivity')
         assert isinstance(fig, Figure)
 
     def test_slice_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_slice('x1', target_column='all')
+        fig = mobo_session.plot_slice('x1', target_columns='all')
         assert isinstance(fig, Figure)
         assert len(fig.axes) == 2
 
@@ -244,12 +244,12 @@ class TestContourMOBO:
 
     def test_contour_mobo_specific(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_contour('x1', 'x2', grid_resolution=5, target_column='yield')
+        fig = mobo_session.plot_contour('x1', 'x2', grid_resolution=5, target_columns='yield')
         assert isinstance(fig, Figure)
 
     def test_contour_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_contour('x1', 'x2', grid_resolution=5, target_column='all')
+        fig = mobo_session.plot_contour('x1', 'x2', grid_resolution=5, target_columns='all')
         assert isinstance(fig, Figure)
         # 2 subplots + 2 colorbars = 4 axes
         assert len(fig.axes) >= 2
@@ -273,12 +273,12 @@ class TestQQMOBO:
 
     def test_qq_mobo_specific(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_qq(target_column='yield')
+        fig = mobo_session.plot_qq(target_columns='yield')
         assert isinstance(fig, Figure)
 
     def test_qq_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_qq(target_column='all')
+        fig = mobo_session.plot_qq(target_columns='all')
         assert isinstance(fig, Figure)
         assert len(fig.axes) == 2
 
@@ -301,12 +301,12 @@ class TestCalibrationMOBO:
 
     def test_calibration_mobo_specific(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_calibration(target_column='selectivity')
+        fig = mobo_session.plot_calibration(target_columns='selectivity')
         assert isinstance(fig, Figure)
 
     def test_calibration_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_calibration(target_column='all')
+        fig = mobo_session.plot_calibration(target_columns='all')
         assert isinstance(fig, Figure)
         assert len(fig.axes) == 2
 
@@ -330,13 +330,13 @@ class TestUncertaintyContourMOBO:
     def test_unc_contour_mobo_specific(self, mobo_session):
         _mock_mobo_model(mobo_session)
         fig = mobo_session.plot_uncertainty_contour('x1', 'x2', grid_resolution=5,
-                                                     target_column='yield')
+                                                     target_columns='yield')
         assert isinstance(fig, Figure)
 
     def test_unc_contour_mobo_all(self, mobo_session):
         _mock_mobo_model(mobo_session)
         fig = mobo_session.plot_uncertainty_contour('x1', 'x2', grid_resolution=5,
-                                                     target_column='all')
+                                                     target_columns='all')
         assert isinstance(fig, Figure)
         assert len(fig.axes) >= 2
 

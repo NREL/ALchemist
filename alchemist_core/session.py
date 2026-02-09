@@ -1777,44 +1777,44 @@ class OptimizationSession:
     # MOBO-aware plotting helpers
     # ============================================================
 
-    def _resolve_target_column(self, target_column: Optional[str]) -> Union[str, List[str]]:
-        """Validate & resolve target_column for MOBO-aware plot methods.
+    def _resolve_target_column(self, target_columns: Optional[str]) -> Union[str, List[str]]:
+        """Validate & resolve target_columns for MOBO-aware plot methods.
 
         Args:
-            target_column: Objective name, 'all', or None.
+            target_columns: Objective name, 'all', or None.
 
         Returns:
             Single objective name (str) or list of all objective names.
         """
         if not self.is_multi_objective:
             return self.experiment_manager.target_columns[0]
-        if target_column is None:
+        if target_columns is None:
             raise ValueError(
-                f"multi-objective session requires target_column parameter. "
+                f"multi-objective session requires target_columns parameter. "
                 f"Use one of {self.objective_names} or 'all'."
             )
-        if target_column == 'all':
+        if target_columns == 'all':
             return list(self.objective_names)
-        if target_column not in self.objective_names:
+        if target_columns not in self.objective_names:
             raise ValueError(
-                f"Unknown objective '{target_column}'. "
+                f"Unknown objective '{target_columns}'. "
                 f"Available objectives: {self.objective_names}"
             )
-        return target_column
+        return target_columns
 
-    def _get_predictions_for_objective(self, predict_result, target_column: str) -> Tuple[np.ndarray, np.ndarray]:
+    def _get_predictions_for_objective(self, predict_result, target_columns: str) -> Tuple[np.ndarray, np.ndarray]:
         """Extract single-objective (predictions, std) from predict() result.
 
         Args:
             predict_result: Output of self.predict() — either (mean, std) tuple
                 or dict[str, (mean, std)] for MOBO.
-            target_column: Objective name to extract.
+            target_columns: Objective name to extract.
 
         Returns:
             Tuple of (predictions, std) ndarrays.
         """
         if isinstance(predict_result, dict):
-            return predict_result[target_column]
+            return predict_result[target_columns]
         return predict_result
 
     def _build_grid_df(self, grid_data: dict) -> 'pd.DataFrame':
@@ -1861,13 +1861,13 @@ class OptimizationSession:
             )
     
     def _check_cv_results(self, use_calibrated: bool = False,
-                          target_column: Optional[str] = None) -> Dict[str, np.ndarray]:
+                          target_columns: Optional[str] = None) -> Dict[str, np.ndarray]:
         """
         Get CV results from model, handling both calibrated and uncalibrated.
 
         Args:
             use_calibrated: Whether to use calibrated results if available
-            target_column: For MOBO, which objective's CV results to return.
+            target_columns: For MOBO, which objective's CV results to return.
                           If None in MOBO, raises ValueError.
 
         Returns:
@@ -1881,17 +1881,17 @@ class OptimizationSession:
                 raise ValueError(
                     "No per-objective CV results available for multi-objective model."
                 )
-            if target_column is None:
+            if target_columns is None:
                 raise ValueError(
-                    f"multi-objective session requires target_column for CV-based plots. "
+                    f"multi-objective session requires target_columns for CV-based plots. "
                     f"Use one of {self.objective_names}."
                 )
-            if target_column not in self.model.cv_cached_results_multi:
+            if target_columns not in self.model.cv_cached_results_multi:
                 raise ValueError(
-                    f"No CV results for objective '{target_column}'. "
+                    f"No CV results for objective '{target_columns}'. "
                     f"Available objectives: {list(self.model.cv_cached_results_multi.keys())}"
                 )
-            return self.model.cv_cached_results_multi[target_column]
+            return self.model.cv_cached_results_multi[target_columns]
 
         # Check for calibrated results first if requested
         if use_calibrated and hasattr(self.model, 'cv_cached_results_calibrated'):
@@ -1916,7 +1916,7 @@ class OptimizationSession:
         title: Optional[str] = None,
         show_metrics: bool = True,
         show_error_bars: bool = True,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create parity plot of actual vs predicted values from cross-validation.
@@ -1932,7 +1932,7 @@ class OptimizationSession:
             title: Custom title (default: auto-generated with metrics)
             show_metrics: Include RMSE, MAE, R² in title
             show_error_bars: Display uncertainty error bars
-            target_column: For multi-objective: objective name, 'all', or None.
+            target_columns: For multi-objective: objective name, 'all', or None.
                 Single-objective sessions ignore this parameter.
 
         Returns:
@@ -1949,7 +1949,7 @@ class OptimizationSession:
         self._check_matplotlib()
         self._check_model_trained()
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         # Multi-objective 'all' → subplot grid
         if isinstance(resolved, list):
@@ -1958,7 +1958,7 @@ class OptimizationSession:
             if n == 1:
                 axes = [axes]
             for i, obj in enumerate(resolved):
-                cv_results = self._check_cv_results(use_calibrated, target_column=obj)
+                cv_results = self._check_cv_results(use_calibrated, target_columns=obj)
                 create_parity_plot(
                     y_true=cv_results['y_true'],
                     y_pred=cv_results['y_pred'],
@@ -1976,7 +1976,7 @@ class OptimizationSession:
         # Single objective (or specific MOBO objective)
         cv_results = self._check_cv_results(
             use_calibrated,
-            target_column=resolved if self.is_multi_objective else None
+            target_columns=resolved if self.is_multi_objective else None
         )
         y_true = cv_results['y_true']
         y_pred = cv_results['y_pred']
@@ -2011,7 +2011,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 1D slice plot showing model predictions along one variable.
@@ -2025,7 +2025,7 @@ class OptimizationSession:
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
-            target_column: For multi-objective: objective name, 'all', or None.
+            target_columns: For multi-objective: objective name, 'all', or None.
 
         Returns:
             matplotlib Figure object
@@ -2075,7 +2075,7 @@ class OptimizationSession:
             else:
                 sigma_bands = show_uncertainty
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _get_exp_data(obj_name):
             if not show_experiments or len(self.experiment_manager.df) == 0:
@@ -2146,7 +2146,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 2D contour plot of model predictions over a variable space.
@@ -2271,7 +2271,7 @@ class OptimizationSession:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _contour_for_obj(obj_name, ax=None):
             preds, _ = self._get_predictions_for_objective(predict_result, obj_name)
@@ -2315,7 +2315,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (10, 8),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 3D voxel plot of model predictions over a variable space.
@@ -2481,7 +2481,7 @@ class OptimizationSession:
 
         from alchemist_core.visualization.plots import create_voxel_plot
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _voxel_for_obj(obj_name):
             preds, _ = self._get_predictions_for_objective(predict_result, obj_name)
@@ -2517,7 +2517,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         use_cached: bool = True,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Plot cross-validation metrics as a function of training set size.
@@ -2528,7 +2528,7 @@ class OptimizationSession:
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             use_cached: Use cached metrics if available (default: True)
-            target_column: For multi-objective: objective name, 'all', or None.
+            target_columns: For multi-objective: objective name, 'all', or None.
 
         Returns:
             matplotlib Figure object
@@ -2543,7 +2543,7 @@ class OptimizationSession:
         if self.is_multi_objective:
             raise ValueError(
                 "plot_metrics() is not yet supported for multi-objective sessions. "
-                "Use plot_parity(target_column=...) for per-objective model diagnostics."
+                "Use plot_parity(target_columns=...) for per-objective model diagnostics."
             )
         
         # Need at least 5 observations for CV
@@ -2606,7 +2606,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create Q-Q (quantile-quantile) plot for model residuals normality check.
@@ -2616,7 +2616,7 @@ class OptimizationSession:
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
-            target_column: For multi-objective: objective name, 'all', or None.
+            target_columns: For multi-objective: objective name, 'all', or None.
 
         Returns:
             matplotlib Figure object
@@ -2624,12 +2624,12 @@ class OptimizationSession:
         self._check_matplotlib()
         self._check_model_trained()
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _qq_for_obj(obj_name, ax=None):
             cv_results = self._check_cv_results(
                 use_calibrated,
-                target_column=obj_name if self.is_multi_objective else None
+                target_columns=obj_name if self.is_multi_objective else None
             )
             y_true = cv_results['y_true']
             y_pred = cv_results['y_pred']
@@ -2665,7 +2665,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create calibration plot showing reliability of uncertainty estimates.
@@ -2676,7 +2676,7 @@ class OptimizationSession:
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
-            target_column: For multi-objective: objective name, 'all', or None.
+            target_columns: For multi-objective: objective name, 'all', or None.
 
         Returns:
             matplotlib Figure object
@@ -2686,12 +2686,12 @@ class OptimizationSession:
 
         from scipy import stats
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _cal_for_obj(obj_name, ax=None):
             cv_results = self._check_cv_results(
                 use_calibrated,
-                target_column=obj_name if self.is_multi_objective else None
+                target_columns=obj_name if self.is_multi_objective else None
             )
             y_true = cv_results['y_true']
             y_pred = cv_results['y_pred']
@@ -2764,7 +2764,7 @@ class OptimizationSession:
         if self.n_objectives != 2:
             raise ValueError(
                 f"plot_pareto_frontier currently only supports 2 objectives, but session has {self.n_objectives}. "
-                "Use plot_parity() with target_column to visualize individual objectives."
+                "Use plot_parity() with target_columns to visualize individual objectives."
             )
 
         if not _HAS_VISUALIZATION:
@@ -3817,7 +3817,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 2D contour plot of posterior uncertainty over a variable space.
@@ -3943,7 +3943,7 @@ class OptimizationSession:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _unc_contour_for_obj(obj_name, ax=None):
             _, std = self._get_predictions_for_objective(predict_result, obj_name)
@@ -3987,7 +3987,7 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (10, 8),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_column: Optional[str] = None
+        target_columns: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 3D voxel plot of posterior uncertainty over variable space.
@@ -4123,7 +4123,7 @@ class OptimizationSession:
                 sugg_y = sugg_df[y_var].values
                 sugg_z = sugg_df[z_var].values
 
-        resolved = self._resolve_target_column(target_column)
+        resolved = self._resolve_target_column(target_columns)
 
         def _unc_voxel_for_obj(obj_name):
             _, std = self._get_predictions_for_objective(predict_result, obj_name)
