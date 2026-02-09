@@ -222,19 +222,19 @@ class TestSuggestNextMOBOValidation:
     def test_invalid_strategy_raises_for_multi_objective(self, mobo_session):
         """Non-MOBO strategies raise ValueError for multi-objective sessions."""
         mobo_session.train_model(backend='botorch', kernel='Matern')
-        with pytest.raises(ValueError, match="qehvi|qnehvi"):
+        with pytest.raises(ValueError, match="qEHVI.*qNEHVI"):
             mobo_session.suggest_next(strategy='EI', goal='maximize')
 
     def test_pi_strategy_raises_for_multi_objective(self, mobo_session):
         """PI strategy raises ValueError for multi-objective sessions."""
         mobo_session.train_model(backend='botorch', kernel='Matern')
-        with pytest.raises(ValueError, match="qehvi|qnehvi"):
+        with pytest.raises(ValueError, match="qEHVI.*qNEHVI"):
             mobo_session.suggest_next(strategy='PI', goal='maximize')
 
     def test_ucb_strategy_raises_for_multi_objective(self, mobo_session):
         """UCB strategy raises ValueError for multi-objective sessions."""
         mobo_session.train_model(backend='botorch', kernel='Matern')
-        with pytest.raises(ValueError, match="qehvi|qnehvi"):
+        with pytest.raises(ValueError, match="qEHVI.*qNEHVI"):
             mobo_session.suggest_next(strategy='UCB', goal='maximize')
 
     def test_goal_as_string_accepted(self, mobo_session):
