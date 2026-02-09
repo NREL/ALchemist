@@ -370,8 +370,19 @@ class TestHypervolumeConvergencePlot:
         observed_hv = np.cumsum(np.random.uniform(0, 10, 10))
         fig, ax = create_hypervolume_convergence_plot(iterations, observed_hv)
         assert isinstance(fig, Figure)
-        assert ax.get_xlabel() == 'Iteration'
+        assert ax.get_xlabel() == 'Experiment Number'
         assert ax.get_ylabel() == 'Hypervolume'
+
+    def test_show_cumulative(self):
+        iterations = np.arange(1, 6)
+        observed_hv = np.array([1, 3, 2, 5, 4], dtype=float)
+        fig, ax = create_hypervolume_convergence_plot(
+            iterations, observed_hv, show_cumulative=True
+        )
+        assert isinstance(fig, Figure)
+        # Should have both scatter and cumulative line
+        labels = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert 'Cumulative best HV' in labels
 
     def test_with_predicted_hv(self):
         iterations = np.arange(1, 11)
@@ -426,7 +437,7 @@ class TestRegretMOBO:
 
     def test_regret_mobo_with_ref_point(self, mobo_session):
         _mock_mobo_model(mobo_session)
-        fig = mobo_session.plot_regret(ref_point=[0.0, 0.0])
+        fig = mobo_session.plot_regret(ref_point=[0.0, 0.0], include_predictions=False)
         assert isinstance(fig, Figure)
         # Should have 'Hypervolume' in y-axis label
         ax = fig.axes[0]

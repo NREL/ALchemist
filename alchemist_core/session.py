@@ -1806,6 +1806,26 @@ class OptimizationSession:
             return predict_result[target_column]
         return predict_result
 
+    def _build_grid_df(self, grid_data: dict) -> 'pd.DataFrame':
+        """Build a grid DataFrame with columns matching the model's training order.
+
+        Any columns in ``original_feature_names`` that are not present in
+        *grid_data* are filled with the median value from the experiment data
+        (or 0 if the column is unavailable).  This prevents NaN columns when the
+        training data contained extra feature columns beyond the search space.
+        """
+        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
+            column_order = self.model.original_feature_names
+            for col in column_order:
+                if col not in grid_data:
+                    if col in self.experiment_manager.df.columns:
+                        grid_data[col] = self.experiment_manager.df[col].median()
+                    else:
+                        grid_data[col] = 0
+        else:
+            column_order = self.search_space.get_variable_names()
+        return pd.DataFrame(grid_data, columns=column_order)
+
     def _check_matplotlib(self) -> None:
         """Check if matplotlib is available for plotting."""
         if _HAS_VISUALIZATION:
@@ -2025,11 +2045,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     slice_data[var_name] = var['values'][0]
 
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        slice_df = pd.DataFrame(slice_data, columns=column_order)
+        slice_df = self._build_grid_df(slice_data)
 
         # Get predictions
         predict_result = self.predict(slice_df)
@@ -2212,16 +2228,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with columns in the same order as original training data
-        # This is critical for model preprocessing to work correctly
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            # Use the model's stored column order
-            column_order = self.model.original_feature_names
-        else:
-            # Fall back to search space order
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
         
         # Get predictions
         predict_result = self.predict(grid_df)
@@ -2425,13 +2432,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with columns in correct order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
 
         # Get predictions
         predict_result = self.predict(grid_df)
@@ -2831,36 +2832,67 @@ class OptimizationSession:
                 directions = [g.lower() for g in goal]
 
             iterations = np.arange(1, n_exp + 1)
+
+            # Compute per-experiment HV contribution (delta HV), analogous to
+            # raw Y values in single-objective regret.
+            import torch
+            from botorch.utils.multi_objective.hypervolume import Hypervolume
+            from botorch.utils.multi_objective.pareto import is_non_dominated
+
+            ref_t_base = torch.tensor(ref_point, dtype=torch.double)
+            for j, d in enumerate(directions):
+                if d == 'minimize':
+                    ref_t_base[j] = -ref_t_base[j]
+
+            cumulative_hv = np.zeros(n_exp)
             observed_hv = np.zeros(n_exp)
 
             for i in range(1, n_exp + 1):
                 subset_df = self.experiment_manager.df.iloc[:i]
                 Y_sub = subset_df[self.objective_names].values
                 try:
-                    import torch
-                    from botorch.utils.multi_objective.hypervolume import Hypervolume
-                    from botorch.utils.multi_objective.pareto import is_non_dominated
-
                     Y_t = torch.tensor(Y_sub, dtype=torch.double)
-                    ref_t = torch.tensor(ref_point, dtype=torch.double)
-                    # Convert to maximization
                     for j, d in enumerate(directions):
                         if d == 'minimize':
                             Y_t[:, j] = -Y_t[:, j]
-                            ref_t[j] = -ref_t[j]
                     mask = is_non_dominated(Y_t)
                     if mask.any():
-                        hv_obj = Hypervolume(ref_point=ref_t)
-                        observed_hv[i - 1] = hv_obj.compute(Y_t[mask])
+                        hv_obj = Hypervolume(ref_point=ref_t_base)
+                        cumulative_hv[i - 1] = hv_obj.compute(Y_t[mask])
                     else:
-                        observed_hv[i - 1] = 0.0
+                        cumulative_hv[i - 1] = 0.0
                 except Exception:
-                    observed_hv[i - 1] = 0.0
+                    cumulative_hv[i - 1] = cumulative_hv[i - 2] if i > 1 else 0.0
+
+                # Delta HV = contribution of the i-th experiment
+                prev_hv = cumulative_hv[i - 2] if i > 1 else 0.0
+                observed_hv[i - 1] = cumulative_hv[i - 1] - prev_hv
+
+            # Compute posterior predicted HV with uncertainty
+            pred_hv = None
+            pred_hv_std = None
+            if include_predictions and n_exp >= start_iteration:
+                try:
+                    pred_hv, pred_hv_std = self._compute_posterior_hv_predictions(
+                        ref_point=ref_point,
+                        directions=directions,
+                        n_grid_points=n_grid_points,
+                        start_iteration=start_iteration,
+                        reuse_hyperparameters=reuse_hyperparameters,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Could not compute posterior HV predictions: {e}. "
+                        "Plotting observations only."
+                    )
 
             from alchemist_core.visualization.plots import create_hypervolume_convergence_plot
             fig, ax = create_hypervolume_convergence_plot(
                 iterations=iterations,
                 observed_hv=observed_hv,
+                show_cumulative=show_cumulative,
+                predicted_hv=pred_hv,
+                predicted_hv_std=pred_hv_std,
                 ref_point=ref_point,
                 sigma_bands=sigma_bands,
                 figsize=figsize,
@@ -3153,7 +3185,171 @@ class OptimizationSession:
         logging.getLogger('alchemist_core.models.botorch_model').setLevel(original_model_level)
         
         return predicted_means, predicted_stds
-    
+
+    def _compute_posterior_hv_predictions(
+        self,
+        ref_point: List[float],
+        directions: List[str],
+        n_grid_points: int = 1000,
+        start_iteration: int = 5,
+        reuse_hyperparameters: bool = True,
+        n_mc_samples: int = 32,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Compute model-predicted hypervolume at each iteration for MOBO.
+
+        Mirrors ``_compute_posterior_predictions`` for single-objective.
+        At each iteration *i* (from *start_iteration* to *n_exp*):
+
+        1. Train a temporary ModelListGP on experiments ``0:i``.
+        2. Draw *n_mc_samples* posterior samples on a prediction grid.
+        3. For each sample, compute the hypervolume of its non-dominated set.
+        4. Store the **mean** and **std** of these hypervolume samples.
+
+        Returns:
+            (predicted_hv, predicted_hv_std) — arrays of length n_exp (NaN
+            for iterations before *start_iteration*).
+        """
+        import torch
+        from botorch.utils.multi_objective.hypervolume import Hypervolume
+        from botorch.utils.multi_objective.pareto import is_non_dominated
+        from alchemist_core.models.botorch_model import BoTorchModel
+
+        n_exp = len(self.experiment_manager.df)
+        predicted_hv = np.full(n_exp, np.nan)
+        predicted_hv_std = np.full(n_exp, np.nan)
+
+        # Build ref_point tensor (convert to maximisation space)
+        ref_t = torch.tensor(ref_point, dtype=torch.double)
+        negate_idx = [j for j, d in enumerate(directions) if d == 'minimize']
+        for j in negate_idx:
+            ref_t[j] = -ref_t[j]
+
+        # Generate prediction grid
+        grid = self._generate_prediction_grid(n_grid_points)
+        full_df = self.experiment_manager.df
+
+        # Suppress INFO logging and scipy/botorch optimisation warnings
+        import logging
+        import warnings
+        orig_session_lvl = logger.level
+        orig_model_lvl = logging.getLogger('alchemist_core.models.botorch_model').level
+        logger.setLevel(logging.WARNING)
+        logging.getLogger('alchemist_core.models.botorch_model').setLevel(logging.WARNING)
+
+        for i in range(start_iteration, n_exp + 1):
+            try:
+                # Create temp experiment manager with first i experiments
+                temp_session = OptimizationSession()
+                temp_session.search_space = self.search_space
+                temp_session.experiment_manager.set_search_space(self.search_space)
+                temp_session.experiment_manager.target_columns = list(self.experiment_manager.target_columns)
+                # Directly assign DataFrame subset (avoids add_experiment single-output limitation)
+                temp_session.experiment_manager.df = full_df.iloc[:i].copy().reset_index(drop=True)
+
+                # Train temp MOBO model
+                kernel_opts = {'cont_kernel_type': getattr(self.model, 'cont_kernel_type', 'Matern')}
+                if hasattr(self.model, 'matern_nu'):
+                    kernel_opts['matern_nu'] = self.model.matern_nu
+                temp_model = BoTorchModel(
+                    kernel_options=kernel_opts,
+                    input_transform_type=getattr(self.model, 'input_transform_type', 'normalize'),
+                    output_transform_type=getattr(self.model, 'output_transform_type', 'standardize'),
+                )
+                temp_model.n_objectives = self.n_objectives
+                temp_model.objective_names = list(self.objective_names)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', category=Warning)
+                    temp_model.train(temp_session.experiment_manager, cache_cv=False)
+                temp_session.model = temp_model
+                temp_session.model_backend = 'botorch'
+
+                # Optionally transfer hyperparameters from final model
+                if reuse_hyperparameters and self.model is not None:
+                    try:
+                        for src_m, dst_m in zip(
+                            self.model.model.models, temp_model.model.models
+                        ):
+                            with torch.no_grad():
+                                dst_m.covar_module.base_kernel.lengthscale = (
+                                    src_m.covar_module.base_kernel.lengthscale.detach().clone()
+                                )
+                                dst_m.covar_module.outputscale = (
+                                    src_m.covar_module.outputscale.detach().clone()
+                                )
+                                dst_m.likelihood.noise = (
+                                    src_m.likelihood.noise.detach().clone()
+                                )
+                    except AttributeError:
+                        pass  # complex kernel structure — use per-iter optimisation
+
+                # Augment grid with any extra feature columns the model expects
+                grid_aug = grid.copy()
+                if temp_model.original_feature_names:
+                    subset_df = full_df.iloc[:i]
+                    for col in temp_model.original_feature_names:
+                        if col not in grid_aug.columns:
+                            if col in subset_df.columns:
+                                grid_aug[col] = subset_df[col].median()
+                            else:
+                                grid_aug[col] = 0
+                    grid_aug = grid_aug[temp_model.original_feature_names]
+
+                # Encode grid and get posterior samples
+                X_enc = temp_model._encode_categorical_data(grid_aug)
+                if isinstance(X_enc, pd.DataFrame):
+                    X_tensor = torch.tensor(X_enc.values, dtype=torch.double)
+                else:
+                    X_tensor = torch.tensor(X_enc, dtype=torch.double)
+
+                # Stack posteriors from each sub-model into (n_mc, n_grid, n_obj)
+                samples_per_obj = []
+                for sub_m in temp_model.model.models:
+                    sub_m.eval()
+                    sub_m.likelihood.eval()
+                    with torch.no_grad():
+                        post = sub_m.posterior(X_tensor)
+                        s = post.rsample(torch.Size([n_mc_samples]))  # (n_mc, n_grid, 1)
+                        samples_per_obj.append(s.squeeze(-1))         # (n_mc, n_grid)
+
+                Y_samples = torch.stack(samples_per_obj, dim=-1)  # (n_mc, n_grid, n_obj)
+
+                # Negate minimisation objectives for hypervolume (maximisation convention)
+                for j in negate_idx:
+                    Y_samples[..., j] = -Y_samples[..., j]
+
+                # Compute HV for each MC sample
+                hv_obj = Hypervolume(ref_point=ref_t)
+                hvs = []
+                for s_idx in range(n_mc_samples):
+                    Y_s = Y_samples[s_idx]                      # (n_grid, n_obj)
+                    nd_mask = is_non_dominated(Y_s)
+                    if nd_mask.any():
+                        hvs.append(hv_obj.compute(Y_s[nd_mask]))
+                    else:
+                        hvs.append(0.0)
+                hvs_t = torch.tensor(hvs, dtype=torch.double)
+                predicted_hv[i - 1] = float(hvs_t.mean())
+                predicted_hv_std[i - 1] = float(hvs_t.std())
+
+            except Exception as e:
+                import traceback as tb
+                logger.debug(f"Failed posterior HV at iteration {i}: {e}")
+                logger.debug(tb.format_exc())
+
+        # Restore logging
+        logger.setLevel(orig_session_lvl)
+        logging.getLogger('alchemist_core.models.botorch_model').setLevel(orig_model_lvl)
+
+        n_success = int(np.count_nonzero(~np.isnan(predicted_hv)))
+        n_total = n_exp - start_iteration + 1
+        if n_success < n_total:
+            logger.info(
+                f"Posterior HV computed for {n_success}/{n_total} iterations "
+                f"(failures at early iterations are normal with small data subsets)."
+            )
+
+        return predicted_hv, predicted_hv_std
+
     def _evaluate_mobo_acquisition(self, grid_df: pd.DataFrame) -> np.ndarray:
         """Evaluate stored MOBO acquisition function on a grid.
 
@@ -3295,13 +3491,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     slice_data[var_name] = var['values'][0]
         
-        # Create DataFrame with correct column order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        slice_df = pd.DataFrame(slice_data, columns=column_order)
+        slice_df = self._build_grid_df(slice_data)
 
         # Evaluate acquisition function
         if self.is_multi_objective:
@@ -3518,13 +3708,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with correct column order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
 
         # Evaluate acquisition function
         if self.is_multi_objective:
@@ -3708,13 +3892,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with correct column order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
 
         # Get predictions
         predict_result = self.predict(grid_df)
@@ -3894,13 +4072,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with correct column order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
 
         # Get predictions
         predict_result = self.predict(grid_df)
@@ -4090,13 +4262,7 @@ class OptimizationSession:
                 elif var['type'] == 'categorical':
                     grid_data[var_name] = var['values'][0]
         
-        # Create DataFrame with correct column order
-        if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-            column_order = self.model.original_feature_names
-        else:
-            column_order = self.search_space.get_variable_names()
-        
-        grid_df = pd.DataFrame(grid_data, columns=column_order)
+        grid_df = self._build_grid_df(grid_data)
 
         # Evaluate acquisition function
         if self.is_multi_objective:
@@ -4365,14 +4531,8 @@ class OptimizationSession:
                     elif var['type'] == 'categorical':
                         grid_data[var_name] = var['values'][0]
             
-            # Create DataFrame with correct column order
-            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-                column_order = self.model.original_feature_names
-            else:
-                column_order = self.search_space.get_variable_names()
-            
-            grid_df = pd.DataFrame(grid_data, columns=column_order)
-            
+            grid_df = self._build_grid_df(grid_data)
+
             # Get predictions
             predictions, std = self.predict(grid_df)
             
@@ -4447,16 +4607,11 @@ class OptimizationSession:
                     elif var['type'] == 'categorical':
                         grid_data[var_name] = var['values'][0]
             
-            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-                column_order = self.model.original_feature_names
-            else:
-                column_order = self.search_space.get_variable_names()
-            
-            grid_df = pd.DataFrame(grid_data, columns=column_order)
-            
+            grid_df = self._build_grid_df(grid_data)
+
             predictions, _ = self.predict(grid_df)
             prediction_grid = predictions.reshape(X_grid.shape)
-            
+
             # Prepare overlays
             exp_x, exp_y = None, None
             if show_experiments and not self.experiment_manager.df.empty:
@@ -4517,16 +4672,11 @@ class OptimizationSession:
                     elif var['type'] == 'categorical':
                         grid_data[var_name] = var['values'][0]
             
-            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-                column_order = self.model.original_feature_names
-            else:
-                column_order = self.search_space.get_variable_names()
-            
-            grid_df = pd.DataFrame(grid_data, columns=column_order)
-            
+            grid_df = self._build_grid_df(grid_data)
+
             predictions, _ = self.predict(grid_df)
             prediction_grid = predictions.reshape(X_grid.shape)
-            
+
             # Prepare overlays
             exp_x, exp_y, exp_z = None, None, None
             if show_experiments and not self.experiment_manager.df.empty:
@@ -4568,13 +4718,8 @@ class OptimizationSession:
                     elif var['type'] == 'categorical':
                         grid_data[var_name] = var['values'][0]
             
-            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-                column_order = self.model.original_feature_names
-            else:
-                column_order = self.search_space.get_variable_names()
-            
-            grid_df = pd.DataFrame(grid_data, columns=column_order)
-            
+            grid_df = self._build_grid_df(grid_data)
+
             acq_values, _ = evaluate_acquisition(
                 self.model,
                 grid_df,
@@ -4582,7 +4727,7 @@ class OptimizationSession:
                 acq_func_kwargs=acq_func_kwargs,
                 goal=goal
             )
-            
+
             create_slice_plot(
                 x_values=x_values,
                 predictions=acq_values,
@@ -4647,13 +4792,8 @@ class OptimizationSession:
                     elif var['type'] == 'categorical':
                         grid_data[var_name] = var['values'][0]
             
-            if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
-                column_order = self.model.original_feature_names
-            else:
-                column_order = self.search_space.get_variable_names()
-            
-            grid_df = pd.DataFrame(grid_data, columns=column_order)
-            
+            grid_df = self._build_grid_df(grid_data)
+
             acq_values, _ = evaluate_acquisition(
                 self.model,
                 grid_df,

@@ -169,9 +169,9 @@ def create_contour_plot(
     # Contour plot with optional log scaling
     if use_log_scale:
         from matplotlib.colors import LogNorm, SymLogNorm
-        
-        min_val = predictions_grid.min()
-        max_val = predictions_grid.max()
+
+        min_val = float(np.nanmin(predictions_grid))
+        max_val = float(np.nanmax(predictions_grid))
         
         # For predominantly negative values (like LogEI), use negative to make positive
         if max_val <= 0:
@@ -206,16 +206,31 @@ def create_contour_plot(
                                 norm=SymLogNorm(linthresh=linthresh, vmin=min_val, vmax=max_val))
             cbar = fig.colorbar(contour, ax=ax)
     else:
-        # Use explicit vmin/vmax to ensure colorbar spans full data range
-        min_val = predictions_grid.min()
-        max_val = predictions_grid.max()
-        
+        # Mask NaN values so contourf leaves those regions blank
+        masked_grid = np.ma.masked_invalid(predictions_grid)
+
+        if masked_grid.count() == 0:
+            raise ValueError(
+                "All predictions are NaN — the model returned no valid values for this grid. "
+                "Check that the model trained successfully and that all input variables are correct."
+            )
+
+        min_val = float(masked_grid.min())
+        max_val = float(masked_grid.max())
+
         # Generate levels that better handle extreme outliers
         # Use percentile-based approach to create more levels in the dense region
-        percentiles = np.percentile(predictions_grid.ravel(), [0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100])
-        
+        valid_vals = masked_grid.compressed()
+        percentiles = np.percentile(valid_vals, [0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100])
+
+        # Handle constant predictions (min == max) to avoid contourf failure
+        if min_val == max_val:
+            eps = max(abs(min_val) * 1e-6, 1e-10)
+            min_val -= eps
+            max_val += eps
+            levels = np.linspace(min_val, max_val, 50)
         # If there's a large gap between percentiles, use adaptive levels
-        if (percentiles[-1] - percentiles[-2]) > 2 * (percentiles[-2] - percentiles[-3]):
+        elif (percentiles[-1] - percentiles[-2]) > 2 * (percentiles[-2] - percentiles[-3]):
             # Extreme outliers detected - create custom levels
             # More levels in the main data range, fewer in the outlier range
             main_levels = np.linspace(percentiles[1], percentiles[-2], 40)
@@ -224,8 +239,8 @@ def create_contour_plot(
         else:
             # Normal distribution - use uniform levels
             levels = np.linspace(min_val, max_val, 50)
-        
-        contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=levels, cmap=cmap, 
+
+        contour = ax.contourf(x_grid, y_grid, masked_grid, levels=levels, cmap=cmap,
                             vmin=min_val, vmax=max_val)
         cbar = fig.colorbar(contour, ax=ax)
     
@@ -1557,6 +1572,7 @@ def create_pareto_plot(
 def create_hypervolume_convergence_plot(
     iterations: np.ndarray,
     observed_hv: np.ndarray,
+    show_cumulative: bool = False,
     predicted_hv: Optional[np.ndarray] = None,
     predicted_hv_std: Optional[np.ndarray] = None,
     sigma_bands: Optional[List[float]] = None,
@@ -1568,13 +1584,20 @@ def create_hypervolume_convergence_plot(
 ) -> Tuple[Figure, Axes]:
     """Create hypervolume convergence plot for multi-objective optimization.
 
-    Analogous to create_regret_plot() but uses hypervolume as the progress
-    metric.  The observed hypervolume is monotonically non-decreasing as new
-    Pareto-optimal points are discovered.
+    Mirrors create_regret_plot() in style and behaviour but uses hypervolume as
+    the progress metric.
+
+    - Scatter points show the observed Pareto-front hypervolume at each iteration.
+    - An optional cumulative-best line is shown when *show_cumulative* is True.
+    - When *predicted_hv* (and optionally *predicted_hv_std* + *sigma_bands*)
+      are provided, a model-predicted hypervolume line with uncertainty bands
+      is overlaid — analogous to the "max posterior mean" line in the
+      single-objective regret plot.
 
     Args:
         iterations: 1-based iteration indices.
         observed_hv: Hypervolume of the observed Pareto front at each iteration.
+        show_cumulative: Show cumulative best HV line (default False).
         predicted_hv: Model-predicted hypervolume at each iteration (optional).
         predicted_hv_std: Std of predicted hypervolume (optional).
         sigma_bands: Sigma multipliers for uncertainty bands (e.g. [1.0, 2.0]).
@@ -1597,15 +1620,16 @@ def create_hypervolume_convergence_plot(
     mean_color = "#0B3C5D"
     exp_face = "#E07A00"
 
-    # Scatter observed HV
+    # Optional cumulative best line (off by default, matching single-obj behaviour)
+    if show_cumulative:
+        cum_max = np.maximum.accumulate(observed_hv)
+        ax.plot(iterations, cum_max, linewidth=2.5, color=exp_face,
+                label='Cumulative best HV', zorder=3)
+
+    # Scatter observed HV (per-experiment contribution / delta HV)
     ax.scatter(iterations, observed_hv, s=70, alpha=0.9,
                facecolor=exp_face, edgecolors='black', linewidth=0.9,
-               label='Observed HV', zorder=2)
-
-    # Cumulative max line (HV is monotonically non-decreasing)
-    cum_max = np.maximum.accumulate(observed_hv)
-    ax.plot(iterations, cum_max, linewidth=2.5, color=exp_face,
-            label='Cumulative best HV', zorder=3)
+               label='HV contribution', zorder=2)
 
     # Predicted HV with uncertainty bands
     if predicted_hv is not None:
@@ -1632,14 +1656,15 @@ def create_hypervolume_convergence_plot(
                         facecolor=face,
                         edgecolor=plt.matplotlib.colors.to_rgba(mean_color, 0.55),
                         linewidth=0.5,
-                        label=f'Predicted HV ±{sigma}σ',
+                        label=f'±{sigma:.1f}σ',
                         zorder=1,
                     )
 
-            ax.plot(iters_v, hv_v, linewidth=2, color=mean_color,
-                    label='Predicted HV', zorder=4)
+            ax.plot(iters_v, hv_v, linewidth=2.6, color=mean_color,
+                    linestyle='-',
+                    label='Max posterior HV', zorder=4)
 
-    ax.set_xlabel('Iteration')
+    ax.set_xlabel('Experiment Number')
     ax.set_ylabel('Hypervolume')
 
     if title is None:
@@ -1648,6 +1673,7 @@ def create_hypervolume_convergence_plot(
             title += f'\n(ref point: {ref_point})'
 
     ax.set_title(title)
+    ax.set_axisbelow(True)
     ax.legend(loc='best', fontsize=8)
     ax.grid(True, alpha=0.25)
 
