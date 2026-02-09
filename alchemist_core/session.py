@@ -65,7 +65,7 @@ class OptimizationSession:
         > session.add_variable('catalyst', 'categorical', categories=['A', 'B', 'C'])
         > 
         > # Load experimental data
-        > session.load_data('experiments.csv', target_column='yield')
+        > session.load_data('experiments.csv', target_columns='yield')
         > 
         > # Train model
         > session.train_model(backend='botorch', kernel='Matern')
@@ -302,7 +302,7 @@ class OptimizationSession:
             >>> session.load_data('experiments.csv', target_columns='yield')
             >>> session.load_data('experiments.csv', target_columns=['yield'])  # also works
             
-            Multi-objective (future):
+            Multi-objective:
             >>> session.load_data('experiments.csv', target_columns=['yield', 'selectivity'])
         
         Note:
@@ -659,7 +659,7 @@ class OptimizationSession:
         # Guard: multi-objective requires BoTorch
         if self.is_multi_objective and backend.lower() == 'sklearn':
             raise ValueError(
-                "Multi-objective optimization requires backend='botorch'. The sklearn backend "
+                "multi-objective optimization requires backend='botorch'. The sklearn backend "
                 "only supports single-objective. Change to: session.train_model(backend='botorch')"
             )
 
@@ -806,7 +806,7 @@ class OptimizationSession:
         }
 
         if self.is_multi_objective:
-            logger.info(f"Multi-objective model trained successfully ({self.n_objectives} objectives)")
+            logger.info(f"multi-objective model trained successfully ({self.n_objectives} objectives)")
         else:
             logger.info(f"Model trained successfully. R²: {metrics.get('r2', 'N/A')}")
         self.events.emit('training_completed', results)
@@ -947,8 +947,8 @@ class OptimizationSession:
             valid_mobo_strategies = {'qehvi', 'qnehvi'}
             if strategy_lower not in valid_mobo_strategies:
                 raise ValueError(
-                    f"Multi-objective optimization requires strategy in {valid_mobo_strategies}. "
-                    f"Got '{strategy}'. Use qEHVI or qNEHVI for multi-objective."
+                    f"multi-objective optimization requires 'qEHVI' or 'qNEHVI' acquisition strategy. "
+                    f"Got '{strategy}'."
                 )
 
             # Convert goal to directions list
@@ -958,7 +958,7 @@ class OptimizationSession:
                 directions = [g.lower() for g in goal]
                 if len(directions) != self.n_objectives:
                     raise ValueError(
-                        f"goal list length ({len(directions)}) must match n_objectives ({self.n_objectives})"
+                        f"goal list length ({len(directions)}) must match number of objectives ({self.n_objectives})"
                     )
 
             # Build outcome constraint callables from stored constraints
@@ -1024,6 +1024,12 @@ class OptimizationSession:
 
             # Add MOBO-specific parameters
             if self.is_multi_objective:
+                # Validate ref_point if provided
+                if ref_point is not None and len(ref_point) != self.n_objectives:
+                    raise ValueError(
+                        f"ref_point length ({len(ref_point)}) must match number of objectives ({self.n_objectives})"
+                    )
+                
                 acq_kwargs['ref_point'] = ref_point
                 acq_kwargs['directions'] = directions
                 acq_kwargs['objective_names'] = self.objective_names
@@ -1139,6 +1145,11 @@ class OptimizationSession:
                 directions = [goal.lower()] * self.n_objectives
             else:
                 directions = [g.lower() for g in goal]
+                # Validate directions length
+                if len(directions) != self.n_objectives:
+                    raise ValueError(
+                        f"goal list length ({len(directions)}) must match number of objectives ({self.n_objectives})"
+                    )
 
             pareto_df = self.experiment_manager.get_pareto_frontier(directions)
             if len(pareto_df) == 0:
@@ -1779,7 +1790,7 @@ class OptimizationSession:
             return self.experiment_manager.target_columns[0]
         if target_column is None:
             raise ValueError(
-                f"Multi-objective session requires target_column. "
+                f"multi-objective session requires target_column parameter. "
                 f"Use one of {self.objective_names} or 'all'."
             )
         if target_column == 'all':
@@ -1787,11 +1798,11 @@ class OptimizationSession:
         if target_column not in self.objective_names:
             raise ValueError(
                 f"Unknown objective '{target_column}'. "
-                f"Available: {self.objective_names}"
+                f"Available objectives: {self.objective_names}"
             )
         return target_column
 
-    def _get_predictions_for_objective(self, predict_result, target_column: str):
+    def _get_predictions_for_objective(self, predict_result, target_column: str) -> Tuple[np.ndarray, np.ndarray]:
         """Extract single-objective (predictions, std) from predict() result.
 
         Args:
@@ -1811,8 +1822,14 @@ class OptimizationSession:
 
         Any columns in ``original_feature_names`` that are not present in
         *grid_data* are filled with the median value from the experiment data
-        (or 0 if the column is unavailable).  This prevents NaN columns when the
-        training data contained extra feature columns beyond the search space.
+        (or 0 if the column is unavailable).  
+        
+        This prevents NaN columns when the training data contained extra feature 
+        columns beyond the search space (e.g., derived features or auxiliary data).
+        
+        WARNING: If your search space is missing variables that were in the training data,
+        predictions will use median values for those missing features, which may not be 
+        appropriate for all use cases.
         """
         if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
             column_order = self.model.original_feature_names
@@ -1866,13 +1883,13 @@ class OptimizationSession:
                 )
             if target_column is None:
                 raise ValueError(
-                    f"Multi-objective session requires target_column for CV-based plots. "
+                    f"multi-objective session requires target_column for CV-based plots. "
                     f"Use one of {self.objective_names}."
                 )
             if target_column not in self.model.cv_cached_results_multi:
                 raise ValueError(
                     f"No CV results for objective '{target_column}'. "
-                    f"Available: {list(self.model.cv_cached_results_multi.keys())}"
+                    f"Available objectives: {list(self.model.cv_cached_results_multi.keys())}"
                 )
             return self.model.cv_cached_results_multi[target_column]
 
@@ -2725,6 +2742,8 @@ class OptimizationSession:
         figsize=(8, 6), dpi=100, title=None
     ):
         """Plot the Pareto frontier for multi-objective optimization.
+        
+        Currently supports 2-objective optimization only.
 
         Args:
             directions: Per-objective direction ('maximize'/'minimize'). Default: all maximize.
@@ -2741,6 +2760,12 @@ class OptimizationSession:
         """
         if not self.is_multi_objective:
             raise ValueError("plot_pareto_frontier requires multi-objective data (2+ target columns)")
+        
+        if self.n_objectives != 2:
+            raise ValueError(
+                f"plot_pareto_frontier currently only supports 2 objectives, but session has {self.n_objectives}. "
+                "Use plot_parity() with target_column to visualize individual objectives."
+            )
 
         if not _HAS_VISUALIZATION:
             raise ImportError("matplotlib is required for visualization")
