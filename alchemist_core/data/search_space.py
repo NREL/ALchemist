@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, Tuple
 from skopt.space import Real, Integer, Categorical
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ class SearchSpace:
         self.variables = []  # List of variable dictionaries with metadata
         self.skopt_dimensions = []  # skopt dimensions (used by scikit-learn)
         self.categorical_variables = []  # List of categorical variable names
+        self.constraints = []  # List of linear constraint dicts
 
     def add_variable(self, name: str, var_type: str, **kwargs):
         """
@@ -150,20 +151,110 @@ class SearchSpace:
 
     def save_to_json(self, filepath: str):
         """Save search space to a JSON file."""
+        data = {
+            'variables': self.to_dict(),
+            'constraints': self.constraints
+        }
         with open(filepath, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(data, f, indent=2)
 
     def load_from_json(self, filepath: str):
         """Load search space from a JSON file."""
         with open(filepath, 'r') as f:
             data = json.load(f)
-        return self.from_dict(data)
+        # Support both old format (list of variables) and new format (dict with constraints)
+        if isinstance(data, list):
+            return self.from_dict(data)
+        else:
+            self.from_dict(data.get('variables', []))
+            self.constraints = data.get('constraints', [])
+            return self
     
     @classmethod
     def from_json(cls, filepath: str):
         """Class method to create a SearchSpace from a JSON file."""
         instance = cls()
         return instance.load_from_json(filepath)
+
+    def add_constraint(self, constraint_type: str, coefficients: Dict[str, float],
+                       rhs: float, name: Optional[str] = None):
+        """Add linear input constraint.
+
+        Args:
+            constraint_type: 'inequality' (sum(coeff_i * x_i) <= rhs) or
+                             'equality' (sum(coeff_i * x_i) == rhs)
+            coefficients: {variable_name: coefficient} mapping
+            rhs: right-hand side value
+            name: optional human-readable name
+        """
+        valid_types = ('inequality', 'equality')
+        if constraint_type not in valid_types:
+            raise ValueError(f"constraint_type must be one of {valid_types}, got '{constraint_type}'")
+
+        var_names = self.get_variable_names()
+        for var_name in coefficients:
+            if var_name not in var_names:
+                raise ValueError(f"Variable '{var_name}' in constraint not found in search space. "
+                                 f"Available: {var_names}")
+
+        self.constraints.append({
+            'type': constraint_type,
+            'coefficients': coefficients,
+            'rhs': rhs,
+            'name': name or f"constraint_{len(self.constraints)}"
+        })
+
+    def get_constraints(self) -> List[Dict]:
+        """Return list of constraint dicts."""
+        return [c.copy() for c in self.constraints]
+
+    def to_botorch_constraints(self, feature_names: List[str]) -> Tuple[Optional[List], Optional[List]]:
+        """Convert to BoTorch format for optimize_acqf.
+
+        Each constraint is a tuple (indices_tensor, coefficients_tensor, rhs_float).
+        BoTorch convention: inequality means sum(coeff_i * x_i) - rhs <= 0.
+
+        Args:
+            feature_names: ordered list of feature column names matching model input
+
+        Returns:
+            (inequality_constraints, equality_constraints) — each is a list of tuples
+            or None if no constraints of that type exist.
+        """
+        import torch
+
+        inequality_constraints = []
+        equality_constraints = []
+
+        name_to_idx = {name: i for i, name in enumerate(feature_names)}
+
+        for c in self.constraints:
+            indices = []
+            coeffs = []
+            for var_name, coeff in c['coefficients'].items():
+                if var_name not in name_to_idx:
+                    continue  # skip variables not in features (e.g. categorical)
+                indices.append(name_to_idx[var_name])
+                coeffs.append(coeff)
+
+            if not indices:
+                continue
+
+            constraint_tuple = (
+                torch.tensor(indices, dtype=torch.long),
+                torch.tensor(coeffs, dtype=torch.double),
+                c['rhs']
+            )
+
+            if c['type'] == 'inequality':
+                inequality_constraints.append(constraint_tuple)
+            else:
+                equality_constraints.append(constraint_tuple)
+
+        return (
+            inequality_constraints if inequality_constraints else None,
+            equality_constraints if equality_constraints else None
+        )
 
     def __len__(self):
         return len(self.variables)

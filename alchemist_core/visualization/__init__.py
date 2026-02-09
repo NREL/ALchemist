@@ -18,6 +18,8 @@ from alchemist_core.visualization.plots import (
     create_uncertainty_contour_plot,
     create_uncertainty_voxel_plot,
     create_acquisition_voxel_plot,
+    create_pareto_plot,
+    create_hypervolume_convergence_plot,
 )
 
 from alchemist_core.visualization.helpers import (
@@ -39,6 +41,8 @@ __all__ = [
     'create_uncertainty_contour_plot',
     'create_uncertainty_voxel_plot',
     'create_acquisition_voxel_plot',
+    'create_pareto_plot',
+    'create_hypervolume_convergence_plot',
     'check_matplotlib',
     'compute_z_scores',
     'compute_calibration_metrics',

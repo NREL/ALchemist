@@ -169,9 +169,9 @@ def create_contour_plot(
     # Contour plot with optional log scaling
     if use_log_scale:
         from matplotlib.colors import LogNorm, SymLogNorm
-        
-        min_val = predictions_grid.min()
-        max_val = predictions_grid.max()
+
+        min_val = float(np.nanmin(predictions_grid))
+        max_val = float(np.nanmax(predictions_grid))
         
         # For predominantly negative values (like LogEI), use negative to make positive
         if max_val <= 0:
@@ -206,16 +206,31 @@ def create_contour_plot(
                                 norm=SymLogNorm(linthresh=linthresh, vmin=min_val, vmax=max_val))
             cbar = fig.colorbar(contour, ax=ax)
     else:
-        # Use explicit vmin/vmax to ensure colorbar spans full data range
-        min_val = predictions_grid.min()
-        max_val = predictions_grid.max()
-        
+        # Mask NaN values so contourf leaves those regions blank
+        masked_grid = np.ma.masked_invalid(predictions_grid)
+
+        if masked_grid.count() == 0:
+            raise ValueError(
+                "All predictions are NaN — the model returned no valid values for this grid. "
+                "Check that the model trained successfully and that all input variables are correct."
+            )
+
+        min_val = float(masked_grid.min())
+        max_val = float(masked_grid.max())
+
         # Generate levels that better handle extreme outliers
         # Use percentile-based approach to create more levels in the dense region
-        percentiles = np.percentile(predictions_grid.ravel(), [0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100])
-        
+        valid_vals = masked_grid.compressed()
+        percentiles = np.percentile(valid_vals, [0, 1, 5, 10, 25, 50, 75, 90, 95, 99, 100])
+
+        # Handle constant predictions (min == max) to avoid contourf failure
+        if min_val == max_val:
+            eps = max(abs(min_val) * 1e-6, 1e-10)
+            min_val -= eps
+            max_val += eps
+            levels = np.linspace(min_val, max_val, 50)
         # If there's a large gap between percentiles, use adaptive levels
-        if (percentiles[-1] - percentiles[-2]) > 2 * (percentiles[-2] - percentiles[-3]):
+        elif (percentiles[-1] - percentiles[-2]) > 2 * (percentiles[-2] - percentiles[-3]):
             # Extreme outliers detected - create custom levels
             # More levels in the main data range, fewer in the outlier range
             main_levels = np.linspace(percentiles[1], percentiles[-2], 40)
@@ -224,8 +239,8 @@ def create_contour_plot(
         else:
             # Normal distribution - use uniform levels
             levels = np.linspace(min_val, max_val, 50)
-        
-        contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=levels, cmap=cmap, 
+
+        contour = ax.contourf(x_grid, y_grid, masked_grid, levels=levels, cmap=cmap,
                             vmin=min_val, vmax=max_val)
         cbar = fig.colorbar(contour, ax=ax)
     
@@ -1407,20 +1422,20 @@ def create_acquisition_voxel_plot(
     # Add colorbar
     cbar = fig.colorbar(scatter, ax=ax, pad=0.1, shrink=0.8)
     cbar.set_label('Acquisition Function Value', rotation=270, labelpad=20)
-    
+
     # Overlay experimental points
     if exp_x is not None and exp_y is not None and exp_z is not None and len(exp_x) > 0:
         ax.scatter(
             exp_x, exp_y, exp_z,
-            c='cyan', 
+            c='cyan',
             edgecolors='black',
-            s=100, 
-            marker='o', 
+            s=100,
+            marker='o',
             label='Experiments',
             linewidths=2,
             depthshade=True
         )
-    
+
     # Overlay suggestion points (should be in high-acquisition regions)
     if suggest_x is not None and suggest_y is not None and suggest_z is not None and len(suggest_x) > 0:
         ax.scatter(
@@ -1432,18 +1447,237 @@ def create_acquisition_voxel_plot(
             linewidths=2,
             depthshade=True
         )
-    
+
     # Set labels and title
     ax.set_xlabel(x_var)
     ax.set_ylabel(y_var)
     ax.set_zlabel(z_var)
     ax.set_title(title)
-    
+
     # Add legend if we have overlays
     if (exp_x is not None and len(exp_x) > 0) or (suggest_x is not None and len(suggest_x) > 0):
         ax.legend(loc='upper left')
-    
+
     if should_tight_layout:
         fig.tight_layout()
-    
+
+    return fig, ax
+
+
+def create_pareto_plot(
+    Y: np.ndarray,
+    pareto_mask: np.ndarray,
+    objective_names: List[str],
+    directions: Optional[List[str]] = None,
+    ref_point: Optional[List[float]] = None,
+    show_hypervolume: bool = True,
+    suggested_points: Optional[np.ndarray] = None,
+    constraint_boundaries: Optional[Dict[str, float]] = None,
+    figsize=(8, 6), dpi=100, title=None, ax=None
+) -> Tuple[Figure, Axes]:
+    """Create a Pareto frontier plot for 2-objective optimization.
+
+    Args:
+        Y: (n_samples, n_objectives) array of observed objective values
+        pareto_mask: Boolean mask identifying Pareto-optimal points
+        objective_names: Names for each objective axis
+        directions: 'maximize' or 'minimize' per objective (default: all maximize)
+        ref_point: Reference point for hypervolume shading
+        show_hypervolume: Whether to shade the dominated hypervolume region
+        suggested_points: (n, 2) array of newly suggested points to overlay
+        constraint_boundaries: {objective_name: value} for dashed constraint lines
+        figsize: Figure size
+        dpi: Figure DPI
+        title: Optional title
+        ax: Optional existing Axes
+
+    Returns:
+        (Figure, Axes)
+    """
+    should_create_fig = ax is None
+    if should_create_fig:
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    else:
+        fig = ax.get_figure()
+
+    if directions is None:
+        directions = ['maximize'] * Y.shape[1]
+
+    # Split Pareto vs dominated
+    pareto_Y = Y[pareto_mask]
+    dominated_Y = Y[~pareto_mask]
+
+    # Plot dominated points
+    if len(dominated_Y) > 0:
+        ax.scatter(dominated_Y[:, 0], dominated_Y[:, 1],
+                   c='#aaaaaa', alpha=0.5, s=40, label='Dominated', zorder=2)
+
+    # Plot Pareto points
+    if len(pareto_Y) > 0:
+        ax.scatter(pareto_Y[:, 0], pareto_Y[:, 1],
+                   c='#2196F3', edgecolors='black', s=80, linewidth=0.8,
+                   label='Pareto optimal', zorder=3)
+
+        # Draw stepped Pareto front line
+        sort_idx = np.argsort(pareto_Y[:, 0])
+        sorted_pareto = pareto_Y[sort_idx]
+
+        step_x = []
+        step_y = []
+        for i in range(len(sorted_pareto)):
+            if i > 0:
+                step_x.append(sorted_pareto[i, 0])
+                step_y.append(sorted_pareto[i - 1, 1])
+            step_x.append(sorted_pareto[i, 0])
+            step_y.append(sorted_pareto[i, 1])
+
+        ax.plot(step_x, step_y, 'b-', alpha=0.6, linewidth=1.5, zorder=2)
+
+        # Hypervolume shading
+        if show_hypervolume and ref_point is not None:
+            fill_x = [ref_point[0]] + step_x + [sorted_pareto[-1, 0], ref_point[0]]
+            fill_y = [ref_point[1]] + step_y + [ref_point[1], ref_point[1]]
+            ax.fill(fill_x, fill_y, alpha=0.1, color='blue', label='Hypervolume')
+            ax.scatter([ref_point[0]], [ref_point[1]], marker='x', c='red', s=100,
+                       linewidths=2, label='Ref point', zorder=4)
+
+    # Overlay suggested points
+    if suggested_points is not None and len(suggested_points) > 0:
+        ax.scatter(suggested_points[:, 0], suggested_points[:, 1],
+                   c='#FF9800', marker='*', s=150, edgecolors='black', linewidth=0.5,
+                   label='Suggested', zorder=5)
+
+    # Constraint boundaries as dashed lines
+    if constraint_boundaries:
+        for obj_name, value in constraint_boundaries.items():
+            if obj_name == objective_names[0]:
+                ax.axvline(x=value, color='red', linestyle='--', alpha=0.7,
+                          label=f'{obj_name} bound')
+            elif obj_name == objective_names[1]:
+                ax.axhline(y=value, color='red', linestyle='--', alpha=0.7,
+                          label=f'{obj_name} bound')
+
+    ax.set_xlabel(objective_names[0])
+    ax.set_ylabel(objective_names[1])
+    ax.set_title(title or 'Pareto Frontier')
+    ax.legend(loc='best', fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    if should_create_fig:
+        fig.tight_layout()
+
+    return fig, ax
+
+
+def create_hypervolume_convergence_plot(
+    iterations: np.ndarray,
+    observed_hv: np.ndarray,
+    show_cumulative: bool = False,
+    predicted_hv: Optional[np.ndarray] = None,
+    predicted_hv_std: Optional[np.ndarray] = None,
+    sigma_bands: Optional[List[float]] = None,
+    ref_point: Optional[List[float]] = None,
+    figsize: Tuple[float, float] = (8, 6),
+    dpi: int = 100,
+    title: Optional[str] = None,
+    ax: Optional[Axes] = None
+) -> Tuple[Figure, Axes]:
+    """Create hypervolume convergence plot for multi-objective optimization.
+
+    Mirrors create_regret_plot() in style and behaviour but uses hypervolume as
+    the progress metric.
+
+    - Scatter points show the observed Pareto-front hypervolume at each iteration.
+    - An optional cumulative-best line is shown when *show_cumulative* is True.
+    - When *predicted_hv* (and optionally *predicted_hv_std* + *sigma_bands*)
+      are provided, a model-predicted hypervolume line with uncertainty bands
+      is overlaid — analogous to the "max posterior mean" line in the
+      single-objective regret plot.
+
+    Args:
+        iterations: 1-based iteration indices.
+        observed_hv: Hypervolume of the observed Pareto front at each iteration.
+        show_cumulative: Show cumulative best HV line (default False).
+        predicted_hv: Model-predicted hypervolume at each iteration (optional).
+        predicted_hv_std: Std of predicted hypervolume (optional).
+        sigma_bands: Sigma multipliers for uncertainty bands (e.g. [1.0, 2.0]).
+        ref_point: Reference point used for hypervolume (annotated if given).
+        figsize: Figure size.
+        dpi: Figure DPI.
+        title: Custom title.
+        ax: Pre-existing axes.
+
+    Returns:
+        (Figure, Axes)
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        should_tight_layout = True
+    else:
+        fig = ax.figure
+        should_tight_layout = False
+
+    mean_color = "#0B3C5D"
+    exp_face = "#E07A00"
+
+    # Optional cumulative best line (off by default, matching single-obj behaviour)
+    if show_cumulative:
+        cum_max = np.maximum.accumulate(observed_hv)
+        ax.plot(iterations, cum_max, linewidth=2.5, color=exp_face,
+                label='Cumulative best HV', zorder=3)
+
+    # Scatter observed HV (per-experiment contribution / delta HV)
+    ax.scatter(iterations, observed_hv, s=70, alpha=0.9,
+               facecolor=exp_face, edgecolors='black', linewidth=0.9,
+               label='HV contribution', zorder=2)
+
+    # Predicted HV with uncertainty bands
+    if predicted_hv is not None:
+        valid = ~np.isnan(predicted_hv)
+        if valid.any():
+            iters_v = iterations[valid]
+            hv_v = predicted_hv[valid]
+
+            if predicted_hv_std is not None and sigma_bands:
+                std_v = predicted_hv_std[valid]
+                sigma_bands_sorted = sorted(sigma_bands, reverse=True)
+                n = len(sigma_bands_sorted)
+                cmap = plt.get_cmap("Blues")
+
+                for idx, sigma in enumerate(sigma_bands_sorted):
+                    t = idx / max(1, n - 1)
+                    face = cmap(0.3 + 0.3 * t)
+                    alpha_band = 1.0 - 1.0 / (1.0 + np.exp(-sigma + 2.0))
+                    ax.fill_between(
+                        iters_v,
+                        hv_v - sigma * std_v,
+                        hv_v + sigma * std_v,
+                        alpha=alpha_band,
+                        facecolor=face,
+                        edgecolor=plt.matplotlib.colors.to_rgba(mean_color, 0.55),
+                        linewidth=0.5,
+                        label=f'±{sigma:.1f}σ',
+                        zorder=1,
+                    )
+
+            ax.plot(iters_v, hv_v, linewidth=2.6, color=mean_color,
+                    linestyle='-',
+                    label='Max posterior HV', zorder=4)
+
+    ax.set_xlabel('Experiment Number')
+    ax.set_ylabel('Hypervolume')
+
+    if title is None:
+        title = 'Hypervolume Convergence'
+        if ref_point is not None:
+            title += f'\n(ref point: {ref_point})'
+
+    ax.set_title(title)
+    ax.set_axisbelow(True)
+    ax.legend(loc='best', fontsize=8)
+    ax.grid(True, alpha=0.25)
+
+    if should_tight_layout:
+        fig.tight_layout()
+
     return fig, ax

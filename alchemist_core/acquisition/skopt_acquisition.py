@@ -135,6 +135,13 @@ class SkoptAcquisition(BaseAcquisition):
         """
         Suggest the next experiment point.
         """
+        # Guard: skopt does not support multi-objective
+        if hasattr(self, '_model_wrapper') and hasattr(self._model_wrapper, 'n_objectives') and self._model_wrapper.n_objectives > 1:
+            raise ValueError(
+                "Multi-objective optimization requires BoTorch backend. "
+                "Use BoTorchAcquisition with qEHVI or qNEHVI strategies."
+            )
+
         if candidate_points is None:
             # No candidates provided - let optimizer explore the full space
             return self.optimizer.ask()
