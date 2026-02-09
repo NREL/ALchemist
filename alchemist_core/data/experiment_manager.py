@@ -174,6 +174,41 @@ class ExperimentManager:
         noise = self.df['Noise'] if 'Noise' in self.df.columns else None
         return X, y, noise
     
+    def get_features_and_targets_multi(self) -> Tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame]]:
+        """
+        Get features (X), all targets (Y), and optional noise values for multi-objective optimization.
+
+        Returns:
+            X: Features DataFrame (n_samples, n_features)
+            Y: Targets DataFrame (n_samples, n_objectives) with columns = target names
+            noise: Noise DataFrame if available, otherwise None
+
+        Raises:
+            ValueError: If any target column is not found in data
+        """
+        # Validate all target columns exist
+        missing_cols = [col for col in self.target_columns if col not in self.df.columns]
+        if missing_cols:
+            raise ValueError(
+                f"Target column(s) {missing_cols} not found in data. "
+                f"Available columns: {list(self.df.columns)}"
+            )
+
+        # Drop all metadata columns (all targets, Noise, Iteration, Reason)
+        metadata_cols = self.target_columns.copy()
+        if 'Noise' in self.df.columns:
+            metadata_cols.append('Noise')
+        if 'Iteration' in self.df.columns:
+            metadata_cols.append('Iteration')
+        if 'Reason' in self.df.columns:
+            metadata_cols.append('Reason')
+
+        X = self.df.drop(columns=metadata_cols)
+        Y = self.df[self.target_columns].copy()
+        noise = self.df[['Noise']] if 'Noise' in self.df.columns else None
+
+        return X, Y, noise
+
     def has_noise_data(self) -> bool:
         """Check if the experiment data includes noise values."""
         return 'Noise' in self.df.columns

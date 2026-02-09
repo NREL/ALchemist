@@ -317,6 +317,13 @@ class SklearnModel(BaseModel):
 
     def train(self, experiment_manager, **kwargs):
         """Train the model using the ExperimentManager."""
+        if len(experiment_manager.target_columns) > 1:
+            raise ValueError(
+                "Multi-objective optimization requires backend='botorch'. "
+                "The sklearn/scikit-optimize backend only supports single-objective optimization. "
+                "Please re-train with: session.train_model(backend='botorch')"
+            )
+
         # Store the original feature names before preprocessing
         X_orig, y_orig, noise = experiment_manager.get_features_target_and_noise()
         self.original_feature_names = X_orig.columns.tolist()

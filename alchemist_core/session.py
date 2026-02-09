@@ -34,6 +34,7 @@ try:
         create_metrics_plot,
         create_qq_plot,
         create_calibration_plot,
+        create_pareto_plot,
         check_matplotlib
     )
     _HAS_VISUALIZATION = True
@@ -106,6 +107,9 @@ class OptimizationSession:
         # Staged experiments (for workflow management)
         self.staged_experiments = []  # List of experiment dicts awaiting evaluation
         self.last_suggestions = []  # Most recent acquisition suggestions (for UI)
+
+        # Outcome constraints for constrained optimization
+        self._outcome_constraints = []  # List of {objective_name, bound_type, value}
         
         # Configuration
         self.config = {
@@ -211,6 +215,71 @@ class OptimizationSession:
             'categorical_variables': self.search_space.get_categorical_variables()
         }
     
+    # ============================================================
+    # Multi-Objective Properties
+    # ============================================================
+
+    @property
+    def is_multi_objective(self) -> bool:
+        """Whether this session has multiple target objectives."""
+        return len(self.experiment_manager.target_columns) > 1
+
+    @property
+    def n_objectives(self) -> int:
+        """Number of target objectives."""
+        return len(self.experiment_manager.target_columns)
+
+    @property
+    def objective_names(self) -> List[str]:
+        """Names of target objectives."""
+        return list(self.experiment_manager.target_columns)
+
+    # ============================================================
+    # Constraint API
+    # ============================================================
+
+    def add_input_constraint(self, constraint_type: str, coefficients: Dict[str, float],
+                             rhs: float, name: Optional[str] = None):
+        """Add linear input constraint: sum(coeff_i * x_i) <= rhs or == rhs.
+
+        Args:
+            constraint_type: 'inequality' (<=) or 'equality' (==)
+            coefficients: {variable_name: coefficient} mapping
+            rhs: right-hand side value
+            name: optional human-readable name
+
+        Example:
+            >>> session.add_input_constraint('inequality', {'x1': 1.0, 'x2': 1.0}, rhs=1.5)
+        """
+        self.search_space.add_constraint(constraint_type, coefficients, rhs, name)
+        logger.info(f"Added input constraint: {constraint_type}, {coefficients} {'<=' if constraint_type == 'inequality' else '=='} {rhs}")
+
+    def add_outcome_constraint(self, objective_name: str, bound_type: str, value: float):
+        """Add outcome constraint on a modeled output.
+
+        Args:
+            objective_name: Name of the target column to constrain
+            bound_type: 'lower' (output >= value) or 'upper' (output <= value)
+            value: The constraint threshold
+
+        Example:
+            >>> session.add_outcome_constraint('selectivity', 'lower', 80.0)
+        """
+        if bound_type not in ('lower', 'upper'):
+            raise ValueError(f"bound_type must be 'lower' or 'upper', got '{bound_type}'")
+
+        self._outcome_constraints.append({
+            'objective_name': objective_name,
+            'bound_type': bound_type,
+            'value': value
+        })
+        op = '>=' if bound_type == 'lower' else '<='
+        logger.info(f"Added outcome constraint: {objective_name} {op} {value}")
+
+    def get_outcome_constraints(self) -> List[Dict]:
+        """Return list of outcome constraint dicts."""
+        return [c.copy() for c in self._outcome_constraints]
+
     # ============================================================
     # Data Management
     # ============================================================
@@ -586,7 +655,14 @@ class OptimizationSession:
         df = self.experiment_manager.get_data()
         if df is None or df.empty:
             raise ValueError("No experimental data available. Use load_data() or add_experiment() first.")
-        
+
+        # Guard: multi-objective requires BoTorch
+        if self.is_multi_objective and backend.lower() == 'sklearn':
+            raise ValueError(
+                "Multi-objective optimization requires backend='botorch'. The sklearn backend "
+                "only supports single-objective. Change to: session.train_model(backend='botorch')"
+            )
+
         self.model_backend = backend.lower()
         
         # Normalize kernel name to match expected case
@@ -707,28 +783,32 @@ class OptimizationSession:
                 # Convert complex objects to their string representation
                 json_hyperparams[key] = str(value)
         
-        # Compute metrics from CV results if available
+        # Compute metrics from CV results if available (single-objective only)
         metrics = {}
-        if hasattr(self.model, 'cv_cached_results') and self.model.cv_cached_results is not None:
+        if not self.is_multi_objective and hasattr(self.model, 'cv_cached_results') and self.model.cv_cached_results is not None:
             from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
             y_true = self.model.cv_cached_results['y_true']
             y_pred = self.model.cv_cached_results['y_pred']
-            
+
             metrics = {
                 'rmse': float(np.sqrt(mean_squared_error(y_true, y_pred))),
                 'mae': float(mean_absolute_error(y_true, y_pred)),
                 'r2': float(r2_score(y_true, y_pred))
             }
-        
+
         results = {
             'backend': backend,
             'kernel': kernel,
             'hyperparameters': json_hyperparams,
             'metrics': metrics,
-            'success': True
+            'success': True,
+            'n_objectives': self.n_objectives,
         }
-        
-        logger.info(f"Model trained successfully. R²: {metrics.get('r2', 'N/A')}")
+
+        if self.is_multi_objective:
+            logger.info(f"Multi-objective model trained successfully ({self.n_objectives} objectives)")
+        else:
+            logger.info(f"Model trained successfully. R²: {metrics.get('r2', 'N/A')}")
         self.events.emit('training_completed', results)
         
         return results
@@ -816,11 +896,12 @@ class OptimizationSession:
     # Acquisition and Suggestions
     # ============================================================
     
-    def suggest_next(self, strategy: str = 'EI', goal: str = 'maximize',
-                    n_suggestions: int = 1, **kwargs) -> pd.DataFrame:
+    def suggest_next(self, strategy: str = 'EI', goal: Union[str, List[str]] = 'maximize',
+                    n_suggestions: int = 1, ref_point: Optional[List[float]] = None,
+                    **kwargs) -> pd.DataFrame:
         """
         Suggest next experiment(s) using acquisition function.
-        
+
         Args:
             strategy: Acquisition strategy
                 - 'EI': Expected Improvement
@@ -829,37 +910,76 @@ class OptimizationSession:
                 - 'LogEI': Log Expected Improvement (BoTorch only)
                 - 'LogPI': Log Probability of Improvement (BoTorch only)
                 - 'qEI', 'qUCB', 'qIPV': Batch acquisition (BoTorch only)
-            goal: 'maximize' or 'minimize'
+                - 'qEHVI', 'qNEHVI': Multi-objective acquisition (BoTorch only)
+            goal: 'maximize' or 'minimize' (str), or list of per-objective directions
             n_suggestions: Number of suggestions (batch acquisition)
+            ref_point: Reference point for MOBO hypervolume (list of floats, optional)
             **kwargs: Strategy-specific parameters:
-            
+
                 **Sklearn backend:**
                 - xi (float): Exploration parameter for EI/PI (default: 0.01)
-                  Higher values favor exploration over exploitation
                 - kappa (float): Exploration parameter for UCB (default: 1.96)
-                  Higher values favor exploration (typically 1.96 for 95% CI)
-                
+
                 **BoTorch backend:**
                 - beta (float): Exploration parameter for UCB (default: 0.5)
-                  Trades off mean vs. variance (higher = more exploration)
                 - mc_samples (int): Monte Carlo samples for batch acquisition (default: 128)
-        
+
         Returns:
             DataFrame with suggested experiment(s)
-        
+
         Examples:
-            >>> # Expected Improvement with custom exploration
-            >>> next_point = session.suggest_next(strategy='EI', goal='maximize', xi=0.05)
-            
-            >>> # Upper Confidence Bound with high exploration
-            >>> next_point = session.suggest_next(strategy='UCB', goal='maximize', kappa=2.5)
-            
-            >>> # BoTorch UCB with beta parameter
-            >>> next_point = session.suggest_next(strategy='UCB', goal='maximize', beta=1.0)
+            >>> # Single-objective
+            >>> next_point = session.suggest_next(strategy='EI', goal='maximize')
+
+            >>> # Multi-objective
+            >>> suggestions = session.suggest_next(
+            ...     strategy='qNEHVI',
+            ...     goal=['maximize', 'maximize'],
+            ...     ref_point=[0.0, 0.0]
+            ... )
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
-        
+
+        # Handle multi-objective goal/direction
+        if self.is_multi_objective:
+            strategy_lower = strategy.lower()
+            valid_mobo_strategies = {'qehvi', 'qnehvi'}
+            if strategy_lower not in valid_mobo_strategies:
+                raise ValueError(
+                    f"Multi-objective optimization requires strategy in {valid_mobo_strategies}. "
+                    f"Got '{strategy}'. Use qEHVI or qNEHVI for multi-objective."
+                )
+
+            # Convert goal to directions list
+            if isinstance(goal, str):
+                directions = [goal.lower()] * self.n_objectives
+            else:
+                directions = [g.lower() for g in goal]
+                if len(directions) != self.n_objectives:
+                    raise ValueError(
+                        f"goal list length ({len(directions)}) must match n_objectives ({self.n_objectives})"
+                    )
+
+            # Build outcome constraint callables from stored constraints
+            outcome_constraint_callables = None
+            if self._outcome_constraints:
+                outcome_constraint_callables = []
+                obj_names = self.objective_names
+                for oc in self._outcome_constraints:
+                    obj_idx = obj_names.index(oc['objective_name'])
+                    threshold = oc['value']
+                    if oc['bound_type'] == 'lower':
+                        # feasible when Y >= threshold, i.e. threshold - Y <= 0
+                        outcome_constraint_callables.append(
+                            lambda Y, t=threshold, i=obj_idx: t - Y[..., i]
+                        )
+                    else:
+                        # feasible when Y <= threshold, i.e. Y - threshold <= 0
+                        outcome_constraint_callables.append(
+                            lambda Y, t=threshold, i=obj_idx: Y[..., i] - t
+                        )
+
         # Validate and log kwargs
         supported_kwargs = self._get_supported_kwargs(strategy, self.model_backend)
         if kwargs:
@@ -872,35 +992,44 @@ class OptimizationSession:
             used_kwargs = {k: v for k, v in kwargs.items() if k in supported_kwargs}
             if used_kwargs:
                 logger.info(f"Using acquisition parameters: {used_kwargs}")
-        
+
         # Import appropriate acquisition class
         if self.model_backend == 'sklearn':
             from alchemist_core.acquisition.skopt_acquisition import SkoptAcquisition
-            
+
             self.acquisition = SkoptAcquisition(
                 search_space=self.search_space.to_skopt(),
-                model=self.model,  # Pass the full SklearnModel wrapper, not just .model
+                model=self.model,
                 acq_func=strategy.lower(),
-                maximize=(goal.lower() == 'maximize'),
+                maximize=(goal.lower() == 'maximize') if isinstance(goal, str) else True,
                 random_state=self.config['random_state'],
-                acq_func_kwargs=kwargs  # Pass xi, kappa, etc. to acquisition function
+                acq_func_kwargs=kwargs
             )
-            
+
             # Update acquisition with existing experimental data (un-encoded)
             X, y = self.experiment_manager.get_features_and_target()
             self.acquisition.update(X, y)
-            
+
         elif self.model_backend == 'botorch':
             from alchemist_core.acquisition.botorch_acquisition import BoTorchAcquisition
-            
-            self.acquisition = BoTorchAcquisition(
+
+            acq_kwargs = dict(
                 model=self.model,
                 search_space=self.search_space,
                 acq_func=strategy,
-                maximize=(goal.lower() == 'maximize'),
+                maximize=(goal.lower() == 'maximize') if isinstance(goal, str) else True,
                 batch_size=n_suggestions,
-                acq_func_kwargs=kwargs  # FIX: Pass kwargs to BoTorch acquisition!
+                acq_func_kwargs=kwargs,
             )
+
+            # Add MOBO-specific parameters
+            if self.is_multi_objective:
+                acq_kwargs['ref_point'] = ref_point
+                acq_kwargs['directions'] = directions
+                acq_kwargs['objective_names'] = self.objective_names
+                acq_kwargs['outcome_constraints'] = outcome_constraint_callables if self._outcome_constraints else None
+
+            self.acquisition = BoTorchAcquisition(**acq_kwargs)
         
         # Check if this is a pure exploration acquisition (doesn't use best_f)
         is_exploratory = strategy.lower() in ['qnipv', 'qipv']
@@ -946,7 +1075,7 @@ class OptimizationSession:
             'parameters': kwargs
         }
         self._last_acq_func = strategy.lower()
-        self._last_goal = goal.lower()
+        self._last_goal = goal.lower() if isinstance(goal, str) else [g.lower() for g in goal]
         
         return result_df
     
@@ -979,111 +1108,120 @@ class OptimizationSession:
                 return {'mc_samples', 'beta'}
             elif strategy_lower in ['qipv', 'qnipv']:
                 return {'mc_samples', 'n_mc_points'}
-        
+            elif strategy_lower in ['qehvi', 'qnehvi']:
+                return {'mc_samples', 'ref_point', 'eta'}
+
         return set()
     
-    def find_optimum(self, goal: str = 'maximize', n_grid_points: int = 10000) -> Dict[str, Any]:
+    def find_optimum(self, goal: Union[str, List[str]] = 'maximize',
+                     n_grid_points: int = 10000) -> Dict[str, Any]:
         """
         Find the point where the model predicts the optimal value.
-        
-        Uses a grid search approach to find the point with the best predicted
-        value (maximum or minimum) across the search space. This is useful for
-        identifying the model's predicted optimum independent of acquisition
-        function suggestions.
-        
+
+        For single-objective: returns the predicted optimum via grid search.
+        For multi-objective: returns the predicted Pareto frontier from observed data.
+
         Args:
-            goal: 'maximize' or 'minimize' - which direction to optimize
+            goal: 'maximize' or 'minimize' (str), or list of per-objective directions
             n_grid_points: Target number of grid points for search (default: 10000)
-        
+
         Returns:
-            Dictionary with:
-                - 'x_opt': DataFrame with optimal point (single row)
-                - 'value': Predicted value at optimum
-                - 'std': Uncertainty (standard deviation) at optimum
-        
-        Example:
-            >>> # Find predicted maximum
-            >>> result = session.find_optimum(goal='maximize')
-            >>> print(f"Optimum at: {result['x_opt']}")
-            >>> print(f"Predicted value: {result['value']:.2f} ± {result['std']:.2f}")
-            
-            >>> # Find predicted minimum
-            >>> result = session.find_optimum(goal='minimize')
-            
-            >>> # Use finer grid for more accuracy
-            >>> result = session.find_optimum(goal='maximize', n_grid_points=50000)
-        
-        Note:
-            - Requires a trained model
-            - Uses the same grid-based approach as regret plot for consistency
-            - Handles categorical variables correctly through proper encoding
-            - Grid size is target value; actual number depends on dimensionality
+            Single-objective dict with 'x_opt', 'value', 'std'.
+            Multi-objective dict with 'pareto_frontier', 'predicted_values',
+            'objective_names', 'n_pareto'.
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
-        
-        # Generate prediction grid in ORIGINAL variable space (not encoded)
+
+        # Multi-objective: return Pareto frontier
+        if self.is_multi_objective:
+            if isinstance(goal, str):
+                directions = [goal.lower()] * self.n_objectives
+            else:
+                directions = [g.lower() for g in goal]
+
+            pareto_df = self.experiment_manager.get_pareto_frontier(directions)
+            if len(pareto_df) == 0:
+                return {
+                    'pareto_frontier': pd.DataFrame(),
+                    'predicted_values': np.array([]),
+                    'objective_names': self.objective_names,
+                    'n_pareto': 0,
+                }
+
+            # Get predicted values for Pareto points
+            feature_cols = [c for c in pareto_df.columns
+                          if c not in self.objective_names + ['Noise', 'Iteration', 'Reason']]
+            X_pareto = pareto_df[feature_cols]
+            pred_results = self.model.predict(X_pareto, return_std=True)
+
+            # pred_results is a dict[str, (mean, std)] for multi-objective
+            predicted_values = np.column_stack([pred_results[name][0] for name in self.objective_names])
+
+            result = {
+                'pareto_frontier': pareto_df,
+                'predicted_values': predicted_values,
+                'objective_names': self.objective_names,
+                'n_pareto': len(pareto_df),
+            }
+            logger.info(f"Found {result['n_pareto']} Pareto-optimal points")
+            return result
+
+        # Single-objective
         grid = self._generate_prediction_grid(n_grid_points)
-        
-        # Use model's predict method which handles encoding internally
         means, stds = self.predict(grid)
-        
-        # Find argmax or argmin
+
+        if isinstance(goal, list):
+            goal = goal[0]
         if goal.lower() == 'maximize':
             best_idx = np.argmax(means)
         else:
             best_idx = np.argmin(means)
-        
-        # Extract the optimal point (already in original variable space)
+
         opt_point_df = grid.iloc[[best_idx]].reset_index(drop=True)
-        
+
         result = {
             'x_opt': opt_point_df,
             'value': float(means[best_idx]),
             'std': float(stds[best_idx])
         }
-        
+
         logger.info(f"Found optimum: {result['x_opt'].to_dict('records')[0]}")
         logger.info(f"Predicted value: {result['value']:.4f} ± {result['std']:.4f}")
-        
+
         return result
     
     # ============================================================
     # Predictions
     # ============================================================
     
-    def predict(self, inputs: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self, inputs: pd.DataFrame) -> Union[Tuple[np.ndarray, np.ndarray], Dict[str, Tuple[np.ndarray, np.ndarray]]]:
         """
         Make predictions at new points.
-        
+
         Args:
             inputs: DataFrame with input features
-        
+
         Returns:
-            Tuple of (predictions, uncertainties)
-        
-        Example:
-            > test_points = pd.DataFrame({
-            ...     'temperature': [350, 400],
-            ...     'catalyst': ['A', 'B']
-            ... })
-            > predictions, uncertainties = session.predict(test_points)
+            Single-objective: Tuple of (predictions, uncertainties)
+            Multi-objective: dict[str, tuple[ndarray, ndarray]] keyed by objective name
         """
         if self.model is None:
             raise ValueError("No trained model available. Use train_model() first.")
-        
-        # Call model's predict with return_std=True to get both predictions and uncertainties
+
+        # Multi-objective returns dict from model
+        if self.is_multi_objective:
+            return self.model.predict(inputs, return_std=True)
+
+        # Single-objective
         if self.model_backend == 'sklearn':
             return self.model.predict(inputs, return_std=True)
         elif self.model_backend == 'botorch':
-            # BoTorch model's predict also needs return_std=True to return (mean, std)
             return self.model.predict(inputs, return_std=True)
         else:
-            # Fallback - try with return_std
             try:
                 return self.model.predict(inputs, return_std=True)
             except TypeError:
-                # If return_std not supported, just return predictions with zero std
                 preds = self.model.predict(inputs)
                 return preds, np.zeros_like(preds)
     
@@ -1624,6 +1762,50 @@ class OptimizationSession:
     # Visualization Methods (Notebook Support)
     # ============================================================
     
+    # ============================================================
+    # MOBO-aware plotting helpers
+    # ============================================================
+
+    def _resolve_target_column(self, target_column: Optional[str]) -> Union[str, List[str]]:
+        """Validate & resolve target_column for MOBO-aware plot methods.
+
+        Args:
+            target_column: Objective name, 'all', or None.
+
+        Returns:
+            Single objective name (str) or list of all objective names.
+        """
+        if not self.is_multi_objective:
+            return self.experiment_manager.target_columns[0]
+        if target_column is None:
+            raise ValueError(
+                f"Multi-objective session requires target_column. "
+                f"Use one of {self.objective_names} or 'all'."
+            )
+        if target_column == 'all':
+            return list(self.objective_names)
+        if target_column not in self.objective_names:
+            raise ValueError(
+                f"Unknown objective '{target_column}'. "
+                f"Available: {self.objective_names}"
+            )
+        return target_column
+
+    def _get_predictions_for_objective(self, predict_result, target_column: str):
+        """Extract single-objective (predictions, std) from predict() result.
+
+        Args:
+            predict_result: Output of self.predict() — either (mean, std) tuple
+                or dict[str, (mean, std)] for MOBO.
+            target_column: Objective name to extract.
+
+        Returns:
+            Tuple of (predictions, std) ndarrays.
+        """
+        if isinstance(predict_result, dict):
+            return predict_result[target_column]
+        return predict_result
+
     def _check_matplotlib(self) -> None:
         """Check if matplotlib is available for plotting."""
         if _HAS_VISUALIZATION:
@@ -1641,28 +1823,49 @@ class OptimizationSession:
                 "Model not trained. Call train_model() before creating visualizations."
             )
     
-    def _check_cv_results(self, use_calibrated: bool = False) -> Dict[str, np.ndarray]:
+    def _check_cv_results(self, use_calibrated: bool = False,
+                          target_column: Optional[str] = None) -> Dict[str, np.ndarray]:
         """
         Get CV results from model, handling both calibrated and uncalibrated.
-        
+
         Args:
             use_calibrated: Whether to use calibrated results if available
-            
+            target_column: For MOBO, which objective's CV results to return.
+                          If None in MOBO, raises ValueError.
+
         Returns:
             Dictionary with y_true, y_pred, y_std arrays
         """
         self._check_model_trained()
-        
+
+        # For multi-objective, use per-objective CV results
+        if self.is_multi_objective:
+            if not hasattr(self.model, 'cv_cached_results_multi') or not self.model.cv_cached_results_multi:
+                raise ValueError(
+                    "No per-objective CV results available for multi-objective model."
+                )
+            if target_column is None:
+                raise ValueError(
+                    f"Multi-objective session requires target_column for CV-based plots. "
+                    f"Use one of {self.objective_names}."
+                )
+            if target_column not in self.model.cv_cached_results_multi:
+                raise ValueError(
+                    f"No CV results for objective '{target_column}'. "
+                    f"Available: {list(self.model.cv_cached_results_multi.keys())}"
+                )
+            return self.model.cv_cached_results_multi[target_column]
+
         # Check for calibrated results first if requested
         if use_calibrated and hasattr(self.model, 'cv_cached_results_calibrated'):
             if self.model.cv_cached_results_calibrated is not None:
                 return self.model.cv_cached_results_calibrated
-        
+
         # Fall back to uncalibrated results
         if hasattr(self.model, 'cv_cached_results'):
             if self.model.cv_cached_results is not None:
                 return self.model.cv_cached_results
-        
+
         raise ValueError(
             "No CV results available. Model must be trained with cross-validation."
         )
@@ -1675,14 +1878,15 @@ class OptimizationSession:
         dpi: int = 100,
         title: Optional[str] = None,
         show_metrics: bool = True,
-        show_error_bars: bool = True
+        show_error_bars: bool = True,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create parity plot of actual vs predicted values from cross-validation.
-        
+
         This plot shows how well the model's predictions match the actual experimental
         values, with optional error bars indicating prediction uncertainty.
-        
+
         Args:
             use_calibrated: Use calibrated uncertainty estimates if available
             sigma_multiplier: Error bar size (1.96 = 95% CI, 1.0 = 68% CI, 2.58 = 99% CI)
@@ -1691,36 +1895,60 @@ class OptimizationSession:
             title: Custom title (default: auto-generated with metrics)
             show_metrics: Include RMSE, MAE, R² in title
             show_error_bars: Display uncertainty error bars
-        
+            target_column: For multi-objective: objective name, 'all', or None.
+                Single-objective sessions ignore this parameter.
+
         Returns:
             matplotlib Figure object (displays inline in Jupyter)
-        
+
         Example:
             >>> fig = session.plot_parity()
-            >>> fig.show()  # In notebooks, displays automatically
-            
-            >>> # With custom styling
-            >>> fig = session.plot_parity(
-            ...     sigma_multiplier=2.58,  # 99% confidence interval
-            ...     figsize=(10, 8),
-            ...     dpi=150
-            ... )
             >>> fig.savefig('parity.png', bbox_inches='tight')
-        
+
         Note:
             Requires model to be trained with cross-validation (default behavior).
             Error bars are only shown if model provides uncertainty estimates.
         """
         self._check_matplotlib()
         self._check_model_trained()
-        
-        # Get CV results
-        cv_results = self._check_cv_results(use_calibrated)
+
+        resolved = self._resolve_target_column(target_column)
+
+        # Multi-objective 'all' → subplot grid
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                cv_results = self._check_cv_results(use_calibrated, target_column=obj)
+                create_parity_plot(
+                    y_true=cv_results['y_true'],
+                    y_pred=cv_results['y_pred'],
+                    y_std=cv_results.get('y_std'),
+                    sigma_multiplier=sigma_multiplier,
+                    show_metrics=show_metrics,
+                    show_error_bars=show_error_bars,
+                    title=title or f"Parity: {obj}",
+                    ax=axes[i]
+                )
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective parity plot ({n} objectives)")
+            return fig
+
+        # Single objective (or specific MOBO objective)
+        cv_results = self._check_cv_results(
+            use_calibrated,
+            target_column=resolved if self.is_multi_objective else None
+        )
         y_true = cv_results['y_true']
         y_pred = cv_results['y_pred']
         y_std = cv_results.get('y_std', None)
-        
-        # Delegate to visualization module
+
+        obj_title = title
+        if obj_title is None and self.is_multi_objective:
+            obj_title = f"Parity: {resolved}"
+
         fig, ax = create_parity_plot(
             y_true=y_true,
             y_pred=y_pred,
@@ -1728,11 +1956,11 @@ class OptimizationSession:
             sigma_multiplier=sigma_multiplier,
             figsize=figsize,
             dpi=dpi,
-            title=title,
+            title=obj_title,
             show_metrics=show_metrics,
             show_error_bars=show_error_bars
         )
-        
+
         logger.info("Generated parity plot")
         return fig
     
@@ -1745,148 +1973,131 @@ class OptimizationSession:
         show_experiments: bool = True,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 1D slice plot showing model predictions along one variable.
-        
-        Visualizes how the model's prediction changes as one variable is varied
-        while all other variables are held constant. Shows prediction mean and
-        optional uncertainty bands.
-        
+
         Args:
             x_var: Variable name to vary along X axis (must be 'real' or 'integer')
             fixed_values: Dict of {var_name: value} for other variables.
-                         If not provided, uses midpoint for real/integer,
-                         first category for categorical.
             n_points: Number of points to evaluate along the slice
-            show_uncertainty: Show uncertainty bands. Can be:
-                - True: Show ±1σ and ±2σ bands (default)
-                - False: No uncertainty bands
-                - List[float]: Custom sigma values, e.g., [1.0, 2.0, 3.0] for ±1σ, ±2σ, ±3σ
+            show_uncertainty: Show uncertainty bands (True, False, or list of sigma values)
             show_experiments: Plot experimental data points as scatter
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
-        
+            target_column: For multi-objective: objective name, 'all', or None.
+
         Returns:
             matplotlib Figure object
-        
-        Example:
-            >>> # With custom uncertainty bands (±1σ, ±2σ, ±3σ)
-            >>> fig = session.plot_slice(
-            ...     'temperature',
-            ...     fixed_values={'pressure': 5.0, 'catalyst': 'Pt'},
-            ...     show_uncertainty=[1.0, 2.0, 3.0]
-            ... )
-            >>> fig.savefig('slice.png', dpi=300)
-        
-        Note:
-            - Model must be trained before plotting
-            - Uncertainty bands require model to support std predictions
         """
         self._check_matplotlib()
         self._check_model_trained()
-        
+
         if fixed_values is None:
             fixed_values = {}
-        
+
         # Get variable info
         var_names = self.search_space.get_variable_names()
         if x_var not in var_names:
             raise ValueError(f"Variable '{x_var}' not in search space")
-        
-        # Get x variable definition
+
         x_var_def = next(v for v in self.search_space.variables if v['name'] == x_var)
-        
         if x_var_def['type'] not in ['real', 'integer']:
             raise ValueError(f"Variable '{x_var}' must be 'real' or 'integer' type for slice plot")
-        
+
         # Create range for x variable
-        x_min, x_max = x_var_def['min'], x_var_def['max']
-        x_values = np.linspace(x_min, x_max, n_points)
-        
-        # Build prediction data with fixed values
+        x_values = np.linspace(x_var_def['min'], x_var_def['max'], n_points)
+
+        # Build prediction grid
         slice_data = {x_var: x_values}
-        
         for var in self.search_space.variables:
             var_name = var['name']
             if var_name == x_var:
                 continue
-            
             if var_name in fixed_values:
                 slice_data[var_name] = fixed_values[var_name]
             else:
-                # Use default value
                 if var['type'] in ['real', 'integer']:
                     slice_data[var_name] = (var['min'] + var['max']) / 2
                 elif var['type'] == 'categorical':
                     slice_data[var_name] = var['values'][0]
-        
-        # Create DataFrame with correct column order
+
         if hasattr(self.model, 'original_feature_names') and self.model.original_feature_names:
             column_order = self.model.original_feature_names
         else:
             column_order = self.search_space.get_variable_names()
-        
         slice_df = pd.DataFrame(slice_data, columns=column_order)
-        
-        # Get predictions with uncertainty
-        predictions, std = self.predict(slice_df)
-        
-        # Prepare experimental data for plotting
-        exp_x = None
-        exp_y = None
-        if show_experiments and len(self.experiment_manager.df) > 0:
-            df = self.experiment_manager.df
-            
-            # Filter points that match the fixed values
-            mask = pd.Series([True] * len(df))
-            for var_name, fixed_val in fixed_values.items():
-                if var_name in df.columns:
-                    # For numerical values, allow small tolerance
-                    if isinstance(fixed_val, (int, float)):
-                        mask &= np.abs(df[var_name] - fixed_val) < 1e-6
-                    else:
-                        mask &= df[var_name] == fixed_val
-            
-            if mask.any():
-                filtered_df = df[mask]
-                exp_x = filtered_df[x_var].values
-                exp_y = filtered_df['Output'].values
-        
-        # Generate title if not provided
-        if title is None:
-            if fixed_values:
-                fixed_str = ', '.join([f'{k}={v}' for k, v in fixed_values.items()])
-                title = f"1D Slice: {x_var}\n({fixed_str})"
-            else:
-                title = f"1D Slice: {x_var}"
-        
-        # Delegate to visualization module
-        # Handle show_uncertainty parameter conversion
+
+        # Get predictions
+        predict_result = self.predict(slice_df)
+
+        # Handle show_uncertainty conversion
         sigma_bands = None
         if show_uncertainty is not False:
             if isinstance(show_uncertainty, bool):
-                # Default: [1.0, 2.0]
                 sigma_bands = [1.0, 2.0] if show_uncertainty else None
             else:
-                # Custom list of sigma values
                 sigma_bands = show_uncertainty
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _get_exp_data(obj_name):
+            if not show_experiments or len(self.experiment_manager.df) == 0:
+                return None, None
+            df = self.experiment_manager.df
+            mask = pd.Series([True] * len(df))
+            for vn, fv in fixed_values.items():
+                if vn in df.columns:
+                    if isinstance(fv, (int, float)):
+                        mask &= np.abs(df[vn] - fv) < 1e-6
+                    else:
+                        mask &= df[vn] == fv
+            if not mask.any():
+                return None, None
+            filtered = df[mask]
+            return filtered[x_var].values, filtered[obj_name].values
+
+        def _make_title(obj_name):
+            if title:
+                return title
+            parts = f"1D Slice: {x_var}"
+            if self.is_multi_objective:
+                parts = f"1D Slice ({obj_name}): {x_var}"
+            if fixed_values:
+                fixed_str = ', '.join([f'{k}={v}' for k, v in fixed_values.items()])
+                parts += f"\n({fixed_str})"
+            return parts
+
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                preds, std = self._get_predictions_for_objective(predict_result, obj)
+                ex, ey = _get_exp_data(obj)
+                create_slice_plot(
+                    x_values=x_values, predictions=preds, x_var=x_var,
+                    std=std, sigma_bands=sigma_bands, exp_x=ex, exp_y=ey,
+                    title=_make_title(obj), ax=axes[i]
+                )
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective slice plot for {x_var}")
+            return fig
+
+        # Single objective
+        predictions, std = self._get_predictions_for_objective(predict_result, resolved)
+        exp_x, exp_y = _get_exp_data(resolved)
+
         fig, ax = create_slice_plot(
-            x_values=x_values,
-            predictions=predictions,
-            x_var=x_var,
-            std=std,
-            sigma_bands=sigma_bands,
-            exp_x=exp_x,
-            exp_y=exp_y,
-            figsize=figsize,
-            dpi=dpi,
-            title=title
+            x_values=x_values, predictions=predictions, x_var=x_var,
+            std=std, sigma_bands=sigma_bands, exp_x=exp_x, exp_y=exp_y,
+            figsize=figsize, dpi=dpi, title=_make_title(resolved)
         )
-        
+
         logger.info(f"Generated 1D slice plot for {x_var}")
         return fig
     
@@ -1901,7 +2112,8 @@ class OptimizationSession:
         cmap: str = 'viridis',
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 2D contour plot of model predictions over a variable space.
@@ -2011,12 +2223,9 @@ class OptimizationSession:
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
         
-        # Get predictions - use Session's predict method for consistency
-        predictions, _ = self.predict(grid_df)
-        
-        # Reshape to grid
-        predictions_grid = predictions.reshape(X_grid.shape)
-        
+        # Get predictions
+        predict_result = self.predict(grid_df)
+
         # Prepare experimental data for overlay
         exp_x = None
         exp_y = None
@@ -2025,40 +2234,46 @@ class OptimizationSession:
             if x_var in exp_df.columns and y_var in exp_df.columns:
                 exp_x = exp_df[x_var].values
                 exp_y = exp_df[y_var].values
-        
+
         # Prepare suggestion data for overlay
         sugg_x = None
         sugg_y = None
         if show_suggestions and len(self.last_suggestions) > 0:
-            # last_suggestions is a DataFrame
             if isinstance(self.last_suggestions, pd.DataFrame):
                 sugg_df = self.last_suggestions
             else:
                 sugg_df = pd.DataFrame(self.last_suggestions)
-            
             if x_var in sugg_df.columns and y_var in sugg_df.columns:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
-        
-        # Delegate to visualization module
-        fig, ax, cbar = create_contour_plot(
-            x_grid=X_grid,
-            y_grid=Y_grid,
-            predictions_grid=predictions_grid,
-            x_var=x_var,
-            y_var=y_var,
-            exp_x=exp_x,
-            exp_y=exp_y,
-            suggest_x=sugg_x,
-            suggest_y=sugg_y,
-            cmap=cmap,
-            figsize=figsize,
-            dpi=dpi,
-            title=title or "Contour Plot of Model Predictions"
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _contour_for_obj(obj_name, ax=None):
+            preds, _ = self._get_predictions_for_objective(predict_result, obj_name)
+            preds_grid = preds.reshape(X_grid.shape)
+            obj_title = title or (f"Contour: {obj_name}" if self.is_multi_objective
+                                   else "Contour Plot of Model Predictions")
+            return create_contour_plot(
+                x_grid=X_grid, y_grid=Y_grid, predictions_grid=preds_grid,
+                x_var=x_var, y_var=y_var, exp_x=exp_x, exp_y=exp_y,
+                suggest_x=sugg_x, suggest_y=sugg_y, cmap=cmap,
+                figsize=figsize, dpi=dpi, title=obj_title, ax=ax
+            )
+
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                _contour_for_obj(obj, ax=axes[i])
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective contour plot for {x_var} vs {y_var}")
+            return fig
+
+        fig, ax, cbar = _contour_for_obj(resolved)
         logger.info(f"Generated contour plot for {x_var} vs {y_var}")
-        # Return figure only for backwards compatibility (colorbar accessible via fig/ax)
         return fig
     
     def plot_voxel(
@@ -2075,7 +2290,8 @@ class OptimizationSession:
         use_log_scale: bool = False,
         figsize: Tuple[float, float] = (10, 8),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 3D voxel plot of model predictions over a variable space.
@@ -2216,13 +2432,10 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
-        
+
         # Get predictions
-        predictions, _ = self.predict(grid_df)
-        
-        # Reshape to 3D grid
-        predictions_grid = predictions.reshape(X_grid.shape)
-        
+        predict_result = self.predict(grid_df)
+
         # Prepare experimental data for overlay
         exp_x = None
         exp_y = None
@@ -2233,7 +2446,7 @@ class OptimizationSession:
                 exp_x = exp_df[x_var].values
                 exp_y = exp_df[y_var].values
                 exp_z = exp_df[z_var].values
-        
+
         # Prepare suggestion data for overlay
         sugg_x = None
         sugg_y = None
@@ -2243,37 +2456,39 @@ class OptimizationSession:
                 sugg_df = self.last_suggestions
             else:
                 sugg_df = pd.DataFrame(self.last_suggestions)
-            
             if x_var in sugg_df.columns and y_var in sugg_df.columns and z_var in sugg_df.columns:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
                 sugg_z = sugg_df[z_var].values
-        
-        # Delegate to visualization module
+
         from alchemist_core.visualization.plots import create_voxel_plot
-        
-        fig, ax = create_voxel_plot(
-            x_grid=X_grid,
-            y_grid=Y_grid,
-            z_grid=Z_grid,
-            predictions_grid=predictions_grid,
-            x_var=x_var,
-            y_var=y_var,
-            z_var=z_var,
-            exp_x=exp_x,
-            exp_y=exp_y,
-            exp_z=exp_z,
-            suggest_x=sugg_x,
-            suggest_y=sugg_y,
-            suggest_z=sugg_z,
-            cmap=cmap,
-            alpha=alpha,
-            use_log_scale=use_log_scale,
-            figsize=figsize,
-            dpi=dpi,
-            title=title or "3D Voxel Plot of Model Predictions"
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _voxel_for_obj(obj_name):
+            preds, _ = self._get_predictions_for_objective(predict_result, obj_name)
+            preds_grid = preds.reshape(X_grid.shape)
+            obj_title = title or (f"3D Voxel: {obj_name}" if self.is_multi_objective
+                                   else "3D Voxel Plot of Model Predictions")
+            return create_voxel_plot(
+                x_grid=X_grid, y_grid=Y_grid, z_grid=Z_grid,
+                predictions_grid=preds_grid, x_var=x_var, y_var=y_var, z_var=z_var,
+                exp_x=exp_x, exp_y=exp_y, exp_z=exp_z,
+                suggest_x=sugg_x, suggest_y=sugg_y, suggest_z=sugg_z,
+                cmap=cmap, alpha=alpha, use_log_scale=use_log_scale,
+                figsize=figsize, dpi=dpi, title=obj_title
+            )
+
+        if isinstance(resolved, list):
+            # Voxel plots don't support subplots well; create separate figures
+            # Return first objective's figure and log a warning
+            logger.warning("Voxel 'all' mode creates separate figures per objective; returning last")
+            fig = None
+            for obj in resolved:
+                fig, ax = _voxel_for_obj(obj)
+            return fig
+
+        fig, ax = _voxel_for_obj(resolved)
         logger.info(f"Generated 3D voxel plot for {x_var} vs {y_var} vs {z_var}")
         return fig
     
@@ -2283,42 +2498,35 @@ class OptimizationSession:
         cv_splits: int = 5,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        use_cached: bool = True
+        use_cached: bool = True,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Plot cross-validation metrics as a function of training set size.
-        
-        Shows how model performance improves as more experimental data is added.
-        This evaluates the model at each training set size from 5 observations up to
-        the current total, providing insight into data efficiency and whether more
-        experiments are needed.
-        
+
         Args:
             metric: Which metric to plot ('rmse', 'mae', 'r2', or 'mape')
             cv_splits: Number of cross-validation folds (default: 5)
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
             use_cached: Use cached metrics if available (default: True)
-        
+            target_column: For multi-objective: objective name, 'all', or None.
+
         Returns:
             matplotlib Figure object
-        
-        Example:
-            >>> # Plot RMSE vs number of experiments
-            >>> fig = session.plot_metrics('rmse')
-            
-            >>> # Plot R² to see improvement
-            >>> fig = session.plot_metrics('r2')
-            
-            >>> # Force recomputation of metrics
-            >>> fig = session.plot_metrics('rmse', use_cached=False)
-        
+
         Note:
             Calls model.evaluate() if metrics not cached, which can be computationally
             expensive for large datasets. Set use_cached=False to force recomputation.
         """
         self._check_matplotlib()
         self._check_model_trained()
+
+        if self.is_multi_objective:
+            raise ValueError(
+                "plot_metrics() is not yet supported for multi-objective sessions. "
+                "Use plot_parity(target_column=...) for per-objective model diagnostics."
+            )
         
         # Need at least 5 observations for CV
         n_total = len(self.experiment_manager.df)
@@ -2379,62 +2587,56 @@ class OptimizationSession:
         use_calibrated: bool = False,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create Q-Q (quantile-quantile) plot for model residuals normality check.
-        
-        Visualizes whether the model's prediction errors (residuals) follow a normal
-        distribution. Points should lie close to the diagonal line if residuals are
-        normally distributed, which is an assumption of Gaussian Process models.
-        
+
         Args:
             use_calibrated: Use calibrated uncertainty estimates if available
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
-            title: Custom title (default: "Q-Q Plot: Residuals Normality Check")
-        
+            title: Custom title (default: auto-generated)
+            target_column: For multi-objective: objective name, 'all', or None.
+
         Returns:
             matplotlib Figure object
-        
-        Example:
-            >>> # Check if residuals are normally distributed
-            >>> fig = session.plot_qq()
-            >>> fig.savefig('qq_plot.png')
-            
-            >>> # Use calibrated predictions if available
-            >>> fig = session.plot_qq(use_calibrated=True)
-        
-        Note:
-            - Requires model to be trained with cross-validation
-            - Significant deviations from the diagonal suggest non-normal residuals
-            - Useful for diagnosing model assumptions and identifying outliers
         """
         self._check_matplotlib()
         self._check_model_trained()
-        
-        # Get CV results
-        cv_results = self._check_cv_results(use_calibrated)
-        y_true = cv_results['y_true']
-        y_pred = cv_results['y_pred']
-        y_std = cv_results.get('y_std', None)
-        
-        # Compute standardized residuals (z-scores)
-        residuals = y_true - y_pred
-        if y_std is not None and len(y_std) > 0:
-            z_scores = residuals / y_std
-        else:
-            # Fallback: standardize by residual standard deviation
-            z_scores = residuals / np.std(residuals)
-        
-        # Delegate to visualization module
-        fig, ax = create_qq_plot(
-            z_scores=z_scores,
-            figsize=figsize,
-            dpi=dpi,
-            title=title
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _qq_for_obj(obj_name, ax=None):
+            cv_results = self._check_cv_results(
+                use_calibrated,
+                target_column=obj_name if self.is_multi_objective else None
+            )
+            y_true = cv_results['y_true']
+            y_pred = cv_results['y_pred']
+            y_std = cv_results.get('y_std', None)
+            residuals = y_true - y_pred
+            if y_std is not None and len(y_std) > 0:
+                z_scores = residuals / y_std
+            else:
+                z_scores = residuals / np.std(residuals)
+            obj_title = title or (f"Q-Q Plot: {obj_name}" if self.is_multi_objective else None)
+            return create_qq_plot(z_scores=z_scores, figsize=figsize, dpi=dpi,
+                                  title=obj_title, ax=ax)
+
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                _qq_for_obj(obj, ax=axes[i])
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective Q-Q plot ({n} objectives)")
+            return fig
+
+        fig, ax = _qq_for_obj(resolved)
         logger.info("Generated Q-Q plot for residuals")
         return fig
     
@@ -2444,89 +2646,133 @@ class OptimizationSession:
         n_bins: int = 10,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create calibration plot showing reliability of uncertainty estimates.
-        
-        Compares predicted confidence intervals to actual coverage. For well-calibrated
-        models, a 68% confidence interval should contain ~68% of true values, 95% should
-        contain ~95%, etc. This plot helps diagnose if the model's uncertainty estimates
-        are too narrow (overconfident) or too wide (underconfident).
-        
+
         Args:
             use_calibrated: Use calibrated uncertainty estimates if available
             n_bins: Number of bins for grouping predictions (default: 10)
             figsize: Figure size as (width, height) in inches
             dpi: Dots per inch for figure resolution
-            title: Custom title (default: "Calibration Plot: Uncertainty Reliability")
-        
+            title: Custom title (default: auto-generated)
+            target_column: For multi-objective: objective name, 'all', or None.
+
         Returns:
             matplotlib Figure object
-        
-        Example:
-            >>> # Check if uncertainty estimates are reliable
-            >>> fig = session.plot_calibration()
-            >>> fig.savefig('calibration_plot.png')
-            
-            >>> # With more bins for finer resolution
-            >>> fig = session.plot_calibration(n_bins=20)
-        
-        Note:
-            - Requires model to be trained with cross-validation and provide uncertainties
-            - Points above diagonal = model is underconfident (intervals too wide)
-            - Points below diagonal = model is overconfident (intervals too narrow)
-            - Well-calibrated models have points close to the diagonal
         """
         self._check_matplotlib()
         self._check_model_trained()
-        
-        # Get CV results
-        cv_results = self._check_cv_results(use_calibrated)
-        y_true = cv_results['y_true']
-        y_pred = cv_results['y_pred']
-        y_std = cv_results.get('y_std', None)
-        
-        if y_std is None:
-            raise ValueError(
-                "Model does not provide uncertainty estimates (y_std). "
-                "Calibration plot requires uncertainty predictions."
-            )
-        
-        # Compute calibration curve data
+
         from scipy import stats
-        
-        # Compute empirical coverage for a range of nominal probabilities
-        nominal_probs = np.arange(0.10, 1.00, 0.05)
-        empirical_coverage = []
-        
-        for prob in nominal_probs:
-            # Convert probability to sigma multiplier
-            sigma = stats.norm.ppf((1 + prob) / 2)
-            
-            # Compute empirical coverage at this sigma level
-            lower_bound = y_pred - sigma * y_std
-            upper_bound = y_pred + sigma * y_std
-            within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
-            empirical_coverage.append(np.mean(within_interval))
-        
-        empirical_coverage = np.array(empirical_coverage)
-        
-        # Delegate to visualization module
-        fig, ax = create_calibration_plot(
-            nominal_probs=nominal_probs,
-            empirical_coverage=empirical_coverage,
-            figsize=figsize,
-            dpi=dpi,
-            title=title or "Calibration Plot: Uncertainty Reliability"
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _cal_for_obj(obj_name, ax=None):
+            cv_results = self._check_cv_results(
+                use_calibrated,
+                target_column=obj_name if self.is_multi_objective else None
+            )
+            y_true = cv_results['y_true']
+            y_pred = cv_results['y_pred']
+            y_std = cv_results.get('y_std', None)
+            if y_std is None:
+                raise ValueError(
+                    "Model does not provide uncertainty estimates (y_std). "
+                    "Calibration plot requires uncertainty predictions."
+                )
+            nominal_probs = np.arange(0.10, 1.00, 0.05)
+            empirical_coverage = []
+            for prob in nominal_probs:
+                sigma = stats.norm.ppf((1 + prob) / 2)
+                lower_bound = y_pred - sigma * y_std
+                upper_bound = y_pred + sigma * y_std
+                within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
+                empirical_coverage.append(np.mean(within_interval))
+            obj_title = title or (f"Calibration: {obj_name}" if self.is_multi_objective
+                                   else "Calibration Plot: Uncertainty Reliability")
+            return create_calibration_plot(
+                nominal_probs=nominal_probs,
+                empirical_coverage=np.array(empirical_coverage),
+                figsize=figsize, dpi=dpi, title=obj_title, ax=ax
+            )
+
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                _cal_for_obj(obj, ax=axes[i])
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective calibration plot ({n} objectives)")
+            return fig
+
+        fig, ax = _cal_for_obj(resolved)
         logger.info("Generated calibration plot for uncertainty estimates")
         return fig
-    
+
+    def plot_pareto_frontier(
+        self,
+        directions: Optional[List[str]] = None,
+        ref_point: Optional[List[float]] = None,
+        show_hypervolume: bool = True,
+        constraint_boundaries: Optional[Dict[str, float]] = None,
+        suggested_points_override: Optional[np.ndarray] = None,
+        figsize=(8, 6), dpi=100, title=None
+    ):
+        """Plot the Pareto frontier for multi-objective optimization.
+
+        Args:
+            directions: Per-objective direction ('maximize'/'minimize'). Default: all maximize.
+            ref_point: Reference point for hypervolume shading.
+            show_hypervolume: Whether to shade dominated hypervolume.
+            constraint_boundaries: {objective_name: value} for constraint lines.
+            suggested_points_override: (n, n_obj) array of points to overlay as suggestions.
+            figsize: Figure size.
+            dpi: Figure DPI.
+            title: Optional plot title.
+
+        Returns:
+            matplotlib Figure
+        """
+        if not self.is_multi_objective:
+            raise ValueError("plot_pareto_frontier requires multi-objective data (2+ target columns)")
+
+        if not _HAS_VISUALIZATION:
+            raise ImportError("matplotlib is required for visualization")
+
+        Y = self.experiment_manager.df[self.objective_names].values
+
+        if directions is None:
+            directions = ['maximize'] * self.n_objectives
+
+        pareto_df = self.experiment_manager.get_pareto_frontier(directions)
+        pareto_mask = np.zeros(len(Y), dtype=bool)
+        pareto_mask[pareto_df.index] = True
+
+        fig, ax = create_pareto_plot(
+            Y=Y,
+            pareto_mask=pareto_mask,
+            objective_names=self.objective_names,
+            directions=directions,
+            ref_point=ref_point,
+            show_hypervolume=show_hypervolume,
+            suggested_points=suggested_points_override,
+            constraint_boundaries=constraint_boundaries,
+            figsize=figsize,
+            dpi=dpi,
+            title=title,
+        )
+
+        logger.info("Generated Pareto frontier plot")
+        return fig
+
     def plot_regret(
         self,
-        goal: Literal['maximize', 'minimize'] = 'maximize',
+        goal: Union[str, List[str]] = 'maximize',
         include_predictions: bool = True,
         show_cumulative: bool = False,
         backend: Optional[str] = None,
@@ -2536,81 +2782,108 @@ class OptimizationSession:
         start_iteration: int = 5,
         reuse_hyperparameters: bool = True,
         use_calibrated_uncertainty: bool = False,
+        ref_point: Optional[List[float]] = None,
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
-        Plot optimization progress (regret curve).
-        
-        Shows the best value found as a function of iteration number. The curve
-        displays cumulative best results and all observed values, providing insight
-        into optimization convergence.
-        
-        A flattening curve indicates the optimization is converging (no further
-        improvements being found). This is useful for determining when to stop
-        an optimization campaign.
-        
-        Optionally overlays the model's predicted best value (max posterior mean)
-        with uncertainty bands, showing where the model believes the optimum lies.
-        
+        Plot optimization progress.
+
+        For single-objective: regret (incumbent trajectory) plot.
+        For multi-objective: hypervolume convergence plot.
+
         Args:
-            goal: 'maximize' or 'minimize' - which direction to optimize
-            include_predictions: Whether to overlay max(posterior mean) with uncertainty bands
-            backend: Model backend ('sklearn' or 'botorch'). Uses session default if None.
-            kernel: Kernel type ('RBF', 'Matern', etc.). Uses session default if None.
-            n_grid_points: Number of points to evaluate for finding max posterior mean
-            sigma_bands: List of sigma values for uncertainty bands (e.g., [1.0, 2.0])
-            start_iteration: First iteration to compute predictions (needs enough data)
-            reuse_hyperparameters: Reuse final model's hyperparameters (faster, default True)
-            use_calibrated_uncertainty: If True, apply calibration to uncertainties. If False,
-                use raw GP uncertainties. Default False recommended for convergence assessment
-                since raw uncertainties better reflect model's internal convergence. Set True
-                for realistic prediction intervals that account for model miscalibration.
-            figsize: Figure size as (width, height) in inches
-            dpi: Dots per inch for figure resolution
-            title: Custom plot title (auto-generated if None)
-        
+            goal: 'maximize' or 'minimize' (str), or list of per-objective directions.
+            include_predictions: Overlay model predictions (single-obj only).
+            show_cumulative: Show cumulative best line.
+            backend: Model backend. Uses session default if None.
+            kernel: Kernel type. Uses session default if None.
+            n_grid_points: Grid points for prediction overlay.
+            sigma_bands: Sigma values for uncertainty bands.
+            start_iteration: First iteration for predictions.
+            reuse_hyperparameters: Reuse final model's hyperparameters.
+            use_calibrated_uncertainty: Use calibrated uncertainties.
+            ref_point: Reference point for hypervolume (MOBO only, required).
+            figsize: Figure size.
+            dpi: DPI.
+            title: Custom title.
+
         Returns:
             matplotlib Figure object
-        
-        Example:
-            >>> # For a maximization problem
-            >>> fig = session.plot_regret(goal='maximize')
-            >>> fig.savefig('optimization_progress.png')
-            
-            >>> # With custom uncertainty bands (±1σ, ±2σ)
-            >>> fig = session.plot_regret(goal='maximize', sigma_bands=[1.0, 2.0])
-            
-            >>> # For a minimization problem
-            >>> fig = session.plot_regret(goal='minimize')
-        
-        Note:
-            - Requires at least 2 experiments
-            - Also known as "simple regret" or "incumbent trajectory"
-            - Best used to visualize overall optimization progress
         """
         self._check_matplotlib()
-        
-        # Check we have experiments
+
         n_exp = len(self.experiment_manager.df)
         if n_exp < 2:
             raise ValueError(f"Need at least 2 experiments for regret plot (have {n_exp})")
-        
-        # Get observed values and create iteration array (1-based for user clarity)
-        # Use first target column (single-objective optimization)
+
+        # ---- MOBO: hypervolume convergence ----
+        if self.is_multi_objective:
+            if ref_point is None:
+                raise ValueError(
+                    "ref_point is required for multi-objective hypervolume convergence. "
+                    "Provide a list of reference values (one per objective)."
+                )
+            if isinstance(goal, str):
+                directions = [goal.lower()] * self.n_objectives
+            else:
+                directions = [g.lower() for g in goal]
+
+            iterations = np.arange(1, n_exp + 1)
+            observed_hv = np.zeros(n_exp)
+
+            for i in range(1, n_exp + 1):
+                subset_df = self.experiment_manager.df.iloc[:i]
+                Y_sub = subset_df[self.objective_names].values
+                try:
+                    import torch
+                    from botorch.utils.multi_objective.hypervolume import Hypervolume
+                    from botorch.utils.multi_objective.pareto import is_non_dominated
+
+                    Y_t = torch.tensor(Y_sub, dtype=torch.double)
+                    ref_t = torch.tensor(ref_point, dtype=torch.double)
+                    # Convert to maximization
+                    for j, d in enumerate(directions):
+                        if d == 'minimize':
+                            Y_t[:, j] = -Y_t[:, j]
+                            ref_t[j] = -ref_t[j]
+                    mask = is_non_dominated(Y_t)
+                    if mask.any():
+                        hv_obj = Hypervolume(ref_point=ref_t)
+                        observed_hv[i - 1] = hv_obj.compute(Y_t[mask])
+                    else:
+                        observed_hv[i - 1] = 0.0
+                except Exception:
+                    observed_hv[i - 1] = 0.0
+
+            from alchemist_core.visualization.plots import create_hypervolume_convergence_plot
+            fig, ax = create_hypervolume_convergence_plot(
+                iterations=iterations,
+                observed_hv=observed_hv,
+                ref_point=ref_point,
+                sigma_bands=sigma_bands,
+                figsize=figsize,
+                dpi=dpi,
+                title=title,
+            )
+            logger.info(f"Generated hypervolume convergence plot with {n_exp} experiments")
+            return fig
+
+        # ---- Single-objective regret ----
         target_col = self.experiment_manager.target_columns[0]
         observed_values = self.experiment_manager.df[target_col].values
-        iterations = np.arange(1, n_exp + 1)  # 1-based: [1, 2, 3, ..., n]
+        iterations = np.arange(1, n_exp + 1)
+        goal_str = goal if isinstance(goal, str) else goal[0]
         
         # Compute posterior predictions if requested
         predicted_means = None
         predicted_stds = None
-        
+
         if include_predictions and n_exp >= start_iteration:
             try:
                 predicted_means, predicted_stds = self._compute_posterior_predictions(
-                    goal=goal,
+                    goal=goal_str,
                     backend=backend,
                     kernel=kernel,
                     n_grid_points=n_grid_points,
@@ -2620,16 +2893,14 @@ class OptimizationSession:
                 )
             except Exception as e:
                 logger.warning(f"Could not compute posterior predictions: {e}. Plotting observations only.")
-        
-        # Import visualization function
+
         from alchemist_core.visualization.plots import create_regret_plot
-        
-        # Delegate to visualization module
+
         fig, ax = create_regret_plot(
             iterations=iterations,
             observed_values=observed_values,
             show_cumulative=show_cumulative,
-            goal=goal,
+            goal=goal_str,
             predicted_means=predicted_means,
             predicted_stds=predicted_stds,
             sigma_bands=sigma_bands,
@@ -2637,7 +2908,7 @@ class OptimizationSession:
             dpi=dpi,
             title=title
         )
-        
+
         logger.info(f"Generated regret plot with {n_exp} experiments")
         return fig
     
@@ -2883,6 +3154,46 @@ class OptimizationSession:
         
         return predicted_means, predicted_stds
     
+    def _evaluate_mobo_acquisition(self, grid_df: pd.DataFrame) -> np.ndarray:
+        """Evaluate stored MOBO acquisition function on a grid.
+
+        Returns scalar acquisition values (e.g. expected hypervolume improvement)
+        for each row in grid_df.  Requires suggest_next() to have been called
+        previously so that self.acquisition.acq_function is populated.
+        """
+        import torch
+
+        if self.acquisition is None or not hasattr(self.acquisition, 'acq_function'):
+            raise ValueError(
+                "No MOBO acquisition function stored. Call suggest_next() "
+                "with a MOBO strategy (qEHVI/qNEHVI) first."
+            )
+        acq_fn = self.acquisition.acq_function
+        if acq_fn is None:
+            raise ValueError(
+                "Acquisition function is None. Call suggest_next() first."
+            )
+
+        logger.warning(
+            "Evaluating MOBO acquisition function on grid — "
+            "this may be slow for large grids."
+        )
+
+        # Encode and convert to tensor
+        if hasattr(self.model, '_encode_categorical_data'):
+            grid_encoded = self.model._encode_categorical_data(grid_df)
+            X_tensor = torch.tensor(grid_encoded.values, dtype=torch.float64)
+        else:
+            X_tensor = torch.tensor(grid_df.values, dtype=torch.float64)
+
+        # qEHVI/qNEHVI expect (batch, q, d) shape; we evaluate q=1
+        X_tensor = X_tensor.unsqueeze(1)  # (n, 1, d)
+
+        with torch.no_grad():
+            acq_values = acq_fn(X_tensor)
+
+        return acq_values.cpu().numpy()
+
     def plot_acquisition_slice(
         self,
         x_var: str,
@@ -2991,22 +3302,25 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         slice_df = pd.DataFrame(slice_data, columns=column_order)
-        
+
         # Evaluate acquisition function
-        acq_values, _ = evaluate_acquisition(
-            self.model,
-            slice_df,
-            acq_func=acq_func,
-            acq_func_kwargs=acq_func_kwargs,
-            goal=goal
-        )
-        
+        if self.is_multi_objective:
+            acq_values = self._evaluate_mobo_acquisition(slice_df)
+        else:
+            acq_values, _ = evaluate_acquisition(
+                self.model,
+                slice_df,
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+
         # Prepare experimental data for plotting
         exp_x = None
         exp_y = None
         if show_experiments and len(self.experiment_manager.df) > 0:
             df = self.experiment_manager.df
-            
+
             # Filter points that match the fixed values
             mask = pd.Series([True] * len(df))
             for var_name, fixed_val in fixed_values.items():
@@ -3211,16 +3525,19 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
-        
+
         # Evaluate acquisition function
-        acq_values, _ = evaluate_acquisition(
-            self.model,
-            grid_df,
-            acq_func=acq_func,
-            acq_func_kwargs=acq_func_kwargs,
-            goal=goal
-        )
-        
+        if self.is_multi_objective:
+            acq_values = self._evaluate_mobo_acquisition(grid_df)
+        else:
+            acq_values, _ = evaluate_acquisition(
+                self.model,
+                grid_df,
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+
         # Reshape to grid
         acq_grid = acq_values.reshape(X_grid.shape)
         
@@ -3290,7 +3607,8 @@ class OptimizationSession:
         cmap: str = 'Reds',
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 2D contour plot of posterior uncertainty over a variable space.
@@ -3397,13 +3715,10 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
-        
-        # Get predictions with uncertainty
-        _, std = self.predict(grid_df)
-        
-        # Reshape to grid
-        uncertainty_grid = std.reshape(X_grid.shape)
-        
+
+        # Get predictions
+        predict_result = self.predict(grid_df)
+
         # Prepare experimental data for overlay
         exp_x = None
         exp_y = None
@@ -3412,7 +3727,7 @@ class OptimizationSession:
             if x_var in exp_df.columns and y_var in exp_df.columns:
                 exp_x = exp_df[x_var].values
                 exp_y = exp_df[y_var].values
-        
+
         # Prepare suggestion data for overlay
         sugg_x = None
         sugg_y = None
@@ -3421,32 +3736,37 @@ class OptimizationSession:
                 sugg_df = self.last_suggestions
             else:
                 sugg_df = pd.DataFrame(self.last_suggestions)
-            
             if x_var in sugg_df.columns and y_var in sugg_df.columns:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
-        
-        # Generate title if not provided
-        if title is None:
-            title = f"Posterior Uncertainty: {x_var} vs {y_var}"
-        
-        # Delegate to visualization module
-        fig, ax, cbar = create_uncertainty_contour_plot(
-            x_grid=X_grid,
-            y_grid=Y_grid,
-            uncertainty_grid=uncertainty_grid,
-            x_var=x_var,
-            y_var=y_var,
-            exp_x=exp_x,
-            exp_y=exp_y,
-            suggest_x=sugg_x,
-            suggest_y=sugg_y,
-            cmap=cmap,
-            figsize=figsize,
-            dpi=dpi,
-            title=title
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _unc_contour_for_obj(obj_name, ax=None):
+            _, std = self._get_predictions_for_objective(predict_result, obj_name)
+            unc_grid = std.reshape(X_grid.shape)
+            obj_title = title or (f"Uncertainty: {obj_name} ({x_var} vs {y_var})"
+                                   if self.is_multi_objective
+                                   else f"Posterior Uncertainty: {x_var} vs {y_var}")
+            return create_uncertainty_contour_plot(
+                x_grid=X_grid, y_grid=Y_grid, uncertainty_grid=unc_grid,
+                x_var=x_var, y_var=y_var, exp_x=exp_x, exp_y=exp_y,
+                suggest_x=sugg_x, suggest_y=sugg_y, cmap=cmap,
+                figsize=figsize, dpi=dpi, title=obj_title, ax=ax
+            )
+
+        if isinstance(resolved, list):
+            n = len(resolved)
+            fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
+            if n == 1:
+                axes = [axes]
+            for i, obj in enumerate(resolved):
+                _unc_contour_for_obj(obj, ax=axes[i])
+            fig.tight_layout()
+            logger.info(f"Generated multi-objective uncertainty contour plot")
+            return fig
+
+        fig, ax, cbar = _unc_contour_for_obj(resolved)
         logger.info(f"Generated uncertainty contour plot for {x_var} vs {y_var}")
         return fig
     
@@ -3463,7 +3783,8 @@ class OptimizationSession:
         alpha: float = 0.5,
         figsize: Tuple[float, float] = (10, 8),
         dpi: int = 100,
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        target_column: Optional[str] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 3D voxel plot of posterior uncertainty over variable space.
@@ -3580,65 +3901,55 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
-        
-        # Get predictions with uncertainty
-        _, std = self.predict(grid_df)
-        
-        # Reshape to 3D grid
-        uncertainty_grid = std.reshape(X_grid.shape)
-        
+
+        # Get predictions
+        predict_result = self.predict(grid_df)
+
         # Prepare experimental data for overlay
-        exp_x = None
-        exp_y = None
-        exp_z = None
+        exp_x, exp_y, exp_z = None, None, None
         if show_experiments and not self.experiment_manager.df.empty:
             exp_df = self.experiment_manager.df
             if x_var in exp_df.columns and y_var in exp_df.columns and z_var in exp_df.columns:
                 exp_x = exp_df[x_var].values
                 exp_y = exp_df[y_var].values
                 exp_z = exp_df[z_var].values
-        
+
         # Prepare suggestion data for overlay
-        sugg_x = None
-        sugg_y = None
-        sugg_z = None
+        sugg_x, sugg_y, sugg_z = None, None, None
         if show_suggestions and len(self.last_suggestions) > 0:
             if isinstance(self.last_suggestions, pd.DataFrame):
                 sugg_df = self.last_suggestions
             else:
                 sugg_df = pd.DataFrame(self.last_suggestions)
-            
             if x_var in sugg_df.columns and y_var in sugg_df.columns and z_var in sugg_df.columns:
                 sugg_x = sugg_df[x_var].values
                 sugg_y = sugg_df[y_var].values
                 sugg_z = sugg_df[z_var].values
-        
-        # Generate title if not provided
-        if title is None:
-            title = f"3D Posterior Uncertainty: {x_var} vs {y_var} vs {z_var}"
-        
-        # Delegate to visualization module
-        fig, ax = create_uncertainty_voxel_plot(
-            x_grid=X_grid,
-            y_grid=Y_grid,
-            z_grid=Z_grid,
-            uncertainty_grid=uncertainty_grid,
-            x_var=x_var,
-            y_var=y_var,
-            z_var=z_var,
-            exp_x=exp_x,
-            exp_y=exp_y,
-            exp_z=exp_z,
-            suggest_x=sugg_x,
-            suggest_y=sugg_y,
-            suggest_z=sugg_z,
-            cmap=cmap,
-            alpha=alpha,
-            figsize=figsize,
-            dpi=dpi,
-            title=title
-        )
-        
+
+        resolved = self._resolve_target_column(target_column)
+
+        def _unc_voxel_for_obj(obj_name):
+            _, std = self._get_predictions_for_objective(predict_result, obj_name)
+            unc_grid = std.reshape(X_grid.shape)
+            obj_title = title or (f"3D Uncertainty: {obj_name}"
+                                   if self.is_multi_objective
+                                   else f"3D Posterior Uncertainty: {x_var} vs {y_var} vs {z_var}")
+            return create_uncertainty_voxel_plot(
+                x_grid=X_grid, y_grid=Y_grid, z_grid=Z_grid,
+                uncertainty_grid=unc_grid, x_var=x_var, y_var=y_var, z_var=z_var,
+                exp_x=exp_x, exp_y=exp_y, exp_z=exp_z,
+                suggest_x=sugg_x, suggest_y=sugg_y, suggest_z=sugg_z,
+                cmap=cmap, alpha=alpha, figsize=figsize, dpi=dpi, title=obj_title
+            )
+
+        if isinstance(resolved, list):
+            logger.warning("Voxel 'all' mode creates separate figures per objective; returning last")
+            fig = None
+            for obj in resolved:
+                fig, ax = _unc_voxel_for_obj(obj)
+            return fig
+
+        fig, ax = _unc_voxel_for_obj(resolved)
         logger.info(f"Generated 3D uncertainty voxel plot for {x_var} vs {y_var} vs {z_var}")
         return fig
     
@@ -3786,19 +4097,22 @@ class OptimizationSession:
             column_order = self.search_space.get_variable_names()
         
         grid_df = pd.DataFrame(grid_data, columns=column_order)
-        
+
         # Evaluate acquisition function
-        acq_values, _ = evaluate_acquisition(
-            self.model,
-            grid_df,
-            acq_func=acq_func,
-            acq_func_kwargs=acq_func_kwargs,
-            goal=goal
-        )
-        
+        if self.is_multi_objective:
+            acq_values = self._evaluate_mobo_acquisition(grid_df)
+        else:
+            acq_values, _ = evaluate_acquisition(
+                self.model,
+                grid_df,
+                acq_func=acq_func,
+                acq_func_kwargs=acq_func_kwargs,
+                goal=goal
+            )
+
         # Reshape to 3D grid
         acquisition_grid = acq_values.reshape(X_grid.shape)
-        
+
         # Prepare experimental data for overlay
         exp_x = None
         exp_y = None
@@ -3930,20 +4244,42 @@ class OptimizationSession:
         """
         self._check_matplotlib()
         self._check_model_trained()
-        
+
         # Check if we have suggestions
         if not self.last_suggestions or len(self.last_suggestions) == 0:
             raise ValueError("No suggestions available. Call suggest_next() first.")
-        
+
         # Get the suggestion to visualize
         if isinstance(self.last_suggestions, pd.DataFrame):
             sugg_df = self.last_suggestions
         else:
             sugg_df = pd.DataFrame(self.last_suggestions)
-        
+
         if suggestion_index >= len(sugg_df):
             raise ValueError(f"Suggestion index {suggestion_index} out of range (have {len(sugg_df)} suggestions)")
-        
+
+        # MOBO: route to Pareto plot with suggestions overlaid in objective space
+        if self.is_multi_objective:
+            # Predict objective values for all suggestions
+            pred_dict = self.predict(sugg_df)
+            suggested_points = np.column_stack(
+                [pred_dict[obj][0] for obj in self.objective_names]
+            )
+            directions = None
+            if goal is not None:
+                if isinstance(goal, str):
+                    directions = [goal.lower()] * self.n_objectives
+                elif isinstance(goal, list):
+                    directions = [g.lower() for g in goal]
+
+            return self.plot_pareto_frontier(
+                directions=directions,
+                suggested_points_override=suggested_points,
+                figsize=figsize,
+                dpi=dpi,
+                title=title_prefix or "Suggested Next Experiments (Pareto)",
+            )
+
         suggestion = sugg_df.iloc[suggestion_index].to_dict()
         
         # Determine plot dimensionality
@@ -4419,7 +4755,13 @@ class OptimizationSession:
             - Uses rigorous acquisition function implementations (not approximations)
         """
         self._check_matplotlib()
-        
+
+        if self.is_multi_objective:
+            raise ValueError(
+                "Probability of improvement plot is not available for multi-objective sessions. "
+                "Use plot_regret(ref_point=...) for hypervolume convergence tracking."
+            )
+
         # Check we have enough experiments
         n_exp = len(self.experiment_manager.df)
         if n_exp < start_iteration:

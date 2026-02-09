@@ -41,24 +41,29 @@ class BoTorchAcquisition(BaseAcquisition):
     
     # Valid acquisition function names
     VALID_ACQ_FUNCS = {
-        'ei', 'logei', 'pi', 'logpi', 'ucb', 
+        'ei', 'logei', 'pi', 'logpi', 'ucb',
         'qei', 'qucb', 'qipv', 'qnipv',
+        'qehvi', 'qnehvi',
         'expectedimprovement', 'probabilityofimprovement', 'upperconfidencebound'
     }
     
     def __init__(
-        self, 
-        search_space, 
-        model=None, 
-        acq_func='ucb', 
-        maximize=True, 
-        random_state=42, 
+        self,
+        search_space,
+        model=None,
+        acq_func='ucb',
+        maximize=True,
+        random_state=42,
         acq_func_kwargs=None,
-        batch_size=1
+        batch_size=1,
+        ref_point=None,
+        directions=None,
+        objective_names=None,
+        outcome_constraints=None,
     ):
         """
         Initialize the BoTorch acquisition function.
-        
+
         Args:
             search_space: The search space (SearchSpace object)
             model: A trained model (BoTorchModel)
@@ -67,38 +72,50 @@ class BoTorchAcquisition(BaseAcquisition):
             random_state: Random state for reproducibility
             acq_func_kwargs: Dictionary of additional arguments for the acquisition function
             batch_size: Number of points to select at once (q)
-            
+            ref_point: Reference point for MOBO hypervolume (list of floats)
+            directions: Per-objective direction list ('maximize'/'minimize')
+            objective_names: List of objective names (for multi-objective)
+            outcome_constraints: List of outcome constraint callables for MOBO
+
         Raises:
             ValueError: If acq_func is not a valid acquisition function name
         """
         # Validate acquisition function before proceeding
         acq_func_lower = acq_func.lower()
         if acq_func_lower not in self.VALID_ACQ_FUNCS:
-            valid_funcs = "', '".join(sorted(['ei', 'logei', 'pi', 'logpi', 'ucb', 'qei', 'qucb', 'qipv']))
+            valid_funcs = "', '".join(sorted([
+                'ei', 'logei', 'pi', 'logpi', 'ucb', 'qei', 'qucb', 'qipv', 'qehvi', 'qnehvi'
+            ]))
             raise ValueError(
                 f"Invalid acquisition function '{acq_func}' for BoTorch backend. "
                 f"Valid options are: '{valid_funcs}'"
             )
-        
+
         self.search_space_obj = search_space
         self.maximize = maximize
         self.random_state = random_state
         self.acq_func_name = acq_func_lower
         self.batch_size = batch_size
-        
+
+        # MOBO-specific attributes
+        self.ref_point = ref_point
+        self.directions = directions
+        self.objective_names = objective_names
+        self.outcome_constraints = outcome_constraints
+
         # Process acquisition function kwargs
         self.acq_func_kwargs = acq_func_kwargs or {}
-        
+
         # Set default values if not provided
         if self.acq_func_name == 'ucb' and 'beta' not in self.acq_func_kwargs:
             self.acq_func_kwargs['beta'] = 0.5  # Default UCB exploration parameter
-        
+
         if self.acq_func_name == 'qucb' and 'beta' not in self.acq_func_kwargs:
             self.acq_func_kwargs['beta'] = 0.5  # Default qUCB exploration parameter
-            
-        if self.acq_func_name in ['qei', 'qucb', 'qipv'] and 'mc_samples' not in self.acq_func_kwargs:
+
+        if self.acq_func_name in ['qei', 'qucb', 'qipv', 'qehvi', 'qnehvi'] and 'mc_samples' not in self.acq_func_kwargs:
             self.acq_func_kwargs['mc_samples'] = 128  # Default MC samples for batch methods
-            
+
         # Create the acquisition function if model is provided
         self.acq_function = None
         self.model = None
@@ -140,6 +157,11 @@ class BoTorchAcquisition(BaseAcquisition):
         else:
             best_f = torch.tensor(0.0, dtype=torch.double)
         
+        # Branch for MOBO acquisition functions
+        if self.acq_func_name in ('qehvi', 'qnehvi'):
+            self._create_mobo_acquisition_function()
+            return
+
         # Create the appropriate acquisition function based on type
         if self.acq_func_name == 'ei':
             # Standard Expected Improvement
@@ -220,6 +242,93 @@ class BoTorchAcquisition(BaseAcquisition):
             # This should never happen due to validation in __init__, but just in case
             raise ValueError(f"Unsupported acquisition function: {self.acq_func_name}")
     
+    def _compute_default_ref_point(self, Y_max):
+        """Compute default reference point in maximization space.
+
+        For each objective (already converted to maximization form):
+        ref_i = min(observed_i) - 0.1 * |min(observed_i)|
+
+        Args:
+            Y_max: (n, m) tensor in maximization space
+        """
+        mins = Y_max.min(dim=0).values
+        margin = 0.1 * mins.abs()
+        # Ensure at least a small margin
+        margin = torch.clamp(margin, min=1e-6)
+        return (mins - margin).tolist()
+
+    def _create_mobo_acquisition_function(self):
+        """Create qEHVI or qNEHVI acquisition function for multi-objective optimization."""
+        from botorch.acquisition.multi_objective.monte_carlo import (
+            qExpectedHypervolumeImprovement,
+            qNoisyExpectedHypervolumeImprovement,
+        )
+        from botorch.utils.multi_objective.box_decompositions.non_dominated import (
+            FastNondominatedPartitioning,
+        )
+
+        if not hasattr(self.model, 'Y_orig') or self.model.Y_orig is None:
+            raise ValueError("Model must be trained with multi-objective data before creating MOBO acquisition")
+
+        Y_orig = self.model.Y_orig  # (n, m)
+        n_objectives = Y_orig.shape[1]
+
+        # Determine directions (default: all maximize)
+        directions = self.directions or ['maximize'] * n_objectives
+
+        # Convert Y to maximization form (negate minimize columns)
+        Y_max = Y_orig.clone()
+        for i, d in enumerate(directions):
+            if d.lower() == 'minimize':
+                Y_max[:, i] = -Y_max[:, i]
+
+        # Determine reference point
+        if self.ref_point is not None:
+            ref_point_max = list(self.ref_point)
+            # Convert ref_point to maximization space
+            for i, d in enumerate(directions):
+                if d.lower() == 'minimize':
+                    ref_point_max[i] = -ref_point_max[i]
+        else:
+            ref_point_max = self._compute_default_ref_point(Y_max)
+
+        ref_point_tensor = torch.tensor(ref_point_max, dtype=torch.double)
+        logger.info(f"MOBO ref_point (maximization space): {ref_point_max}")
+
+        mc_samples = self.acq_func_kwargs.get('mc_samples', 128)
+        sampler = SobolQMCNormalSampler(sample_shape=torch.Size([mc_samples]), seed=self.random_state)
+
+        if self.acq_func_name == 'qehvi':
+            partitioning = FastNondominatedPartitioning(
+                ref_point=ref_point_tensor,
+                Y=Y_max,
+            )
+            self.acq_function = qExpectedHypervolumeImprovement(
+                model=self.model.model,
+                ref_point=ref_point_tensor,
+                partitioning=partitioning,
+                sampler=sampler,
+            )
+        elif self.acq_func_name == 'qnehvi':
+            # Get training inputs for X_baseline
+            train_X = self.model.model.models[0].train_inputs[0]
+
+            kwargs = dict(
+                model=self.model.model,
+                ref_point=ref_point_tensor,
+                X_baseline=train_X,
+                sampler=sampler,
+                prune_baseline=True,
+            )
+
+            # Add outcome constraints if provided
+            if self.outcome_constraints:
+                kwargs['constraints'] = self.outcome_constraints
+
+            self.acq_function = qNoisyExpectedHypervolumeImprovement(**kwargs)
+
+        logger.info(f"Created {self.acq_func_name.upper()} acquisition function for {n_objectives} objectives")
+
     def select_next(self, candidate_points=None):
         """
         Suggest the next experiment point(s) using BoTorch optimization.
@@ -278,6 +387,14 @@ class BoTorchAcquisition(BaseAcquisition):
                 batch_limit = 5
                 options = {"batch_limit": batch_limit, "maxiter": max_iter}
             
+            # Get input constraints from search space if available
+            ineq_constraints = None
+            eq_constraints = None
+            if hasattr(self.search_space_obj, 'to_botorch_constraints') and hasattr(self.search_space_obj, 'constraints') and self.search_space_obj.constraints:
+                ineq_constraints, eq_constraints = self.search_space_obj.to_botorch_constraints(
+                    self.model.original_feature_names
+                )
+
             # Check if we have categorical variables
             if categorical_variables and len(categorical_variables) > 0:
                 # Get categorical dimensions and their possible values
@@ -352,7 +469,7 @@ class BoTorchAcquisition(BaseAcquisition):
                     best_candidates = best_candidates.numpy()
             else:
                 # For purely continuous variables
-                batch_candidates, batch_acq_values = optimize_acqf(
+                optim_kwargs = dict(
                     acq_function=self.acq_function,
                     bounds=bounds_tensor,
                     q=q,
@@ -360,6 +477,12 @@ class BoTorchAcquisition(BaseAcquisition):
                     raw_samples=raw_samples,
                     options=options,
                 )
+                if ineq_constraints:
+                    optim_kwargs['inequality_constraints'] = ineq_constraints
+                if eq_constraints:
+                    optim_kwargs['equality_constraints'] = eq_constraints
+
+                batch_candidates, batch_acq_values = optimize_acqf(**optim_kwargs)
                 
                 best_candidates = batch_candidates.detach().cpu()
                 

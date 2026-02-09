@@ -58,7 +58,11 @@ class BoTorchModel(BaseModel):
         self.fitted_state_dict = None    # Store the trained model's state
         self.cv_cached_results = None  # Will store y_true and y_pred from cross-validation
         self._is_trained = False  # Initialize training status
-        
+
+        # Multi-objective attributes
+        self.n_objectives = 1
+        self.objective_names = []
+
         # Calibration attributes
         self.calibration_enabled = False
         self.calibration_factor = 1.0  # Multiplicative factor for std (s = std(z))
@@ -154,7 +158,15 @@ class BoTorchModel(BaseModel):
     
     def train(self, exp_manager, **kwargs):
         """Train the model using an ExperimentManager instance."""
-        # Get data with noise values if available
+        # Check for multi-objective
+        n_objectives = len(exp_manager.target_columns)
+        self.n_objectives = n_objectives
+        self.objective_names = list(exp_manager.target_columns)
+
+        if n_objectives > 1:
+            return self._train_multi_objective(exp_manager, **kwargs)
+
+        # Get data with noise values if available (single-objective path)
         X, y, noise = exp_manager.get_features_target_and_noise()
         
         if len(X) < 3:
@@ -277,8 +289,132 @@ class BoTorchModel(BaseModel):
         
         return self
     
+    def _create_single_gp(self, train_X, train_Y, train_Yvar, input_transform, outcome_transform):
+        """Create a SingleTaskGP or MixedSingleTaskGP with kernel and transforms.
+
+        This is a helper extracted from train() to allow reuse for multi-objective.
+        """
+        cont_kernel_factory = self._get_cont_kernel_factory()
+
+        if self.cat_dims and len(self.cat_dims) > 0:
+            gp_kwargs = dict(
+                train_X=train_X,
+                train_Y=train_Y,
+                cat_dims=self.cat_dims,
+                cont_kernel_factory=cont_kernel_factory,
+                input_transform=input_transform,
+                outcome_transform=outcome_transform,
+            )
+            if train_Yvar is not None:
+                gp_kwargs['train_Yvar'] = train_Yvar
+            gp = MixedSingleTaskGP(**gp_kwargs)
+        else:
+            from gpytorch.kernels import ScaleKernel
+            num_dims = train_X.shape[-1]
+            base_kernel = cont_kernel_factory(
+                batch_shape=torch.Size([]),
+                ard_num_dims=num_dims,
+                active_dims=list(range(num_dims)),
+            )
+            covar_module = ScaleKernel(base_kernel)
+            gp_kwargs = dict(
+                train_X=train_X,
+                train_Y=train_Y,
+                covar_module=covar_module,
+                input_transform=input_transform,
+                outcome_transform=outcome_transform,
+            )
+            if train_Yvar is not None:
+                gp_kwargs['train_Yvar'] = train_Yvar
+            gp = SingleTaskGP(**gp_kwargs)
+
+        return gp
+
+    def _train_multi_objective(self, exp_manager, **kwargs):
+        """Train a ModelListGP for multi-objective optimization."""
+        from botorch.models.model_list_gp_regression import ModelListGP
+
+        X, Y_df, noise_df = exp_manager.get_features_and_targets_multi()
+
+        if len(X) < 3:
+            raise ValueError("Not enough data points to train a Gaussian Process model")
+
+        # Store original feature names
+        self.original_feature_names = X.columns.tolist()
+        logger.info(f"Training multi-objective model with {self.n_objectives} objectives: {self.objective_names}")
+
+        # Encode categorical variables
+        X_encoded = self._encode_categorical_data(X)
+        train_X = torch.tensor(X_encoded.values, dtype=torch.float64)
+
+        # Set random seed
+        torch.manual_seed(self.random_state)
+
+        # Build one GP per objective
+        models = []
+        for i, obj_name in enumerate(self.objective_names):
+            train_Y_i = torch.tensor(Y_df[obj_name].values, dtype=torch.float64).unsqueeze(-1)
+
+            train_Yvar_i = None
+            if noise_df is not None:
+                train_Yvar_i = torch.tensor(noise_df['Noise'].values, dtype=torch.float64).unsqueeze(-1)
+
+            input_transform, outcome_transform = self._create_transforms(train_X, train_Y_i)
+
+            gp_i = self._create_single_gp(train_X, train_Y_i, train_Yvar_i,
+                                           input_transform, outcome_transform)
+
+            # Fit this GP
+            mll = ExactMarginalLogLikelihood(gp_i.likelihood, gp_i)
+            fit_gpytorch_mll(mll, options={"maxiter": self.training_iter})
+            logger.info(f"  Trained GP for objective '{obj_name}'")
+            models.append(gp_i)
+
+        self.model = ModelListGP(*models)
+        self._is_trained = True
+
+        # Store full Y tensor for acquisition functions
+        self.Y_orig = torch.tensor(Y_df.values, dtype=torch.float64)
+
+        # Per-objective CV caching for multi-objective
+        self.cv_cached_results = None
+        self.cv_cached_results_multi = {}
+        if kwargs.get('cache_cv', True) and len(X) >= 5:
+            self._cache_cv_results_multi(X, Y_df)
+
+        return self
+
+    def _predict_multi_objective(self, X, return_std=False, **kwargs):
+        """Make predictions for each objective in a multi-objective model.
+
+        Returns:
+            dict[str, tuple[ndarray, ndarray]]: keyed by objective name,
+            values are (mean, std) arrays.
+        """
+        X_encoded = self._encode_categorical_data(X)
+        if isinstance(X_encoded, pd.DataFrame):
+            test_X = torch.tensor(X_encoded.values, dtype=torch.float64)
+        else:
+            test_X = torch.tensor(X_encoded, dtype=torch.float64)
+
+        results = {}
+        for i, (obj_name, sub_model) in enumerate(
+            zip(self.objective_names, self.model.models)
+        ):
+            sub_model.eval()
+            sub_model.likelihood.eval()
+            with torch.no_grad():
+                posterior = sub_model.posterior(test_X)
+                mean = posterior.mean.squeeze(-1).cpu().numpy()
+                std = posterior.variance.clamp_min(1e-9).sqrt().squeeze(-1).cpu().numpy()
+            results[obj_name] = (mean, std)
+
+        return results
+
     def predict(self, X, return_std=False, **kwargs):
         """Make predictions using the trained model."""
+        if self.n_objectives > 1:
+            return self._predict_multi_objective(X, return_std, **kwargs)
         if self.model is None:
             raise ValueError("Model is not trained yet.")
         
@@ -595,7 +731,26 @@ class BoTorchModel(BaseModel):
         """Get model hyperparameters."""
         if not self.is_trained or self.model is None:
             return {"status": "Model not trained"}
-            
+
+        # Multi-objective: return per-model hyperparameters
+        if self.n_objectives > 1:
+            try:
+                result = {"n_objectives": self.n_objectives, "models": {}}
+                for name, sub_model in zip(self.objective_names, self.model.models):
+                    sub_params = {"model_type": type(sub_model).__name__}
+                    if hasattr(sub_model, 'covar_module') and hasattr(sub_model.covar_module, 'base_kernel'):
+                        bk = sub_model.covar_module.base_kernel
+                        if hasattr(bk, 'lengthscale') and bk.lengthscale is not None:
+                            sub_params['lengthscale'] = bk.lengthscale.detach().numpy().flatten().tolist()
+                    if hasattr(sub_model, 'likelihood') and hasattr(sub_model.likelihood, 'noise'):
+                        noise = sub_model.likelihood.noise.detach().numpy()
+                        sub_params['noise'] = noise.tolist() if hasattr(noise, 'tolist') else float(noise)
+                    result["models"][name] = sub_params
+                result['kernel_type'] = self.kernel_options.get('cont_kernel_type', 'Unknown')
+                return result
+            except Exception as e:
+                return {"error": str(e), "n_objectives": self.n_objectives}
+
         try:
             params = {}
             
@@ -925,6 +1080,60 @@ class BoTorchModel(BaseModel):
             'y_pred': y_pred_all,
             'y_std': y_std_all
         }
+
+    def _cache_cv_results_multi(self, X, Y_df, n_splits=5):
+        """Cache per-objective CV results for multi-objective models.
+
+        Runs LOO-style CV on each individual GP in the ModelListGP independently,
+        producing {obj_name: {y_true, y_pred, y_std}} stored in
+        ``self.cv_cached_results_multi``.
+        """
+        from botorch.models.model_list_gp_regression import ModelListGP
+
+        if not isinstance(self.model, ModelListGP):
+            return
+
+        X_encoded = self._encode_categorical_data(X)
+        X_tensor = torch.tensor(X_encoded.values, dtype=torch.float64)
+
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
+        X_np = X_tensor.cpu().numpy()
+
+        for idx, obj_name in enumerate(self.objective_names):
+            gp_i = self.model.models[idx]
+            state_dict_i = gp_i.state_dict()
+            y_col = torch.tensor(Y_df[obj_name].values, dtype=torch.float64).unsqueeze(-1)
+
+            y_true_all, y_pred_all, y_std_all = [], [], []
+
+            for train_idx, test_idx in kf.split(X_np):
+                X_train = X_tensor[train_idx]
+                y_train = y_col[train_idx]
+                X_test = X_tensor[test_idx]
+                y_test = y_col[test_idx]
+
+                input_tf, outcome_tf = self._create_transforms(X_train, y_train)
+                cv_gp = self._create_single_gp(X_train, y_train, None, input_tf, outcome_tf)
+                cv_gp.load_state_dict(state_dict_i, strict=False)
+                cv_gp.eval()
+                cv_gp.likelihood.eval()
+
+                with torch.no_grad():
+                    post = cv_gp.posterior(X_test)
+                    preds = post.mean.squeeze(-1)
+                    stds = post.variance.clamp_min(1e-9).sqrt().squeeze(-1)
+
+                y_true_all.append(y_test.squeeze(-1))
+                y_pred_all.append(preds)
+                y_std_all.append(stds)
+
+            self.cv_cached_results_multi[obj_name] = {
+                'y_true': torch.cat(y_true_all).cpu().numpy(),
+                'y_pred': torch.cat(y_pred_all).cpu().numpy(),
+                'y_std': torch.cat(y_std_all).cpu().numpy(),
+            }
+
+        logger.info(f"Cached per-objective CV results for {list(self.cv_cached_results_multi.keys())}")
 
     def _compute_calibration_factors(self):
         """

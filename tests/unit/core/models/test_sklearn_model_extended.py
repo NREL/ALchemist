@@ -16,6 +16,7 @@ class TestSklearnModelExtended:
         em = MagicMock(spec=ExperimentManager)
         em.search_space = MagicMock(spec=SearchSpace)
         em.search_space.get_categorical_variables.return_value = []
+        em.target_columns = ['Output']
         return em
 
     def test_generate_contour_data(self, experiment_manager):
