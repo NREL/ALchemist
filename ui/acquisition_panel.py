@@ -16,10 +16,16 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         # Create frames for different backends
         self.acq_sklearn_frame = ctk.CTkFrame(self)
         self.acq_botorch_frame = ctk.CTkFrame(self)
+        self.acq_mobo_frame = ctk.CTkFrame(self)
+        
+        # MOBO state
+        self._is_mobo = False
+        self._objective_names = []
         
         # Create the widgets for each backend
         self.create_sklearn_widgets()
         self.create_botorch_widgets()
+        self.create_mobo_widgets()
         
         # Initial load - always starts with scikit-learn
         self.acq_sklearn_frame.pack(fill="x", expand=True, padx=10, pady=5)
@@ -313,6 +319,128 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         # Show the regular acquisition frame by default
         self.botorch_acq_frame.pack(fill="x", expand=True, pady=5)
 
+    def create_mobo_widgets(self):
+        """Create acquisition function widgets for multi-objective optimization."""
+        # Title
+        ctk.CTkLabel(
+            self.acq_mobo_frame,
+            text="Multi-Objective Acquisition",
+            font=("Arial", 12, "bold")
+        ).pack(pady=(10, 5))
+        
+        # Strategy selector
+        ctk.CTkLabel(self.acq_mobo_frame, text="MOBO Strategy:").pack(pady=2)
+        self.mobo_strategy_var = ctk.StringVar(value="qNEHVI")
+        self.mobo_strategy_menu = ctk.CTkOptionMenu(
+            self.acq_mobo_frame,
+            values=["qEHVI", "qNEHVI"],
+            variable=self.mobo_strategy_var,
+            command=self._update_mobo_description
+        )
+        self.mobo_strategy_menu.pack(pady=5)
+        
+        # Strategy descriptions
+        self.mobo_strategy_info = {
+            "qEHVI": (
+                "q-Expected Hypervolume Improvement selects points that maximize "
+                "the expected improvement in the Pareto hypervolume."
+            ),
+            "qNEHVI": (
+                "q-Noisy Expected Hypervolume Improvement is a noise-robust variant "
+                "of qEHVI. Recommended as the default MOBO strategy."
+            ),
+        }
+        
+        self.mobo_descrip_label = ctk.CTkLabel(
+            self.acq_mobo_frame,
+            text=self.mobo_strategy_info["qNEHVI"],
+            wraplength=250,
+            justify="left",
+            text_color="light gray"
+        )
+        self.mobo_descrip_label.pack(pady=5, padx=10)
+        
+        # Batch size
+        batch_frame = ctk.CTkFrame(self.acq_mobo_frame)
+        batch_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(batch_frame, text="Batch Size (q):").pack(side="left", padx=5)
+        self.mobo_batch_size_var = ctk.IntVar(value=1)
+        self.mobo_batch_size_menu = ctk.CTkOptionMenu(
+            batch_frame,
+            values=[str(i) for i in range(1, 11)],
+            command=lambda v: self.mobo_batch_size_var.set(int(v))
+        )
+        self.mobo_batch_size_menu.pack(side="right", padx=5)
+        
+        # Per-objective directions
+        ctk.CTkLabel(
+            self.acq_mobo_frame,
+            text="Objective Directions:",
+            font=("Arial", 11, "bold")
+        ).pack(pady=(10, 5), anchor="w", padx=10)
+        
+        self.mobo_directions_frame = ctk.CTkFrame(self.acq_mobo_frame)
+        self.mobo_directions_frame.pack(fill="x", padx=10, pady=5)
+        self.mobo_direction_vars = {}
+        
+        # Reference point (optional)
+        ctk.CTkLabel(
+            self.acq_mobo_frame,
+            text="Reference Point (optional):",
+            font=("Arial", 11, "bold")
+        ).pack(pady=(10, 2), anchor="w", padx=10)
+        
+        ctk.CTkLabel(
+            self.acq_mobo_frame,
+            text="Leave blank for auto-computed defaults.",
+            font=("Arial", 10),
+            text_color="gray"
+        ).pack(anchor="w", padx=10)
+        
+        self.mobo_refpoint_frame = ctk.CTkFrame(self.acq_mobo_frame)
+        self.mobo_refpoint_frame.pack(fill="x", padx=10, pady=5)
+        self.mobo_refpoint_entries = {}
+
+    def _update_mobo_description(self, selection):
+        """Update the MOBO strategy description text."""
+        self.mobo_descrip_label.configure(
+            text=self.mobo_strategy_info.get(selection, "")
+        )
+
+    def _populate_mobo_objectives(self, objective_names):
+        """Populate per-objective direction selectors and ref point entries."""
+        # Clear existing widgets
+        for widget in self.mobo_directions_frame.winfo_children():
+            widget.destroy()
+        for widget in self.mobo_refpoint_frame.winfo_children():
+            widget.destroy()
+        
+        self.mobo_direction_vars = {}
+        self.mobo_refpoint_entries = {}
+        
+        for obj_name in objective_names:
+            # Direction row
+            row = ctk.CTkFrame(self.mobo_directions_frame)
+            row.pack(fill="x", pady=2)
+            ctk.CTkLabel(row, text=obj_name, width=120, anchor="w").pack(side="left", padx=5)
+            dir_var = ctk.StringVar(value="Maximize")
+            dir_seg = ctk.CTkSegmentedButton(
+                row,
+                values=["Maximize", "Minimize"],
+                variable=dir_var,
+                width=160
+            )
+            dir_seg.pack(side="right", padx=5)
+            self.mobo_direction_vars[obj_name] = dir_var
+            
+            # Reference point row
+            ref_row = ctk.CTkFrame(self.mobo_refpoint_frame)
+            ref_row.pack(fill="x", pady=2)
+            ctk.CTkLabel(ref_row, text=obj_name, width=120, anchor="w").pack(side="left", padx=5)
+            ref_entry = ctk.CTkEntry(ref_row, placeholder_text="auto", width=100)
+            ref_entry.pack(side="right", padx=5)
+            self.mobo_refpoint_entries[obj_name] = ref_entry
+
     def update_botorch_acq_type(self, selection):
         """Update the visible botorch acquisition function type frame."""
         # Hide all content frames first
@@ -441,12 +569,15 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         """Update acquisition options based on GPR backend selection."""
         self.acq_sklearn_frame.pack_forget()
         self.acq_botorch_frame.pack_forget()
+        self.acq_mobo_frame.pack_forget()
         
-        if backend == "scikit-learn":
+        if self._is_mobo:
+            # MOBO always shows the MOBO frame
+            self.acq_mobo_frame.pack(fill="x", expand=True, padx=10, pady=5)
+        elif backend == "scikit-learn":
             self.acq_sklearn_frame.pack(fill="x", expand=True, padx=10, pady=5)
         elif backend == "botorch":
             self.acq_botorch_frame.pack(fill="x", expand=True, padx=10, pady=5)
-        # Removed the Ax backend option
 
     def run_selected_strategy(self):
         """Execute the selected acquisition strategy."""
@@ -466,6 +597,105 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             # Session-based acquisition path
             # ============================================================
             print("Using OptimizationSession API for acquisition...")
+            
+            # ============================================================
+            # Multi-objective path
+            # ============================================================
+            if self._is_mobo:
+                acq_strategy = self.mobo_strategy_var.get()
+                n_suggestions = self.mobo_batch_size_var.get()
+                
+                # Build per-objective directions list
+                goal_list = []
+                for obj_name in self._objective_names:
+                    dir_var = self.mobo_direction_vars.get(obj_name)
+                    goal_list.append('maximize' if dir_var and dir_var.get() == "Maximize" else 'minimize')
+                
+                # Build reference point (None entries → let core compute)
+                ref_point = None
+                ref_values = []
+                all_provided = True
+                for obj_name in self._objective_names:
+                    entry = self.mobo_refpoint_entries.get(obj_name)
+                    val_str = entry.get().strip() if entry else ""
+                    if val_str and val_str != "auto":
+                        try:
+                            ref_values.append(float(val_str))
+                        except ValueError:
+                            print(f"Warning: Invalid reference point for {obj_name}: '{val_str}'. Using auto.")
+                            all_provided = False
+                            break
+                    else:
+                        all_provided = False
+                        break
+                if all_provided and len(ref_values) == len(self._objective_names):
+                    ref_point = ref_values
+                
+                # Call session API
+                next_point_df = self.main_app.session.suggest_next(
+                    strategy=acq_strategy,
+                    goal=goal_list,
+                    n_suggestions=n_suggestions,
+                    ref_point=ref_point,
+                    mc_samples=128
+                )
+                
+                # Get per-objective predictions
+                mobo_predictions = {}
+                if hasattr(self.main_app.gpr_model, '_predict_multi_objective'):
+                    pred_dict = self.main_app.gpr_model._predict_multi_objective(
+                        next_point_df, return_std=True
+                    )
+                    mobo_predictions = pred_dict
+                
+                # Store and update plot
+                self.main_app.next_point = next_point_df
+                self.main_app.update_pool_plot()
+                
+                # Build result_data for notification
+                display_strategy = f"{acq_strategy}"
+                if n_suggestions > 1:
+                    display_strategy += f" (q={n_suggestions})"
+                
+                directions_str = ", ".join(
+                    f"{name}: {d}" for name, d in zip(self._objective_names, goal_list)
+                )
+                
+                result_data = {
+                    'point_df': next_point_df,
+                    'value': None,
+                    'std': None,
+                    'maximize': True,
+                    'strategy_type': display_strategy,
+                    'strategy_params': {
+                        'directions': directions_str,
+                        'ref_point': str(ref_point) if ref_point else "auto",
+                    },
+                    'strategy_description': (
+                        f"Multi-objective acquisition using {acq_strategy}. "
+                        f"Optimizing {len(self._objective_names)} objectives to improve the Pareto frontier."
+                    ),
+                    'is_batch': n_suggestions > 1,
+                    'batch_size': n_suggestions,
+                    'is_mobo': True,
+                    'mobo_predictions': mobo_predictions,
+                    'objective_names': self._objective_names,
+                }
+                
+                hyperparams = self.main_app.gpr_model.get_hyperparameters()
+                model_data = {
+                    'backend': 'botorch',
+                    'kernel': hyperparams.get('kernel_type', 'Unknown'),
+                    'hyperparameters': hyperparams,
+                    'metrics': {
+                        'RMSE': self.main_app.rmse_values[-1] if hasattr(self.main_app, 'rmse_values') and self.main_app.rmse_values else None,
+                        'R²': self.main_app.r2_values[-1] if hasattr(self.main_app, 'r2_values') and self.main_app.r2_values else None
+                    }
+                }
+                
+                ResultNotificationWindow(self, result_data, model_data)
+                print(f"{acq_strategy} executed successfully")
+                return
             
             if backend == "scikit-learn":
                 strategy = self.acq_sklearn_var.get()
@@ -671,26 +901,39 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
     def create_model_maximum_section(self):
         """Create a section for finding the model's predicted optimum."""
         # Create a frame for the model optimum section
-        opt_frame = ctk.CTkFrame(self)
-        opt_frame.pack(fill="x", expand=True, padx=10, pady=5)
+        self.opt_frame = ctk.CTkFrame(self)
+        self.opt_frame.pack(fill="x", expand=True, padx=10, pady=5)
         
         # Add title
-        ctk.CTkLabel(opt_frame, text="Model Prediction Optimum", font=('Arial', 14)).pack(pady=5)
+        ctk.CTkLabel(self.opt_frame, text="Model Prediction Optimum", font=('Arial', 14)).pack(pady=5)
         
         # Add explanatory text
-        ctk.CTkLabel(
-            opt_frame, 
+        self.opt_description_label = ctk.CTkLabel(
+            self.opt_frame, 
             text="Find the point where the model predicts the optimal value.",
             wraplength=250,
             justify="left"
-        ).pack(pady=5)
+        )
+        self.opt_description_label.pack(pady=5)
+        
+        # MOBO objective selector (hidden by default)
+        self.opt_objective_frame = ctk.CTkFrame(self.opt_frame)
+        ctk.CTkLabel(self.opt_objective_frame, text="Objective to Optimize:").pack(pady=2)
+        self.opt_objective_var = ctk.StringVar(value="")
+        self.opt_objective_menu = ctk.CTkOptionMenu(
+            self.opt_objective_frame,
+            values=[""],
+            variable=self.opt_objective_var,
+            width=200
+        )
+        self.opt_objective_menu.pack(pady=5)
         
         # Add maximize/minimize option
-        ctk.CTkLabel(opt_frame, text="Optimization Goal:").pack(pady=2)
+        ctk.CTkLabel(self.opt_frame, text="Optimization Goal:").pack(pady=2)
         self.opt_goal_options = ["Maximize", "Minimize"]
         self.opt_goal_var = ctk.StringVar(value="Maximize")
         self.opt_goal_segmented = ctk.CTkSegmentedButton(
-            opt_frame,
+            self.opt_frame,
             values=self.opt_goal_options,
             variable=self.opt_goal_var,
         )
@@ -698,7 +941,7 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         
         # Add button to find the optimum
         self.find_opt_button = ctk.CTkButton(
-            opt_frame,
+            self.opt_frame,
             text="Find Model Optimum",
             command=self.find_model_optimum,
             state="disabled"  # Disabled until model is trained
@@ -707,7 +950,7 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
         
         # Warning label about model reliability
         ctk.CTkLabel(
-            opt_frame,
+            self.opt_frame,
             text="Note: This relies entirely on the model's prediction, "
                  "not on acquisition functions that balance exploration and exploitation.",
             wraplength=250,
@@ -723,17 +966,60 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             return
             
         try:
-            # Get whether to maximize or minimize
             maximize = self.opt_goal_var.get() == "Maximize"
-            
-            # Get the backend from the model panel
             backend = self.main_app.model_frame.backend_var.get()
             
-            # TODO (Branch 9): Add find_optimum() to OptimizationSession API
-            # This feature currently requires direct instantiation of acquisition classes
-            # Future: self.main_app.session.find_optimum(maximize=maximize)
+            # For MOBO, find optimum for the selected single objective
+            if self._is_mobo:
+                selected_obj = self.opt_objective_var.get()
+                
+                # Build grid from model's feature names so dimensions match
+                from itertools import product
+                import pandas as pd
+                model = self.main_app.gpr_model
+                feature_names = getattr(model, 'original_feature_names', None) or getattr(model, 'feature_names', [])
+                var_dict = {v['name']: v for v in self.main_app.search_space_manager.variables}
+                
+                n_vars = len(feature_names)
+                n_per_dim = max(2, int(10000 ** (1/n_vars)))
+                
+                grid_1d = []
+                for name in feature_names:
+                    if name in var_dict:
+                        var = var_dict[name]
+                        if var['type'] == 'real':
+                            grid_1d.append(np.linspace(var['min'], var['max'], n_per_dim))
+                        elif var['type'] == 'integer':
+                            vals = np.arange(var['min'], var['max'] + 1)
+                            if len(vals) > n_per_dim:
+                                vals = np.unique(np.linspace(var['min'], var['max'], n_per_dim).astype(int))
+                            grid_1d.append(vals)
+                        elif var['type'] == 'categorical':
+                            grid_1d.append(var['values'])
+                    else:
+                        # Extra feature not in search space — derive range from training data
+                        exp_data = getattr(self.main_app.experiment_manager, 'df', None)
+                        if exp_data is not None and name in exp_data.columns:
+                            col = exp_data[name]
+                            grid_1d.append(np.linspace(float(col.min()), float(col.max()), n_per_dim))
+                        else:
+                            grid_1d.append(np.linspace(0.0, 1.0, n_per_dim))
+                
+                mesh = list(product(*grid_1d))
+                grid = pd.DataFrame(mesh, columns=feature_names)
+                
+                print(f"Searching for model's predicted {'maximum' if maximize else 'minimum'} of '{selected_obj}'...")
+                pred_dict = model._predict_multi_objective(grid, return_std=True)
+                means, stds = pred_dict[selected_obj]
+                
+                best_idx = int(np.argmax(means) if maximize else np.argmin(means))
+                opt_point_df = grid.iloc[[best_idx]].reset_index(drop=True)
+                opt_value = float(means[best_idx])
+                opt_std = float(stds[best_idx]) if stds is not None else None
+                
+                result = {'x_opt': opt_point_df, 'value': opt_value, 'std': opt_std}
             
-            if backend == "scikit-learn":
+            elif backend == "scikit-learn":
                 # TEMPORARY: Direct acquisition import until Session API supports find_optimum
                 from alchemist_core.acquisition.skopt_acquisition import SkoptAcquisition
                 
@@ -797,19 +1083,30 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             self.main_app.update_pool_plot()
             
             # Prepare result data for the notification window
+            strategy_desc = (
+                "This strategy directly finds the point where the model "
+                "predicts the best value, without considering exploration. "
+                "It's best used when you're confident in your model's accuracy "
+                "and want to exploit its predictions."
+            )
+            strategy_type = "Model Optimum Finder"
+            if self._is_mobo:
+                selected_obj = self.opt_objective_var.get()
+                strategy_type = f"Model Optimum: {selected_obj}"
+                strategy_desc = (
+                    f"Finds the point where the model predicts the best value for "
+                    f"'{selected_obj}', independent of other objectives. "
+                    "This does not consider the Pareto frontier."
+                )
+            
             result_data = {
                 'point_df': opt_point_df,
                 'value': opt_value,
                 'std': opt_std,
                 'maximize': maximize,
-                'strategy_type': "Model Optimum Finder",
+                'strategy_type': strategy_type,
                 'strategy_params': {'random_state': 42},
-                'strategy_description': (
-                    "This strategy directly finds the point where the model "
-                    "predicts the best value, without considering exploration. "
-                    "It's best used when you're confident in your model's accuracy "
-                    "and want to exploit its predictions."
-                )
+                'strategy_description': strategy_desc,
             }
             
             # Get metrics if available
@@ -864,15 +1161,43 @@ class AcquisitionPanel(ctk.CTkScrollableFrame):  # Changed from CTkFrame to CTkS
             'std': float(pred_std[0])
         }
     
-    def enable(self):
+    def enable(self, is_mobo=False, objective_names=None):
         """
         Enable the acquisition panel buttons after model training is complete.
         Called by the GPR panel after successful model training.
+        
+        Args:
+            is_mobo: Whether multi-objective optimization is active
+            objective_names: List of objective column names (for MOBO)
         """
+        self._is_mobo = is_mobo
+        self._objective_names = objective_names or []
+        
         # Enable the run button
         self.run_button.configure(state="normal")
         
         # Enable the find optimum button
         self.find_opt_button.configure(state="normal")
+        
+        if is_mobo:
+            # Switch to MOBO acquisition frame
+            self.acq_sklearn_frame.pack_forget()
+            self.acq_botorch_frame.pack_forget()
+            self.acq_mobo_frame.pack(fill="x", expand=True, padx=10, pady=5)
+            self._populate_mobo_objectives(self._objective_names)
+            
+            # Show objective selector for model optimum
+            self.opt_objective_menu.configure(values=self._objective_names)
+            self.opt_objective_var.set(self._objective_names[0])
+            self.opt_objective_frame.pack(fill="x", pady=5, after=self.opt_description_label)
+            self.opt_description_label.configure(
+                text="Find the optimal value for a specific objective."
+            )
+        else:
+            # Hide MOBO objective selector
+            self.opt_objective_frame.pack_forget()
+            self.opt_description_label.configure(
+                text="Find the point where the model predicts the optimal value."
+            )
         
         print("Acquisition panel activated - you can now run acquisition strategies or find model optimum")

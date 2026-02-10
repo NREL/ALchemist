@@ -32,8 +32,9 @@ class TargetColumnDialog(ctk.CTkToplevel):
         super().__init__(parent)
         
         self.title("Select Target Column(s)")
-        self.geometry("500x400")
-        self.resizable(False, False)
+        self.geometry("500x550")
+        self.resizable(True, True)
+        self.minsize(450, 450)
         
         # Make dialog modal
         self.transient(parent)
@@ -188,7 +189,7 @@ class TargetColumnDialog(ctk.CTkToplevel):
         # Scrollable frame for checkboxes
         checkbox_frame = ctk.CTkScrollableFrame(
             self.selection_frame,
-            height=150
+            height=200
         )
         checkbox_frame.pack(fill="both", expand=True, padx=20, pady=10)
         

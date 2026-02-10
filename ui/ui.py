@@ -153,6 +153,7 @@ class ALchemistApp(ctk.CTk):
         pref_menu.add_command(label="Settings", command=self.show_settings)
         pref_menu.add_command(label="Toggle Tabbed Layout", command=self.toggle_tabbed_layout)
         pref_menu.add_command(label="Toggle Noise Column", command=self.toggle_noise_column)
+        pref_menu.add_command(label="Configure Target Columns...", command=self.configure_target_columns)
         pref_menu.add_separator()
     # Removed: Toggle Session API menu item (session API is now always enabled)
         menu_bar.add_cascade(label="Preferences", menu=pref_menu)
@@ -583,6 +584,14 @@ class ALchemistApp(ctk.CTk):
                 # Enable UI elements that require experiment data
                 self._update_ui_state()
                 
+                # Propagate multi-objective state to panels
+                is_mobo = len(target_columns_to_use) > 1
+                if hasattr(self, 'model_frame') and self.model_frame is not None:
+                    self.model_frame.set_multi_objective_mode(
+                        is_mobo, 
+                        objective_names=target_columns_to_use if is_mobo else []
+                    )
+                
                 # Reset any existing model
                 if hasattr(self, 'model_frame') and self.model_frame is not None:
                     self.model_frame.reset_model()
@@ -593,6 +602,54 @@ class ALchemistApp(ctk.CTk):
                 print(f"Error loading experiments: {e}")
                 import traceback
                 traceback.print_exc()
+
+    def configure_target_columns(self):
+        """Open the target column dialog to change objective configuration at any time."""
+        # Determine available columns from current data
+        if self.exp_df is None or self.exp_df.empty:
+            # Fall back to session experiment manager or show error
+            if hasattr(self.session.experiment_manager, 'df') and not self.session.experiment_manager.df.empty:
+                all_cols = self.session.experiment_manager.df.columns.tolist()
+            else:
+                import tkinter.messagebox
+                tkinter.messagebox.showinfo(
+                    "No Data", "Load experiment data first before configuring target columns.")
+                return
+        else:
+            all_cols = self.exp_df.columns.tolist()
+        
+        metadata_cols = {'Iteration', 'Reason', 'Noise'}
+        available_cols = [col for col in all_cols if col not in metadata_cols]
+        
+        if not available_cols:
+            return
+        
+        from ui.target_column_dialog import show_target_column_dialog
+        selected = show_target_column_dialog(
+            parent=self,
+            available_columns=available_cols,
+            default_column=self.experiment_manager.target_columns[0]
+                if hasattr(self.experiment_manager, 'target_columns') and self.experiment_manager.target_columns
+                else None
+        )
+        
+        if selected is None:
+            return
+        
+        target_columns_to_use = selected if isinstance(selected, list) else [selected]
+        print(f"Target column(s) updated to: {target_columns_to_use}")
+        
+        # Update experiment manager
+        self.experiment_manager.target_columns = target_columns_to_use
+        
+        # Propagate MOBO state to panels
+        is_mobo = len(target_columns_to_use) > 1
+        if hasattr(self, 'model_frame') and self.model_frame is not None:
+            self.model_frame.set_multi_objective_mode(
+                is_mobo,
+                objective_names=target_columns_to_use if is_mobo else []
+            )
+            self.model_frame.reset_model()
 
     def update_exp_df_from_sheet(self):
         '''Updates the exp_df DataFrame with the current data from the exp_sheet.'''
@@ -2060,6 +2117,17 @@ class ALchemistApp(ctk.CTk):
             
             # Update UI state
             self._update_ui_state()
+            
+            # Detect multi-objective from session's experiment manager
+            target_cols = getattr(self.session.experiment_manager, 'target_columns', ['Output'])
+            is_mobo = len(target_cols) > 1
+            if is_mobo:
+                print(f"Session loaded with multi-objective targets: {target_cols}")
+            if hasattr(self, 'model_frame') and self.model_frame is not None:
+                self.model_frame.set_multi_objective_mode(
+                    is_mobo,
+                    objective_names=target_cols if is_mobo else []
+                )
             
         except Exception as e:
             print(f"Error syncing session to UI: {e}")

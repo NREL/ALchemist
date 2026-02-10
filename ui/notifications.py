@@ -188,48 +188,76 @@ class ResultNotificationWindow:
             pred_frame = ctk.CTkFrame(points_tab)
             pred_frame.pack(fill="x", padx=10, pady=10)
             
-            ctk.CTkLabel(
-                pred_frame, 
-                text="Predicted Outcome", 
-                font=("Arial", 16, "bold")
-            ).pack(pady=5)
+            # Check if this is a MOBO result with per-objective predictions
+            is_mobo = result_data.get('is_mobo', False)
+            mobo_preds = result_data.get('mobo_predictions', {})
             
-            # Display predicted value and uncertainty
-            pred_value = result_data.get('value')
-            pred_std = result_data.get('std')
-            goal = "Maximum" if result_data.get('maximize', True) else "Minimum"
-            
-            value_frame = ctk.CTkFrame(pred_frame)
-            value_frame.pack(fill="x", padx=10, pady=5)
-            
-            ctk.CTkLabel(value_frame, text=f"Predicted {goal} Value:", width=150, anchor="w").pack(side="left", padx=5)
-            
-            # Handle None values
-            if pred_value is not None:
-                # Convert to float to handle numpy types
-                pred_value_float = float(pred_value)
-                ctk.CTkLabel(value_frame, text=f"{pred_value_float:.4f}", anchor="w").pack(side="left", padx=5)
+            if is_mobo and mobo_preds:
+                ctk.CTkLabel(
+                    pred_frame, 
+                    text="Predicted Outcomes (per objective)", 
+                    font=("Arial", 16, "bold")
+                ).pack(pady=5)
+                
+                obj_names = result_data.get('objective_names', [])
+                for obj_name in obj_names:
+                    if obj_name in mobo_preds:
+                        obj_mean, obj_std = mobo_preds[obj_name]
+                        obj_frame = ctk.CTkFrame(pred_frame)
+                        obj_frame.pack(fill="x", padx=10, pady=3)
+                        
+                        mean_val = float(obj_mean[0]) if hasattr(obj_mean, '__len__') else float(obj_mean)
+                        ctk.CTkLabel(obj_frame, text=f"{obj_name}:", width=150, anchor="w",
+                                     font=("Arial", 12, "bold")).pack(side="left", padx=5)
+                        
+                        pred_text = f"{mean_val:.4f}"
+                        if obj_std is not None:
+                            std_val = float(obj_std[0]) if hasattr(obj_std, '__len__') else float(obj_std)
+                            pred_text += f"  ±{std_val:.4f}"
+                        ctk.CTkLabel(obj_frame, text=pred_text, anchor="w").pack(side="left", padx=5)
             else:
-                ctk.CTkLabel(value_frame, text="Not available", text_color="gray", anchor="w").pack(side="left", padx=5)
+                ctk.CTkLabel(
+                    pred_frame, 
+                    text="Predicted Outcome", 
+                    font=("Arial", 16, "bold")
+                ).pack(pady=5)
             
-            if pred_std is not None:
-                # Convert to float to handle numpy types
-                pred_std_float = float(pred_std)
+                # Display predicted value and uncertainty (single-objective only)
+                pred_value = result_data.get('value')
+                pred_std = result_data.get('std')
+                goal = "Maximum" if result_data.get('maximize', True) else "Minimum"
                 
-                std_frame = ctk.CTkFrame(pred_frame)
-                std_frame.pack(fill="x", padx=10, pady=5)
+                value_frame = ctk.CTkFrame(pred_frame)
+                value_frame.pack(fill="x", padx=10, pady=5)
                 
-                ctk.CTkLabel(std_frame, text="Prediction Uncertainty:", width=150, anchor="w").pack(side="left", padx=5)
-                ctk.CTkLabel(std_frame, text=f"±{pred_std_float:.4f}", anchor="w").pack(side="left", padx=5)
+                ctk.CTkLabel(value_frame, text=f"Predicted {goal} Value:", width=150, anchor="w").pack(side="left", padx=5)
                 
-                ci_frame = ctk.CTkFrame(pred_frame)
-                ci_frame.pack(fill="x", padx=10, pady=5)
+                # Handle None values
+                if pred_value is not None:
+                    # Convert to float to handle numpy types
+                    pred_value_float = float(pred_value)
+                    ctk.CTkLabel(value_frame, text=f"{pred_value_float:.4f}", anchor="w").pack(side="left", padx=5)
+                else:
+                    ctk.CTkLabel(value_frame, text="Not available", text_color="gray", anchor="w").pack(side="left", padx=5)
                 
-                ci_low = pred_value_float - 1.96 * pred_std_float
-                ci_high = pred_value_float + 1.96 * pred_std_float
-                
-                ctk.CTkLabel(ci_frame, text="95% Confidence Interval:", width=150, anchor="w").pack(side="left", padx=5)
-                ctk.CTkLabel(ci_frame, text=f"[{ci_low:.4f}, {ci_high:.4f}]", anchor="w").pack(side="left", padx=5)
+                if pred_std is not None:
+                    # Convert to float to handle numpy types
+                    pred_std_float = float(pred_std)
+                    
+                    std_frame = ctk.CTkFrame(pred_frame)
+                    std_frame.pack(fill="x", padx=10, pady=5)
+                    
+                    ctk.CTkLabel(std_frame, text="Prediction Uncertainty:", width=150, anchor="w").pack(side="left", padx=5)
+                    ctk.CTkLabel(std_frame, text=f"±{pred_std_float:.4f}", anchor="w").pack(side="left", padx=5)
+                    
+                    ci_frame = ctk.CTkFrame(pred_frame)
+                    ci_frame.pack(fill="x", padx=10, pady=5)
+                    
+                    ci_low = pred_value_float - 1.96 * pred_std_float
+                    ci_high = pred_value_float + 1.96 * pred_std_float
+                    
+                    ctk.CTkLabel(ci_frame, text="95% Confidence Interval:", width=150, anchor="w").pack(side="left", padx=5)
+                    ctk.CTkLabel(ci_frame, text=f"[{ci_low:.4f}, {ci_high:.4f}]", anchor="w").pack(side="left", padx=5)
             
     def _create_model_info_tab(self, model_data):
         """Create the model info tab content"""
@@ -369,11 +397,18 @@ class ResultNotificationWindow:
         )
         
         # Optimization goal
-        self._add_info_row(
-            strategy_scroll, 
-            "Optimization Goal", 
-            "Maximize" if result_data.get('maximize', True) else "Minimize"
-        )
+        if result_data.get('is_mobo'):
+            self._add_info_row(
+                strategy_scroll, 
+                "Optimization Type", 
+                "Multi-Objective (Pareto)"
+            )
+        else:
+            self._add_info_row(
+                strategy_scroll, 
+                "Optimization Goal", 
+                "Maximize" if result_data.get('maximize', True) else "Minimize"
+            )
         
         # Strategy parameters
         ctk.CTkLabel(
