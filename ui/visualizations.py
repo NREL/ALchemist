@@ -17,8 +17,9 @@ plt.rcParams['savefig.dpi'] = 600
 
 
 class Visualizations:
-    def __init__(self, parent, search_space, gpr_model, exp_df, encoded_X, encoded_y):
+    def __init__(self, parent, search_space, gpr_model, exp_df, encoded_X, encoded_y, session=None):
         self.parent = parent  # Store the parent widget
+        self.session = session
         self.search_space = search_space
         
         # Pre-convert search space to skopt if it's a SearchSpace object
@@ -45,9 +46,9 @@ class Visualizations:
         self.colorbar = None
 
         self.customization_options = {
-            'title': "Contour Plot of Model Predictions",
-            'xlabel': "X Axis",
-            'ylabel': "Y Axis",
+            'title': "",
+            'xlabel': "",
+            'ylabel': "",
             'colormap': "viridis",
             'font': "Arial",
             'title_fontsize': 12,
@@ -63,6 +64,18 @@ class Visualizations:
             'colorbar_format': "auto"   # Colorbar number formatting
         }
         self.last_plot_method = None
+
+    def _try_session_plot(self, method_name, **kwargs):
+        """Try plotting via Session API. Returns True on success, False for fallback."""
+        if self.session is None:
+            return False
+        try:
+            getattr(self.session, method_name)(ax=self.ax, **kwargs)
+            return True
+        except Exception as e:
+            print(f"Session API error ({method_name}): {e}, falling back to legacy code")
+            self.ax.clear()  # Clean up partial draws
+            return False
 
     def _get_number_formatter(self, format_type):
         """Create a matplotlib formatter based on the format type."""
@@ -373,6 +386,9 @@ class Visualizations:
             print("Error: Model is not trained.")
             return
 
+        # Clear user customization flags when switching plot types
+        if self.last_plot_method != self.plot_contour:
+            self._clear_user_set_flags()
         # Clear previous plot and colorbar.
         self.clear_current_plot()
 
@@ -380,145 +396,118 @@ class Visualizations:
         axis_x_name = self.contour_axis_x_dropdown.get()
         axis_y_name = self.contour_axis_y_dropdown.get()
 
-        # Convert search space to skopt dimensions if needed
-        skopt_space = self.search_space
-        if hasattr(self.search_space, 'to_skopt'):
-            skopt_space = self.search_space.to_skopt()
-
-        # Find the corresponding dimension objects.
-        axis_x_dim = next(dim for dim in skopt_space if dim.name == axis_x_name)
-        axis_y_dim = next(dim for dim in skopt_space if dim.name == axis_y_name)
-
-        # Check if this is a BoTorch model
-        if hasattr(model, 'generate_contour_data') and callable(model.generate_contour_data):
-            # For models with contour generation capability, use the specialized method
-            # First, find indices of the selected dimensions
-            # Use original feature names for sklearn models, regular feature names for BoTorch
-            if hasattr(model, 'original_feature_names') and model.original_feature_names:
-                feature_names = model.original_feature_names  # sklearn model
-            else:
-                feature_names = model.feature_names  # BoTorch model
-                
-            if feature_names:
-                x_idx = feature_names.index(axis_x_name)
-                y_idx = feature_names.index(axis_y_name)
-                
-                # Get fixed values for other dimensions
-                fixed_values = {}
-                for i, dim_name in enumerate(feature_names):
-                    if dim_name not in [axis_x_name, axis_y_name] and dim_name in self.fixed_controls:
-                        fixed_values[i] = self.fixed_controls[dim_name].get()
-                
-                # Get contour data
-                X1, X2, y_pred = model.generate_contour_data(
-                    x_range=axis_x_dim.bounds,
-                    y_range=axis_y_dim.bounds,
-                    fixed_values=fixed_values,
-                    x_idx=x_idx,
-                    y_idx=y_idx
-                )
-            else:
-                # Fallback if feature names aren't available
-                X1, X2 = np.meshgrid(
-                    np.linspace(axis_x_dim.bounds[0], axis_x_dim.bounds[1], 100),
-                    np.linspace(axis_y_dim.bounds[0], axis_y_dim.bounds[1], 100)
-                )
-                y_pred = np.zeros_like(X1)  # Placeholder
-        else:
-            # For non-BoTorch models, use existing code
-            # Create a grid for the two selected dimensions.
-            x1 = np.linspace(axis_x_dim.bounds[0], axis_x_dim.bounds[1], 100)
-            x2 = np.linspace(axis_y_dim.bounds[0], axis_y_dim.bounds[1], 100)
-            X1, X2 = np.meshgrid(x1, x2)
-            
-            # Create a dataframe with all variables needed for prediction
-            # Start with the grid variables (the ones we're plotting)
-            grid_df = pd.DataFrame({axis_x_name: X1.ravel(), axis_y_name: X2.ravel()})
-            
-            # Get list of all variables in the search space
-            all_dims = skopt_space
-            
-            # Add fixed values for all other variables
-            for dim in all_dims:
-                if dim.name not in [axis_x_name, axis_y_name]:
-                    if dim.name in self.fixed_controls:
-                        control = self.fixed_controls[dim.name]
-                        grid_df[dim.name] = control.get()
-                    else:
-                        # Use default mid-range value if no control exists
-                        if hasattr(dim, 'bounds'):
-                            grid_df[dim.name] = (dim.bounds[0] + dim.bounds[1]) / 2
-                        elif hasattr(dim, 'categories'):
-                            grid_df[dim.name] = dim.categories[0]
-            
-            # Check if the model has a _preprocess_X method (our custom models should have this)
-            if hasattr(model, '_preprocess_X') and callable(model._preprocess_X):
-                # Use the model's preprocessing method
-                processed_grid = model._preprocess_X(grid_df)
-                y_pred = model.predict(processed_grid)
-            else:
-                # No preprocessing needed
-                y_pred = model.predict(grid_df)
-            
-            # Reshape predictions to the grid shape
-            y_pred = y_pred.reshape(X1.shape)
+        # Gather fixed values from UI controls
+        fixed_values = {}
+        for dim_name, control in self.fixed_controls.items():
+            fixed_values[dim_name] = control.get()
 
         # Use the colormap from user customizations if set; otherwise default to 'viridis'.
-        cmap = (self.customization_options.get('colormap') if hasattr(self, 'customization_options') and 
+        cmap = (self.customization_options.get('colormap') if hasattr(self, 'customization_options') and
                 self.customization_options.get('colormap') else 'viridis')
-        contour = self.ax.contourf(X1, X2, y_pred, levels=20, cmap=cmap)
-        self.colorbar = self.fig.colorbar(contour, ax=self.ax)
-        
-        # Plot experimental data points only if customization option is True
-        if (self.exp_df is not None and 
-            not self.exp_df.empty and 
-            self.customization_options.get('show_experiments', False)):
-            if axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns:
-                self.ax.scatter(
-                    self.exp_df[axis_x_name], 
-                    self.exp_df[axis_y_name], 
-                    c='white', 
-                    edgecolors='black', 
-                    s=50, 
-                    label='Experiments'
-                )
-        
-        # Plot the next point if it exists and the customization option is True
-        main_app = self.parent.main_app if hasattr(self.parent, 'main_app') else self.parent
-        if (hasattr(main_app, 'next_point') and 
-            main_app.next_point is not None and 
-            self.customization_options.get('show_next_point', False)):
-            next_point = main_app.next_point
-            if axis_x_name in next_point.columns and axis_y_name in next_point.columns:
-                self.ax.scatter(
-                    next_point[axis_x_name], 
-                    next_point[axis_y_name], 
-                    c='red', 
-                    marker='D', 
-                    s=80, 
-                    label='Next Point',
-                    zorder=10  # Ensure it's on top
-                )
-                
-        # Add legend if there are labeled elements and they are being shown
-        legend_needed = False
-        if (self.exp_df is not None and 
-            not self.exp_df.empty and 
-            self.customization_options.get('show_experiments', False) and
-            axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns):
-            legend_needed = True
-        
-        main_app = self.parent.main_app if hasattr(self.parent, 'main_app') else self.parent
-        if (hasattr(main_app, 'next_point') and 
-            main_app.next_point is not None and 
-            self.customization_options.get('show_next_point', False) and
-            axis_x_name in main_app.next_point.columns and axis_y_name in main_app.next_point.columns):
-            legend_needed = True
-            
-        if legend_needed and not self.ax.get_legend():
-            self.ax.legend()
 
-        # Set default labels as defined by this plot only if not customized by user
+        show_experiments = self.customization_options.get('show_experiments', False)
+        show_suggestions = self.customization_options.get('show_next_point', False)
+
+        if not self._try_session_plot('plot_contour',
+                x_var=axis_x_name,
+                y_var=axis_y_name,
+                fixed_values=fixed_values,
+                show_experiments=show_experiments,
+                show_suggestions=show_suggestions,
+                cmap=cmap):
+            # === Legacy fallback ===
+            # Convert search space to skopt dimensions if needed
+            skopt_space = self.search_space
+            if hasattr(self.search_space, 'to_skopt'):
+                skopt_space = self.search_space.to_skopt()
+
+            # Find the corresponding dimension objects.
+            axis_x_dim = next(dim for dim in skopt_space if dim.name == axis_x_name)
+            axis_y_dim = next(dim for dim in skopt_space if dim.name == axis_y_name)
+
+            # Check if this is a BoTorch model
+            if hasattr(model, 'generate_contour_data') and callable(model.generate_contour_data):
+                if hasattr(model, 'original_feature_names') and model.original_feature_names:
+                    feature_names = model.original_feature_names
+                else:
+                    feature_names = model.feature_names
+
+                if feature_names:
+                    x_idx = feature_names.index(axis_x_name)
+                    y_idx = feature_names.index(axis_y_name)
+
+                    idx_fixed = {}
+                    for i, dim_name in enumerate(feature_names):
+                        if dim_name not in [axis_x_name, axis_y_name] and dim_name in self.fixed_controls:
+                            idx_fixed[i] = self.fixed_controls[dim_name].get()
+
+                    X1, X2, y_pred = model.generate_contour_data(
+                        x_range=axis_x_dim.bounds,
+                        y_range=axis_y_dim.bounds,
+                        fixed_values=idx_fixed,
+                        x_idx=x_idx,
+                        y_idx=y_idx
+                    )
+                else:
+                    X1, X2 = np.meshgrid(
+                        np.linspace(axis_x_dim.bounds[0], axis_x_dim.bounds[1], 100),
+                        np.linspace(axis_y_dim.bounds[0], axis_y_dim.bounds[1], 100)
+                    )
+                    y_pred = np.zeros_like(X1)
+            else:
+                x1 = np.linspace(axis_x_dim.bounds[0], axis_x_dim.bounds[1], 100)
+                x2 = np.linspace(axis_y_dim.bounds[0], axis_y_dim.bounds[1], 100)
+                X1, X2 = np.meshgrid(x1, x2)
+
+                grid_df = pd.DataFrame({axis_x_name: X1.ravel(), axis_y_name: X2.ravel()})
+
+                all_dims = skopt_space
+                for dim in all_dims:
+                    if dim.name not in [axis_x_name, axis_y_name]:
+                        if dim.name in self.fixed_controls:
+                            control = self.fixed_controls[dim.name]
+                            grid_df[dim.name] = control.get()
+                        else:
+                            if hasattr(dim, 'bounds'):
+                                grid_df[dim.name] = (dim.bounds[0] + dim.bounds[1]) / 2
+                            elif hasattr(dim, 'categories'):
+                                grid_df[dim.name] = dim.categories[0]
+
+                if hasattr(model, '_preprocess_X') and callable(model._preprocess_X):
+                    processed_grid = model._preprocess_X(grid_df)
+                    y_pred = model.predict(processed_grid)
+                else:
+                    y_pred = model.predict(grid_df)
+
+                y_pred = y_pred.reshape(X1.shape)
+
+            contour = self.ax.contourf(X1, X2, y_pred, levels=20, cmap=cmap)
+            self.colorbar = self.fig.colorbar(contour, ax=self.ax)
+
+            if (self.exp_df is not None and
+                not self.exp_df.empty and show_experiments):
+                if axis_x_name in self.exp_df.columns and axis_y_name in self.exp_df.columns:
+                    self.ax.scatter(
+                        self.exp_df[axis_x_name],
+                        self.exp_df[axis_y_name],
+                        c='white', edgecolors='black', s=50, label='Experiments'
+                    )
+
+            main_app = self.parent.main_app if hasattr(self.parent, 'main_app') else self.parent
+            if (hasattr(main_app, 'next_point') and
+                main_app.next_point is not None and show_suggestions):
+                next_point = main_app.next_point
+                if axis_x_name in next_point.columns and axis_y_name in next_point.columns:
+                    self.ax.scatter(
+                        next_point[axis_x_name],
+                        next_point[axis_y_name],
+                        c='red', marker='D', s=80, label='Next Point', zorder=10
+                    )
+
+            if self.ax.get_legend_handles_labels()[1]:
+                self.ax.legend()
+
+        # Set default labels only if not customized by user
         if not self.customization_options.get('xlabel_user_set'):
             self.ax.set_xlabel(axis_x_name)
             self.customization_options['xlabel'] = axis_x_name
@@ -528,79 +517,86 @@ class Visualizations:
         if not self.customization_options.get('title_user_set'):
             self.ax.set_title("Contour Plot of Model Predictions")
             self.customization_options['title'] = "Contour Plot of Model Predictions"
-        
-        self.fig.tight_layout()
 
-        # Store the current plot settings in customization options (only if not user-set)
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
 
-        # Apply any user customizations (only if they exist).
         self.apply_customizations_to_axes()
+        self.fig.tight_layout()
         self.canvas.draw()
 
-        # Remember that this is the last plot method called.
         self.last_plot_method = self.plot_contour
 
     def plot_metrics(self):
         """Generate the plots for model evaluation metrics using precomputed values."""
-        required_metrics = ['rmse_values', 'mae_values', 'mape_values', 'r2_values']
-        if not all(hasattr(self, attr) for attr in required_metrics):
-            print("Error: Metrics have not been computed. Please train the model first.")
-            return
-
-        rmse_values = self.rmse_values
-        mae_values = self.mae_values
-        mape_values = self.mape_values
-        r2_values = self.r2_values
-        error_metric = self.error_metric_var.get()
-        x_range = range(5, len(rmse_values) + 5)
-
+        if self.last_plot_method != self.plot_metrics:
+            self._clear_user_set_flags()
         self.clear_current_plot()
 
-        if error_metric == "RMSE":
-            self.ax.plot(x_range, rmse_values, marker='o')
-            if not self.customization_options.get('title_user_set'):
-                self.ax.set_title("RMSE vs Number of Observations")
-                self.customization_options['title'] = "RMSE vs Number of Observations"
-            if not self.customization_options.get('ylabel_user_set'):
-                self.ax.set_ylabel("RMSE")
-                self.customization_options['ylabel'] = "RMSE"
-        elif error_metric == "MAE":
-            self.ax.plot(x_range, mae_values, marker='o')
-            if not self.customization_options.get('title_user_set'):
-                self.ax.set_title("MAE vs Number of Observations")
-                self.customization_options['title'] = "MAE vs Number of Observations"
-            if not self.customization_options.get('ylabel_user_set'):
-                self.ax.set_ylabel("MAE")
-                self.customization_options['ylabel'] = "MAE"
-        elif error_metric == "MAPE":
-            self.ax.plot(x_range, mape_values, marker='o')
-            if not self.customization_options.get('title_user_set'):
-                self.ax.set_title("MAPE vs Number of Observations")
-                self.customization_options['title'] = "MAPE vs Number of Observations"
-            if not self.customization_options.get('ylabel_user_set'):
-                self.ax.set_ylabel("MAPE (%)")
-                self.customization_options['ylabel'] = "MAPE (%)"
-        elif error_metric == "R2":
-            self.ax.plot(x_range, r2_values, marker='o')
-            if not self.customization_options.get('title_user_set'):
-                self.ax.set_title("R² vs Number of Observations")
-                self.customization_options['title'] = "R² vs Number of Observations"
-            if not self.customization_options.get('ylabel_user_set'):
-                self.ax.set_ylabel("R²")
-                self.customization_options['ylabel'] = "R²"
-        else:
-            print("Error: Unknown error metric selected.")
-            return
+        error_metric = self.error_metric_var.get()
+        # Map UI metric names to session API names
+        metric_map = {'RMSE': 'rmse', 'MAE': 'mae', 'MAPE': 'mape', 'R2': 'r2'}
+        session_metric = metric_map.get(error_metric)
 
-        if not self.customization_options.get('xlabel_user_set'):
-            self.ax.set_xlabel("Number of Observations")
-            self.customization_options['xlabel'] = "Number of Observations"
+        if session_metric and self._try_session_plot('plot_metrics', metric=session_metric):
+            pass  # Session API succeeded
+        else:
+            # === Legacy fallback ===
+            required_metrics = ['rmse_values', 'mae_values', 'mape_values', 'r2_values']
+            if not all(hasattr(self, attr) for attr in required_metrics):
+                print("Error: Metrics have not been computed. Please train the model first.")
+                return
+
+            rmse_values = self.rmse_values
+            mae_values = self.mae_values
+            mape_values = self.mape_values
+            r2_values = self.r2_values
+            x_range = range(5, len(rmse_values) + 5)
+
+            if error_metric == "RMSE":
+                self.ax.plot(x_range, rmse_values, marker='o')
+                if not self.customization_options.get('title_user_set'):
+                    self.ax.set_title("RMSE vs Number of Observations")
+                    self.customization_options['title'] = "RMSE vs Number of Observations"
+                if not self.customization_options.get('ylabel_user_set'):
+                    self.ax.set_ylabel("RMSE")
+                    self.customization_options['ylabel'] = "RMSE"
+            elif error_metric == "MAE":
+                self.ax.plot(x_range, mae_values, marker='o')
+                if not self.customization_options.get('title_user_set'):
+                    self.ax.set_title("MAE vs Number of Observations")
+                    self.customization_options['title'] = "MAE vs Number of Observations"
+                if not self.customization_options.get('ylabel_user_set'):
+                    self.ax.set_ylabel("MAE")
+                    self.customization_options['ylabel'] = "MAE"
+            elif error_metric == "MAPE":
+                self.ax.plot(x_range, mape_values, marker='o')
+                if not self.customization_options.get('title_user_set'):
+                    self.ax.set_title("MAPE vs Number of Observations")
+                    self.customization_options['title'] = "MAPE vs Number of Observations"
+                if not self.customization_options.get('ylabel_user_set'):
+                    self.ax.set_ylabel("MAPE (%)")
+                    self.customization_options['ylabel'] = "MAPE (%)"
+            elif error_metric == "R2":
+                self.ax.plot(x_range, r2_values, marker='o')
+                if not self.customization_options.get('title_user_set'):
+                    self.ax.set_title("R² vs Number of Observations")
+                    self.customization_options['title'] = "R² vs Number of Observations"
+                if not self.customization_options.get('ylabel_user_set'):
+                    self.ax.set_ylabel("R²")
+                    self.customization_options['ylabel'] = "R²"
+            else:
+                print("Error: Unknown error metric selected.")
+                return
+
+            if not self.customization_options.get('xlabel_user_set'):
+                self.ax.set_xlabel("Number of Observations")
+                self.customization_options['xlabel'] = "Number of Observations"
+
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
-        self.fig.tight_layout()
         self.apply_customizations_to_axes()
+        self.fig.tight_layout()
         self.canvas.draw()
 
         self.last_plot_method = self.plot_metrics
@@ -617,196 +613,153 @@ class Visualizations:
             print("Error: Not enough observations for a parity plot (need at least 5).")
             return
 
+        # Clear user customization flags when switching plot types
+        if self.last_plot_method != self.plot_parity:
+            self._clear_user_set_flags()
         # Clear the current plot
         self.clear_current_plot()
-        
+
         # Get sigma multiplier from UI
         sigma_str = self.sigma_multiplier_var.get() if hasattr(self, 'sigma_multiplier_var') else "1.96"
         use_error_bars = sigma_str != "None"
         sigma_multiplier = float(sigma_str) if use_error_bars else 1.96
-        
-        # Check if the model has cached CV results
-        # Prefer calibrated results if toggle is ON and available
+
         use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
-        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
-            cv_results = self.gpr_model.cv_cached_results_calibrated
-            y_true_all = cv_results['y_true']
-            y_pred_all = cv_results['y_pred']
-            y_std_all = cv_results.get('y_std', None)
-            print("Using calibrated cross-validation results")
-        elif hasattr(self.gpr_model, 'cv_cached_results') and self.gpr_model.cv_cached_results is not None:
-            # Use cached results
-            cv_results = self.gpr_model.cv_cached_results
-            y_true_all = cv_results['y_true']
-            y_pred_all = cv_results['y_pred']
-            y_std_all = cv_results.get('y_std', None)
-            
-            print("Using cached cross-validation results")
-        else:
-            # If no cached results, perform cross-validation on the fly
-            print("No cached results found, performing cross-validation...")
-            
-            # Get the raw data from experiment manager
-            X = self.exp_df.drop(columns=["Output"])
-            y = self.exp_df["Output"]
-            
-            # Determine the backend in use
-            backend = self.gpr_model.__class__.__name__
-            
-            # Set up K-fold cross-validation
-            kf = KFold(n_splits=5, shuffle=True, random_state=42)
-            y_true_all = []
-            y_pred_all = []
-            y_std_all = []
-            
-            # Perform cross-validation based on backend type
-            if backend == "SklearnModel":
-                # For scikit-learn models
-                for train_idx, test_idx in kf.split(X):
-                    # Split data
-                    X_train = X.iloc[train_idx]
-                    y_train = y.iloc[train_idx]
-                    X_test = X.iloc[test_idx]
-                    y_test = y.iloc[test_idx]
-                    
-                    # Create a copy of the model with the same hyperparameters
-                    optimized_kernel = self.gpr_model.optimized_kernel
-                    cv_model = GaussianProcessRegressor(
-                        kernel=optimized_kernel,
-                        optimizer=None,  # Don't re-optimize
-                        random_state=self.gpr_model.random_state
-                    )
-                    
-                    # Process data the same way as the original model
-                    if hasattr(self.gpr_model, '_preprocess_X'):
-                        # Use the simpler preprocessing
-                        X_train_processed = self.gpr_model._preprocess_X(X_train)
-                        cv_model.fit(X_train_processed, y_train.values)
-                        X_test_processed = self.gpr_model._preprocess_X(X_test)
-                        y_pred, y_std = cv_model.predict(X_test_processed, return_std=True)
-                    else:
-                        # Fallback to direct fitting
-                        cv_model.fit(X_train.values, y_train.values)
-                        y_pred, y_std = cv_model.predict(X_test.values, return_std=True)
-                    
-                    # Store actual and predicted values
-                    y_true_all.extend(y_test.values)
-                    y_pred_all.extend(y_pred)
-                    y_std_all.extend(y_std)
-                        
-            elif backend == "BoTorchModel":
-                # TODO (Branch 9): Refactor parity plot to use session API
-                # This advanced visualization feature currently requires direct model instantiation
-                # for recreating CV folds. Future: Add CV prediction method to Session API.
-                
-                # For BoTorch models - TEMPORARY direct instantiation
-                for train_idx, test_idx in kf.split(X):
-                    # Split data
-                    X_train = X.iloc[train_idx]
-                    y_train = y.iloc[train_idx]
-                    X_test = X.iloc[test_idx]
-                    y_test = y.iloc[test_idx]
-                    
-                    # Create temporary experiment manager with the training data
-                    from alchemist_core.data.experiment_manager import ExperimentManager
-                    temp_exp_manager = ExperimentManager()
-                    train_df = pd.concat([X_train, y_train.rename("Output")], axis=1)
-                    temp_exp_manager.df = train_df
-                    
-                    # TEMPORARY: Direct model import for CV fold recreation
-                    from alchemist_core.models.botorch_model import BoTorchModel
-                    temp_model = BoTorchModel(
-                        training_iter=self.gpr_model.training_iter,
-                        random_state=self.gpr_model.random_state,
-                        kernel_options=self.gpr_model.kernel_options,
-                        cat_dims=self.gpr_model.cat_dims
-                    )
-                    
-                    # Train model without optimizing (just to set up structure)
-                    temp_model.train(temp_exp_manager)
-                    
-                    # Load the optimized state from the full model
-                    if hasattr(self.gpr_model, 'fitted_state_dict') and self.gpr_model.fitted_state_dict is not None:
-                        temp_model.model.load_state_dict(self.gpr_model.fitted_state_dict, strict=False)
-                    
-                    # Make predictions on test set with std
-                    y_pred, y_std = temp_model.predict(X_test, return_std=True)
-                    
-                    # Store results
-                    y_true_all.extend(y_test.values)
-                    y_pred_all.extend(y_pred)
-                    y_std_all.extend(y_std)
+
+        if not self._try_session_plot('plot_parity',
+                sigma_multiplier=sigma_multiplier,
+                use_calibrated=use_calibrated,
+                show_error_bars=use_error_bars,
+                show_metrics=True):
+            # === Legacy fallback ===
+            if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+                cv_results = self.gpr_model.cv_cached_results_calibrated
+                y_true_all = cv_results['y_true']
+                y_pred_all = cv_results['y_pred']
+                y_std_all = cv_results.get('y_std', None)
+                print("Using calibrated cross-validation results")
+            elif hasattr(self.gpr_model, 'cv_cached_results') and self.gpr_model.cv_cached_results is not None:
+                cv_results = self.gpr_model.cv_cached_results
+                y_true_all = cv_results['y_true']
+                y_pred_all = cv_results['y_pred']
+                y_std_all = cv_results.get('y_std', None)
+                print("Using cached cross-validation results")
             else:
-                print(f"Error: Unsupported backend type '{backend}' for parity plot.")
-                return
-        
-        # Convert to numpy arrays
-        y_true_all = np.array(y_true_all)
-        y_pred_all = np.array(y_pred_all)
-        y_std_all = np.array(y_std_all) if y_std_all is not None and len(y_std_all) > 0 else None
-        
-        # Calculate metrics
-        rmse = np.sqrt(mean_squared_error(y_true_all, y_pred_all))
-        mae = mean_absolute_error(y_true_all, y_pred_all)
-        try:
-            r2 = r2_score(y_true_all, y_pred_all)
-        except:
-            r2 = float('nan')
-        
-        # Create parity plot with error bars if available
-        if use_error_bars and y_std_all is not None:
-            # Calculate error bar sizes (vertical only, on y-axis)
-            yerr = sigma_multiplier * y_std_all
-            
-            # Plot with error bars
-            self.ax.errorbar(y_true_all, y_pred_all, yerr=yerr, 
-                           fmt='o', alpha=0.7, capsize=3, capthick=1,
-                           elinewidth=1, markersize=5)
-        else:
-            # Plot without error bars
-            self.ax.scatter(y_true_all, y_pred_all, alpha=0.7)
-        
-        # Add parity line (y=x)
-        min_val = min(np.min(y_true_all), np.min(y_pred_all))
-        max_val = max(np.max(y_true_all), np.max(y_pred_all))
-        self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='Parity line')
-        
-        # Determine confidence interval percentage for title
-        ci_labels = {
-            1.0: "68% CI",
-            1.96: "95% CI",
-            2.0: "95.4% CI",
-            2.58: "99% CI",
-            3.0: "99.7% CI"
-        }
-        ci_label = ci_labels.get(sigma_multiplier, f"{sigma_multiplier}σ")
-        
-        # Set labels and title only if not customized by user
-        if use_error_bars and y_std_all is not None:
-            title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}\nError bars: ±{sigma_multiplier}σ ({ci_label})"
-        else:
-            title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
-            
-        if not self.customization_options.get('title_user_set'):
-            self.ax.set_title(title_str)
-            self.customization_options['title'] = title_str
-        if not self.customization_options.get('xlabel_user_set'):
-            self.ax.set_xlabel("Actual Values")
-            self.customization_options['xlabel'] = "Actual Values"
-        if not self.customization_options.get('ylabel_user_set'):
-            self.ax.set_ylabel("Predicted Values")
-            self.customization_options['ylabel'] = "Predicted Values"
-        
-        # Store axis limits
+                print("No cached results found, performing cross-validation...")
+                X = self.exp_df.drop(columns=["Output"])
+                y = self.exp_df["Output"]
+                backend = self.gpr_model.__class__.__name__
+                kf = KFold(n_splits=5, shuffle=True, random_state=42)
+                y_true_all = []
+                y_pred_all = []
+                y_std_all = []
+
+                if backend == "SklearnModel":
+                    for train_idx, test_idx in kf.split(X):
+                        X_train = X.iloc[train_idx]
+                        y_train = y.iloc[train_idx]
+                        X_test = X.iloc[test_idx]
+                        y_test = y.iloc[test_idx]
+                        optimized_kernel = self.gpr_model.optimized_kernel
+                        cv_model = GaussianProcessRegressor(
+                            kernel=optimized_kernel,
+                            optimizer=None,
+                            random_state=self.gpr_model.random_state
+                        )
+                        if hasattr(self.gpr_model, '_preprocess_X'):
+                            X_train_processed = self.gpr_model._preprocess_X(X_train)
+                            cv_model.fit(X_train_processed, y_train.values)
+                            X_test_processed = self.gpr_model._preprocess_X(X_test)
+                            y_pred, y_std = cv_model.predict(X_test_processed, return_std=True)
+                        else:
+                            cv_model.fit(X_train.values, y_train.values)
+                            y_pred, y_std = cv_model.predict(X_test.values, return_std=True)
+                        y_true_all.extend(y_test.values)
+                        y_pred_all.extend(y_pred)
+                        y_std_all.extend(y_std)
+
+                elif backend == "BoTorchModel":
+                    for train_idx, test_idx in kf.split(X):
+                        X_train = X.iloc[train_idx]
+                        y_train = y.iloc[train_idx]
+                        X_test = X.iloc[test_idx]
+                        y_test = y.iloc[test_idx]
+                        from alchemist_core.data.experiment_manager import ExperimentManager
+                        temp_exp_manager = ExperimentManager()
+                        train_df = pd.concat([X_train, y_train.rename("Output")], axis=1)
+                        temp_exp_manager.df = train_df
+                        from alchemist_core.models.botorch_model import BoTorchModel
+                        temp_model = BoTorchModel(
+                            training_iter=self.gpr_model.training_iter,
+                            random_state=self.gpr_model.random_state,
+                            kernel_options=self.gpr_model.kernel_options,
+                            cat_dims=self.gpr_model.cat_dims
+                        )
+                        temp_model.train(temp_exp_manager)
+                        if hasattr(self.gpr_model, 'fitted_state_dict') and self.gpr_model.fitted_state_dict is not None:
+                            temp_model.model.load_state_dict(self.gpr_model.fitted_state_dict, strict=False)
+                        y_pred, y_std = temp_model.predict(X_test, return_std=True)
+                        y_true_all.extend(y_test.values)
+                        y_pred_all.extend(y_pred)
+                        y_std_all.extend(y_std)
+                else:
+                    print(f"Error: Unsupported backend type '{backend}' for parity plot.")
+                    return
+
+            y_true_all = np.array(y_true_all)
+            y_pred_all = np.array(y_pred_all)
+            y_std_all = np.array(y_std_all) if y_std_all is not None and len(y_std_all) > 0 else None
+
+            rmse = np.sqrt(mean_squared_error(y_true_all, y_pred_all))
+            mae = mean_absolute_error(y_true_all, y_pred_all)
+            try:
+                r2 = r2_score(y_true_all, y_pred_all)
+            except:
+                r2 = float('nan')
+
+            if use_error_bars and y_std_all is not None:
+                yerr = sigma_multiplier * y_std_all
+                self.ax.errorbar(y_true_all, y_pred_all, yerr=yerr,
+                               fmt='o', alpha=0.7, capsize=3, capthick=1,
+                               elinewidth=1, markersize=5)
+            else:
+                self.ax.scatter(y_true_all, y_pred_all, alpha=0.7)
+
+            min_val = min(np.min(y_true_all), np.min(y_pred_all))
+            max_val = max(np.max(y_true_all), np.max(y_pred_all))
+            self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='Parity line')
+
+            ci_labels = {
+                1.0: "68% CI",
+                1.96: "95% CI",
+                2.0: "95.4% CI",
+                2.58: "99% CI",
+                3.0: "99.7% CI"
+            }
+            ci_label = ci_labels.get(sigma_multiplier, f"{sigma_multiplier}σ")
+
+            if use_error_bars and y_std_all is not None:
+                title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}\nError bars: ±{sigma_multiplier}σ ({ci_label})"
+            else:
+                title_str = f"Cross-Validation Parity Plot\nRMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
+
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title(title_str)
+                self.customization_options['title'] = title_str
+            if not self.customization_options.get('xlabel_user_set'):
+                self.ax.set_xlabel("Actual Values")
+                self.customization_options['xlabel'] = "Actual Values"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("Predicted Values")
+                self.customization_options['ylabel'] = "Predicted Values"
+
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
-        
-        # Apply customizations and draw
+
         self.apply_customizations_to_axes()
         self.fig.tight_layout()
         self.canvas.draw()
-        
-        # Remember last plot method
+
         self.last_plot_method = self.plot_parity
 
     def compute_calibration_metrics(self):
@@ -911,230 +864,211 @@ class Visualizations:
 
     def plot_qq_plot(self):
         """Generate and display a Q-Q plot of standardized residuals vs. normal distribution."""
-        # Compute z-score diagnostics
-        z_diagnostics = self.compute_zscore_diagnostics()
-        
-        if z_diagnostics is None:
-            return
-        
-        z_scores = z_diagnostics['z_scores']
-        z_mean = z_diagnostics['mean']
-        z_std = z_diagnostics['std']
-        n_samples = z_diagnostics['n_samples']
-        results_type = z_diagnostics.get('results_type', 'uncalibrated')
-        
+        # Clear user customization flags when switching plot types
+        if self.last_plot_method != self.plot_qq_plot:
+            self._clear_user_set_flags()
         # Clear the current plot
         self.clear_current_plot()
-        
-        # Sort z-scores
-        z_sorted = np.sort(z_scores)
-        
-        # Compute theoretical quantiles from standard normal distribution
-        theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(z_scores)))
-        
-        # Create Q-Q plot
-        self.ax.scatter(theoretical_quantiles, z_sorted, alpha=0.7, s=30, edgecolors='k', linewidth=0.5)
-        
-        # Add diagonal reference line (perfect calibration)
-        min_val = min(theoretical_quantiles.min(), z_sorted.min())
-        max_val = max(theoretical_quantiles.max(), z_sorted.max())
-        self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2, label='Perfect calibration')
-        
-        # Add confidence bands (optional - using ±1.96/sqrt(n) as rough guide)
-        # For small samples, this gives a sense of expected deviation
-        if n_samples < 100:
-            se = 1.96 / np.sqrt(n_samples)
-            self.ax.fill_between([min_val, max_val], 
-                                [min_val - se, max_val - se], 
-                                [min_val + se, max_val + se], 
-                                alpha=0.2, color='red', label='Approximate 95% CI')
-        
-        # Set labels and title
-        cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
-        title_str = f"Q-Q Plot: Standardized Residuals vs. Normal Distribution{cal_label}\n"
-        title_str += f"Mean(z) = {z_mean:.3f}, Std(z) = {z_std:.3f}, N = {n_samples}"
-        
-        if not self.customization_options.get('title_user_set'):
-            self.ax.set_title(title_str, fontsize=11)
-            self.customization_options['title'] = title_str
-        if not self.customization_options.get('xlabel_user_set'):
-            self.ax.set_xlabel("Theoretical Quantiles (Standard Normal)")
-            self.customization_options['xlabel'] = "Theoretical Quantiles (Standard Normal)"
-        if not self.customization_options.get('ylabel_user_set'):
-            self.ax.set_ylabel("Observed Quantiles (Standardized Residuals)")
-            self.customization_options['ylabel'] = "Observed Quantiles (Standardized Residuals)"
-        
-        self.ax.legend(loc='best')
-        self.ax.grid(True, alpha=0.3)
-        
-        # Store axis limits
+
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+
+        if not self._try_session_plot('plot_qq', use_calibrated=use_calibrated):
+            # === Legacy fallback ===
+            z_diagnostics = self.compute_zscore_diagnostics()
+
+            if z_diagnostics is None:
+                return
+
+            z_scores = z_diagnostics['z_scores']
+            z_mean = z_diagnostics['mean']
+            z_std = z_diagnostics['std']
+            n_samples = z_diagnostics['n_samples']
+            results_type = z_diagnostics.get('results_type', 'uncalibrated')
+
+            z_sorted = np.sort(z_scores)
+            theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(z_scores)))
+
+            self.ax.scatter(theoretical_quantiles, z_sorted, alpha=0.7, s=30, edgecolors='k', linewidth=0.5)
+
+            min_val = min(theoretical_quantiles.min(), z_sorted.min())
+            max_val = max(theoretical_quantiles.max(), z_sorted.max())
+            self.ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2, label='Perfect calibration')
+
+            if n_samples < 100:
+                se = 1.96 / np.sqrt(n_samples)
+                self.ax.fill_between([min_val, max_val],
+                                    [min_val - se, max_val - se],
+                                    [min_val + se, max_val + se],
+                                    alpha=0.2, color='red', label='Approximate 95% CI')
+
+            cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
+            title_str = f"Q-Q Plot: Standardized Residuals vs. Normal Distribution{cal_label}\n"
+            title_str += f"Mean(z) = {z_mean:.3f}, Std(z) = {z_std:.3f}, N = {n_samples}"
+
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title(title_str, fontsize=11)
+                self.customization_options['title'] = title_str
+            if not self.customization_options.get('xlabel_user_set'):
+                self.ax.set_xlabel("Theoretical Quantiles (Standard Normal)")
+                self.customization_options['xlabel'] = "Theoretical Quantiles (Standard Normal)"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("Observed Quantiles (Standardized Residuals)")
+                self.customization_options['ylabel'] = "Observed Quantiles (Standardized Residuals)"
+
+            self.ax.legend(loc='best')
+            self.ax.grid(True, alpha=0.3)
+
+            # Print diagnostics to console
+            cal_status = "CALIBRATED" if results_type == "calibrated" else "UNCALIBRATED"
+            print("\n" + "="*60)
+            print(f"Z-SCORE DIAGNOSTICS ({cal_status})")
+            print("="*60)
+            print(f"Mean(z):     {z_mean:.4f}  (expected ≈ 0 for well-calibrated)")
+            print(f"Std(z):      {z_std:.4f}  (expected ≈ 1 for well-calibrated)")
+            print(f"Sample size: {n_samples}")
+            print("="*60)
+            if abs(z_mean) < 0.1 and abs(z_std - 1.0) < 0.2:
+                print("✓ Model appears well-calibrated (unbiased, good uncertainty)")
+            elif abs(z_mean) > 0.2:
+                print("⚠ Model may be biased (mean(z) far from 0)")
+            elif abs(z_std - 1.0) > 0.3:
+                if z_std < 1.0:
+                    print("⚠ Model may be under-confident (std(z) < 1)")
+                else:
+                    print("⚠ Model may be over-confident (std(z) > 1)")
+            print("="*60 + "\n")
+
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
-        
-        # Apply customizations and draw
+
         self.apply_customizations_to_axes()
         self.fig.tight_layout()
         self.canvas.draw()
-        
-        # Print diagnostics to console
-        cal_status = "CALIBRATED" if results_type == "calibrated" else "UNCALIBRATED"
-        print("\n" + "="*60)
-        print(f"Z-SCORE DIAGNOSTICS ({cal_status})")
-        print("="*60)
-        print(f"Mean(z):     {z_mean:.4f}  (expected ≈ 0 for well-calibrated)")
-        print(f"Std(z):      {z_std:.4f}  (expected ≈ 1 for well-calibrated)")
-        print(f"Sample size: {n_samples}")
-        print("="*60)
-        if abs(z_mean) < 0.1 and abs(z_std - 1.0) < 0.2:
-            print("✓ Model appears well-calibrated (unbiased, good uncertainty)")
-        elif abs(z_mean) > 0.2:
-            print("⚠ Model may be biased (mean(z) far from 0)")
-        elif abs(z_std - 1.0) > 0.3:
-            if z_std < 1.0:
-                print("⚠ Model may be under-confident (std(z) < 1)")
-            else:
-                print("⚠ Model may be over-confident (std(z) > 1)")
-        print("="*60 + "\n")
-        
-        # Remember last plot method
+
         self.last_plot_method = self.plot_qq_plot
 
     def plot_calibration_curve(self):
         """Generate and display a calibration curve (reliability diagram)."""
-        # Compute calibration metrics
-        calibration_metrics = self.compute_calibration_metrics()
-        
-        if calibration_metrics is None:
-            return
-        
-        # Get results type from metrics
-        results_type = list(calibration_metrics.values())[0].get('results_type', 'uncalibrated')
-        
-        # Get CV results for computing custom probability levels
-        # Use calibrated if toggle is ON and available
-        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
-        if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
-            cv_results = self.gpr_model.cv_cached_results_calibrated
-        else:
-            cv_results = self.gpr_model.cv_cached_results
-            
-        y_true = cv_results['y_true']
-        y_pred = cv_results['y_pred']
-        y_std = cv_results['y_std']
-        n_samples = len(y_true)
-        
+        # Clear user customization flags when switching plot types
+        if self.last_plot_method != self.plot_calibration_curve:
+            self._clear_user_set_flags()
         # Clear the current plot
         self.clear_current_plot()
-        
-        # Compute empirical coverage for a range of nominal probabilities
-        # Use sigma values corresponding to different confidence levels
-        nominal_probs = np.arange(0.10, 1.00, 0.05)
-        empirical_coverage = []
-        
-        for prob in nominal_probs:
-            # Convert probability to sigma multiplier (assuming normal distribution)
-            # For symmetric interval: P(|Z| < z) = prob → z = Φ^(-1)((1+prob)/2)
-            sigma = stats.norm.ppf((1 + prob) / 2)
-            
-            # Compute empirical coverage at this sigma level
-            lower_bound = y_pred - sigma * y_std
-            upper_bound = y_pred + sigma * y_std
-            within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
-            empirical_coverage.append(np.mean(within_interval))
-        
-        empirical_coverage = np.array(empirical_coverage)
-        
-        # Create calibration plot
-        self.ax.plot(nominal_probs, empirical_coverage, 'o-', linewidth=2, 
-                    markersize=6, label='Empirical coverage', color='steelblue')
-        
-        # Add perfect calibration line (diagonal)
-        self.ax.plot([0, 1], [0, 1], 'r--', linewidth=2, label='Perfect calibration')
-        
-        # Shade over-confident and under-confident regions
-        self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage, 
-                            where=(empirical_coverage < nominal_probs),
-                            alpha=0.2, color='orange', label='Over-confident')
-        self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage, 
-                            where=(empirical_coverage >= nominal_probs),
-                            alpha=0.2, color='blue', label='Under-confident')
-        
-        # Set labels and title
-        cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
-        title_str = f"Calibration Curve (Reliability Diagram){cal_label}\nN = {n_samples}"
-        
-        if not self.customization_options.get('title_user_set'):
-            self.ax.set_title(title_str)
-            self.customization_options['title'] = title_str
-        if not self.customization_options.get('xlabel_user_set'):
-            self.ax.set_xlabel("Nominal Coverage Probability")
-            self.customization_options['xlabel'] = "Nominal Coverage Probability"
-        if not self.customization_options.get('ylabel_user_set'):
-            self.ax.set_ylabel("Empirical Coverage Probability")
-            self.customization_options['ylabel'] = "Empirical Coverage Probability"
-        
-        self.ax.legend(loc='best')
-        self.ax.grid(True, alpha=0.3)
-        self.ax.set_xlim([0, 1])
-        self.ax.set_ylim([0, 1])
-        
-        # Store axis limits
+
+        use_calibrated = (hasattr(self, 'use_calibrated_var') and self.use_calibrated_var.get())
+
+        if not self._try_session_plot('plot_calibration', use_calibrated=use_calibrated):
+            # === Legacy fallback ===
+            calibration_metrics = self.compute_calibration_metrics()
+
+            if calibration_metrics is None:
+                return
+
+            results_type = list(calibration_metrics.values())[0].get('results_type', 'uncalibrated')
+
+            if use_calibrated and hasattr(self.gpr_model, 'cv_cached_results_calibrated') and self.gpr_model.cv_cached_results_calibrated is not None:
+                cv_results = self.gpr_model.cv_cached_results_calibrated
+            else:
+                cv_results = self.gpr_model.cv_cached_results
+
+            y_true = cv_results['y_true']
+            y_pred = cv_results['y_pred']
+            y_std = cv_results['y_std']
+            n_samples = len(y_true)
+
+            nominal_probs = np.arange(0.10, 1.00, 0.05)
+            empirical_coverage = []
+
+            for prob in nominal_probs:
+                sigma = stats.norm.ppf((1 + prob) / 2)
+                lower_bound = y_pred - sigma * y_std
+                upper_bound = y_pred + sigma * y_std
+                within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
+                empirical_coverage.append(np.mean(within_interval))
+
+            empirical_coverage = np.array(empirical_coverage)
+
+            self.ax.plot(nominal_probs, empirical_coverage, 'o-', linewidth=2,
+                        markersize=6, label='Empirical coverage', color='steelblue')
+            self.ax.plot([0, 1], [0, 1], 'r--', linewidth=2, label='Perfect calibration')
+
+            self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage,
+                                where=(empirical_coverage < nominal_probs),
+                                alpha=0.2, color='orange', label='Over-confident')
+            self.ax.fill_between(nominal_probs, nominal_probs, empirical_coverage,
+                                where=(empirical_coverage >= nominal_probs),
+                                alpha=0.2, color='blue', label='Under-confident')
+
+            cal_label = " (Calibrated)" if results_type == "calibrated" else " (Uncalibrated)"
+            title_str = f"Calibration Curve (Reliability Diagram){cal_label}\nN = {n_samples}"
+
+            if not self.customization_options.get('title_user_set'):
+                self.ax.set_title(title_str)
+                self.customization_options['title'] = title_str
+            if not self.customization_options.get('xlabel_user_set'):
+                self.ax.set_xlabel("Nominal Coverage Probability")
+                self.customization_options['xlabel'] = "Nominal Coverage Probability"
+            if not self.customization_options.get('ylabel_user_set'):
+                self.ax.set_ylabel("Empirical Coverage Probability")
+                self.customization_options['ylabel'] = "Empirical Coverage Probability"
+
+            self.ax.legend(loc='best')
+            self.ax.grid(True, alpha=0.3)
+            self.ax.set_xlim([0, 1])
+            self.ax.set_ylim([0, 1])
+
+            # Print calibration metrics to console
+            cal_status = "(CALIBRATED)" if results_type == "calibrated" else "(UNCALIBRATED)"
+            print("\n" + "="*70)
+            print(f"CALIBRATION METRICS (Empirical Coverage) {cal_status}")
+            print("="*70)
+            print(f"{'Confidence':<15} {'Nominal':<12} {'Empirical':<12} {'Difference':<12} {'Status'}")
+            print("-"*70)
+
+            for sigma, metrics in sorted(calibration_metrics.items()):
+                nominal = metrics['nominal']
+                empirical = metrics['empirical']
+                diff = empirical - nominal
+
+                if abs(diff) < 0.05:
+                    status = "✓ Good"
+                elif diff > 0.1:
+                    status = "⚠ Under-conf"
+                elif diff < -0.1:
+                    status = "⚠ Over-conf"
+                else:
+                    status = "~ Acceptable"
+
+                if sigma == 1.0:
+                    conf_label = "±1.0σ (68%)"
+                elif sigma == 1.96:
+                    conf_label = "±1.96σ (95%)"
+                elif sigma == 2.0:
+                    conf_label = "±2.0σ (95%)"
+                elif sigma == 2.58:
+                    conf_label = "±2.58σ (99%)"
+                elif sigma == 3.0:
+                    conf_label = "±3.0σ (99.7%)"
+                else:
+                    conf_label = f"±{sigma}σ"
+
+                print(f"{conf_label:<15} {nominal:>6.3f} ({nominal*100:>4.1f}%)  {empirical:>6.3f} ({empirical*100:>4.1f}%)  "
+                      f"{diff:>+6.3f} ({diff*100:>+5.1f}%)  {status}")
+
+            print("-"*70)
+            print(f"Sample size: N = {n_samples}")
+            if n_samples < 30:
+                print("⚠ WARNING: Small sample size (N < 30). Coverage estimates may be noisy.")
+                print("           Consider reporting binomial confidence intervals.")
+            print("="*70 + "\n")
+
         self.customization_options['xlim'] = self.ax.get_xlim()
         self.customization_options['ylim'] = self.ax.get_ylim()
-        
-        # Apply customizations and draw
+
         self.apply_customizations_to_axes()
         self.fig.tight_layout()
         self.canvas.draw()
-        
-        # Print calibration metrics to console
-        cal_status = "(CALIBRATED)" if results_type == "calibrated" else "(UNCALIBRATED)"
-        print("\n" + "="*70)
-        print(f"CALIBRATION METRICS (Empirical Coverage) {cal_status}")
-        print("="*70)
-        print(f"{'Confidence':<15} {'Nominal':<12} {'Empirical':<12} {'Difference':<12} {'Status'}")
-        print("-"*70)
-        
-        for sigma, metrics in sorted(calibration_metrics.items()):
-            nominal = metrics['nominal']
-            empirical = metrics['empirical']
-            diff = empirical - nominal
-            
-            # Determine status
-            if abs(diff) < 0.05:
-                status = "✓ Good"
-            elif diff > 0.1:
-                status = "⚠ Under-conf"
-            elif diff < -0.1:
-                status = "⚠ Over-conf"
-            else:
-                status = "~ Acceptable"
-            
-            # Format sigma as confidence level
-            if sigma == 1.0:
-                conf_label = "±1.0σ (68%)"
-            elif sigma == 1.96:
-                conf_label = "±1.96σ (95%)"
-            elif sigma == 2.0:
-                conf_label = "±2.0σ (95%)"
-            elif sigma == 2.58:
-                conf_label = "±2.58σ (99%)"
-            elif sigma == 3.0:
-                conf_label = "±3.0σ (99.7%)"
-            else:
-                conf_label = f"±{sigma}σ"
-            
-            print(f"{conf_label:<15} {nominal:>6.3f} ({nominal*100:>4.1f}%)  {empirical:>6.3f} ({empirical*100:>4.1f}%)  "
-                  f"{diff:>+6.3f} ({diff*100:>+5.1f}%)  {status}")
-        
-        print("-"*70)
-        print(f"Sample size: N = {n_samples}")
-        if n_samples < 30:
-            print("⚠ WARNING: Small sample size (N < 30). Coverage estimates may be noisy.")
-            print("           Consider reporting binomial confidence intervals.")
-        print("="*70 + "\n")
-        
-        # Remember last plot method
+
         self.last_plot_method = self.plot_calibration_curve
 
     
@@ -1336,7 +1270,9 @@ class Visualizations:
                     # Set flags to indicate these were set by user
                     'title_user_set': True,
                     'xlabel_user_set': True,
-                    'ylabel_user_set': True
+                    'ylabel_user_set': True,
+                    'xlim_user_set': True,
+                    'ylim_user_set': True
                 }
                 
                 # Update the customization options with user values
@@ -1344,13 +1280,15 @@ class Visualizations:
                 
                 # Apply customizations directly without regenerating the plot
                 self.apply_customizations_to_axes()
-                
-                # If we're changing data display options (experiments/next point), 
+                self.fig.tight_layout()
+                self.canvas.draw()
+
+                # If we're changing data display options (experiments/next point),
                 # we need to redraw the plot to show/hide those elements
-                if (self.last_plot_method == self.plot_contour and 
+                if (self.last_plot_method == self.plot_contour and
                     ('show_experiments' in user_customizations or 'show_next_point' in user_customizations)):
                     self.last_plot_method()
-                
+
                 # Briefly change button text to show success
                 apply_button.configure(text="Applied!")
                 customization_window.after(1000, lambda: apply_button.configure(text="Apply"))
@@ -1370,24 +1308,34 @@ class Visualizations:
     def apply_customizations_to_axes(self):
         """
         Apply user customization options stored in self.customization_options to the axes.
-        Only properties that have been explicitly set by the user (i.e. non-empty) will override the default.
+        Title/xlabel/ylabel text is only overwritten when the user has explicitly set them
+        via the Customize Plot dialog (_user_set flags). Font/style properties are always applied.
         """
         custom = getattr(self, 'customization_options', {})
         font = custom.get('font', None)
-        if custom.get('title'):
+        # Only override text content when the user explicitly set it via the dialog
+        if custom.get('title_user_set') and custom.get('title'):
             self.ax.set_title(custom['title'], fontname=font if font else None, fontsize=custom.get('title_fontsize', None), fontweight=custom.get('title_fontstyle', None))
-        if custom.get('xlabel'):
+        elif font or custom.get('title_fontsize') or custom.get('title_fontstyle'):
+            # Apply font/style to whatever title is already on the axes
+            self.ax.set_title(self.ax.get_title(), fontname=font if font else None, fontsize=custom.get('title_fontsize', None), fontweight=custom.get('title_fontstyle', None))
+        if custom.get('xlabel_user_set') and custom.get('xlabel'):
             self.ax.set_xlabel(custom['xlabel'], fontname=font if font else None, fontsize=custom.get('label_fontsize', None), fontweight=custom.get('label_fontstyle', None))
-        if custom.get('ylabel'):
+        elif font or custom.get('label_fontsize') or custom.get('label_fontstyle'):
+            self.ax.set_xlabel(self.ax.get_xlabel(), fontname=font if font else None, fontsize=custom.get('label_fontsize', None), fontweight=custom.get('label_fontstyle', None))
+        if custom.get('ylabel_user_set') and custom.get('ylabel'):
             self.ax.set_ylabel(custom['ylabel'], fontname=font if font else None, fontsize=custom.get('label_fontsize', None), fontweight=custom.get('label_fontstyle', None))
+        elif font or custom.get('label_fontsize') or custom.get('label_fontstyle'):
+            self.ax.set_ylabel(self.ax.get_ylabel(), fontname=font if font else None, fontsize=custom.get('label_fontsize', None), fontweight=custom.get('label_fontstyle', None))
         if font:
             for label in (self.ax.get_xticklabels() + self.ax.get_yticklabels()):
                 label.set_fontname(font)
                 if custom.get('label_fontstyle') == 'bold':
                     label.set_fontweight('bold')
-        if custom.get('xlim'):
+        # Only apply axis limits if the user explicitly set them via the dialog
+        if custom.get('xlim_user_set') and custom.get('xlim'):
             self.ax.set_xlim(custom['xlim'])
-        if custom.get('ylim'):
+        if custom.get('ylim_user_set') and custom.get('ylim'):
             self.ax.set_ylim(custom['ylim'])
         
         # Apply tick styling (use defaults if not explicitly set)
@@ -1460,15 +1408,34 @@ class Visualizations:
             'Lengthscale': lengthscale
         }
 
+    def _clear_user_set_flags(self):
+        """Clear per-plot user customization flags (title, labels, limits).
+
+        Called when switching to a different plot type so that customizations
+        set for one plot (e.g. contour) don't bleed into another (e.g. parity).
+        Font/style settings persist across plots.
+        """
+        for flag in ('title_user_set', 'xlabel_user_set', 'ylabel_user_set',
+                     'xlim_user_set', 'ylim_user_set'):
+            self.customization_options.pop(flag, None)
+
     def clear_current_plot(self):
-        """Clears the current axes and removes any existing colorbar."""
-        if hasattr(self, 'colorbar') and self.colorbar is not None:
-            try:
-                self.colorbar.remove()
-            except Exception as e:
-                print("Error removing previous colorbar:", e)
-            self.colorbar = None
+        """Clears the current axes and removes any extra axes (e.g. colorbars)."""
+        if self.fig is None or self.ax is None:
+            self.initialize_figure()
+            return
+        # Remove all extra axes (colorbars, make_axes_locatable dividers) from figure
+        for fig_ax in list(self.fig.axes):
+            if fig_ax is not self.ax:
+                try:
+                    fig_ax.remove()
+                except Exception:
+                    pass
+        self.colorbar = None
         self.ax.clear()
+        # Reset the axes locator so make_axes_locatable dividers from the
+        # previous contour plot don't keep reserving colorbar space.
+        self.ax.set_axes_locator(None)
 
     def _on_calibration_toggle(self):
         """Callback when calibrated/uncalibrated toggle is changed. Re-plots the last plot."""

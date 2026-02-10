@@ -1916,7 +1916,8 @@ class OptimizationSession:
         title: Optional[str] = None,
         show_metrics: bool = True,
         show_error_bars: bool = True,
-        target_columns: Optional[str] = None
+        target_columns: Optional[str] = None,
+        ax: Optional['Axes'] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create parity plot of actual vs predicted values from cross-validation.
@@ -1934,6 +1935,8 @@ class OptimizationSession:
             show_error_bars: Display uncertainty error bars
             target_columns: For multi-objective: objective name, 'all', or None.
                 Single-objective sessions ignore this parameter.
+            ax: Existing matplotlib Axes to draw on (creates new figure if None).
+                Cannot be used with multi-objective 'all' mode.
 
         Returns:
             matplotlib Figure object (displays inline in Jupyter)
@@ -1953,6 +1956,11 @@ class OptimizationSession:
 
         # Multi-objective 'all' → subplot grid
         if isinstance(resolved, list):
+            if ax is not None:
+                raise ValueError(
+                    "Cannot use ax= with multi-objective 'all' mode. "
+                    "Specify a single target_columns name instead."
+                )
             n = len(resolved)
             fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
             if n == 1:
@@ -1986,7 +1994,7 @@ class OptimizationSession:
         if obj_title is None and self.is_multi_objective:
             obj_title = f"Parity: {resolved}"
 
-        fig, ax = create_parity_plot(
+        fig, plot_ax = create_parity_plot(
             y_true=y_true,
             y_pred=y_pred,
             y_std=y_std,
@@ -1995,7 +2003,8 @@ class OptimizationSession:
             dpi=dpi,
             title=obj_title,
             show_metrics=show_metrics,
-            show_error_bars=show_error_bars
+            show_error_bars=show_error_bars,
+            ax=ax
         )
 
         logger.info("Generated parity plot")
@@ -2146,7 +2155,8 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_columns: Optional[str] = None
+        target_columns: Optional[str] = None,
+        ax: Optional['Axes'] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create 2D contour plot of model predictions over a variable space.
@@ -2273,7 +2283,7 @@ class OptimizationSession:
 
         resolved = self._resolve_target_column(target_columns)
 
-        def _contour_for_obj(obj_name, ax=None):
+        def _contour_for_obj(obj_name, contour_ax=None):
             preds, _ = self._get_predictions_for_objective(predict_result, obj_name)
             preds_grid = preds.reshape(X_grid.shape)
             obj_title = title or (f"Contour: {obj_name}" if self.is_multi_objective
@@ -2282,21 +2292,26 @@ class OptimizationSession:
                 x_grid=X_grid, y_grid=Y_grid, predictions_grid=preds_grid,
                 x_var=x_var, y_var=y_var, exp_x=exp_x, exp_y=exp_y,
                 suggest_x=sugg_x, suggest_y=sugg_y, cmap=cmap,
-                figsize=figsize, dpi=dpi, title=obj_title, ax=ax
+                figsize=figsize, dpi=dpi, title=obj_title, ax=contour_ax
             )
 
         if isinstance(resolved, list):
+            if ax is not None:
+                raise ValueError(
+                    "Cannot use ax= with multi-objective 'all' mode. "
+                    "Specify a single target_columns name instead."
+                )
             n = len(resolved)
             fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
             if n == 1:
                 axes = [axes]
             for i, obj in enumerate(resolved):
-                _contour_for_obj(obj, ax=axes[i])
+                _contour_for_obj(obj, contour_ax=axes[i])
             fig.tight_layout()
             logger.info(f"Generated multi-objective contour plot for {x_var} vs {y_var}")
             return fig
 
-        fig, ax, cbar = _contour_for_obj(resolved)
+        fig, plot_ax, cbar = _contour_for_obj(resolved, contour_ax=ax)
         logger.info(f"Generated contour plot for {x_var} vs {y_var}")
         return fig
     
@@ -2517,7 +2532,8 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         use_cached: bool = True,
-        target_columns: Optional[str] = None
+        target_columns: Optional[str] = None,
+        ax: Optional['Axes'] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Plot cross-validation metrics as a function of training set size.
@@ -2589,14 +2605,15 @@ class OptimizationSession:
         metric_array = np.array(metric_values)
         
         # Delegate to visualization module
-        fig, ax = create_metrics_plot(
+        fig, plot_ax = create_metrics_plot(
             training_sizes=x_range,
             metric_values=metric_array,
             metric_name=metric,
             figsize=figsize,
-            dpi=dpi
+            dpi=dpi,
+            ax=ax
         )
-        
+
         logger.info(f"Generated {metric} metrics plot with {len(metric_values)} points")
         return fig
     
@@ -2606,7 +2623,8 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_columns: Optional[str] = None
+        target_columns: Optional[str] = None,
+        ax: Optional['Axes'] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create Q-Q (quantile-quantile) plot for model residuals normality check.
@@ -2617,6 +2635,8 @@ class OptimizationSession:
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
             target_columns: For multi-objective: objective name, 'all', or None.
+            ax: Existing matplotlib Axes to draw on (creates new figure if None).
+                Cannot be used with multi-objective 'all' mode.
 
         Returns:
             matplotlib Figure object
@@ -2626,7 +2646,7 @@ class OptimizationSession:
 
         resolved = self._resolve_target_column(target_columns)
 
-        def _qq_for_obj(obj_name, ax=None):
+        def _qq_for_obj(obj_name, qq_ax=None):
             cv_results = self._check_cv_results(
                 use_calibrated,
                 target_columns=obj_name if self.is_multi_objective else None
@@ -2639,22 +2659,39 @@ class OptimizationSession:
                 z_scores = residuals / y_std
             else:
                 z_scores = residuals / np.std(residuals)
-            obj_title = title or (f"Q-Q Plot: {obj_name}" if self.is_multi_objective else None)
+            if title:
+                obj_title = title
+            elif self.is_multi_objective:
+                obj_title = f"Q-Q Plot: {obj_name}"
+            else:
+                cal_label = " (Calibrated)" if use_calibrated else ""
+                z_mean = float(np.mean(z_scores))
+                z_std_val = float(np.std(z_scores, ddof=1))
+                n = len(z_scores)
+                obj_title = (
+                    f"Q-Q Plot: Standardized Residuals vs. Normal Distribution{cal_label}\n"
+                    f"Mean(z) = {z_mean:.3f}, Std(z) = {z_std_val:.3f}, N = {n}"
+                )
             return create_qq_plot(z_scores=z_scores, figsize=figsize, dpi=dpi,
-                                  title=obj_title, ax=ax)
+                                  title=obj_title, ax=qq_ax)
 
         if isinstance(resolved, list):
+            if ax is not None:
+                raise ValueError(
+                    "Cannot use ax= with multi-objective 'all' mode. "
+                    "Specify a single target_columns name instead."
+                )
             n = len(resolved)
             fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
             if n == 1:
                 axes = [axes]
             for i, obj in enumerate(resolved):
-                _qq_for_obj(obj, ax=axes[i])
+                _qq_for_obj(obj, qq_ax=axes[i])
             fig.tight_layout()
             logger.info(f"Generated multi-objective Q-Q plot ({n} objectives)")
             return fig
 
-        fig, ax = _qq_for_obj(resolved)
+        fig, plot_ax = _qq_for_obj(resolved, qq_ax=ax)
         logger.info("Generated Q-Q plot for residuals")
         return fig
     
@@ -2665,7 +2702,8 @@ class OptimizationSession:
         figsize: Tuple[float, float] = (8, 6),
         dpi: int = 100,
         title: Optional[str] = None,
-        target_columns: Optional[str] = None
+        target_columns: Optional[str] = None,
+        ax: Optional['Axes'] = None
     ) -> Figure: # pyright: ignore[reportInvalidTypeForm]
         """
         Create calibration plot showing reliability of uncertainty estimates.
@@ -2677,6 +2715,8 @@ class OptimizationSession:
             dpi: Dots per inch for figure resolution
             title: Custom title (default: auto-generated)
             target_columns: For multi-objective: objective name, 'all', or None.
+            ax: Existing matplotlib Axes to draw on (creates new figure if None).
+                Cannot be used with multi-objective 'all' mode.
 
         Returns:
             matplotlib Figure object
@@ -2688,7 +2728,7 @@ class OptimizationSession:
 
         resolved = self._resolve_target_column(target_columns)
 
-        def _cal_for_obj(obj_name, ax=None):
+        def _cal_for_obj(obj_name, cal_ax=None):
             cv_results = self._check_cv_results(
                 use_calibrated,
                 target_columns=obj_name if self.is_multi_objective else None
@@ -2709,26 +2749,40 @@ class OptimizationSession:
                 upper_bound = y_pred + sigma * y_std
                 within_interval = (y_true >= lower_bound) & (y_true <= upper_bound)
                 empirical_coverage.append(np.mean(within_interval))
-            obj_title = title or (f"Calibration: {obj_name}" if self.is_multi_objective
-                                   else "Calibration Plot: Uncertainty Reliability")
+            if title:
+                obj_title = title
+            elif self.is_multi_objective:
+                obj_title = f"Calibration: {obj_name}"
+            else:
+                cal_label = " (Calibrated)" if use_calibrated else " (Uncalibrated)"
+                n = len(y_true)
+                obj_title = (
+                    f"Calibration Curve (Reliability Diagram){cal_label}\n"
+                    f"N = {n}"
+                )
             return create_calibration_plot(
                 nominal_probs=nominal_probs,
                 empirical_coverage=np.array(empirical_coverage),
-                figsize=figsize, dpi=dpi, title=obj_title, ax=ax
+                figsize=figsize, dpi=dpi, title=obj_title, ax=cal_ax
             )
 
         if isinstance(resolved, list):
+            if ax is not None:
+                raise ValueError(
+                    "Cannot use ax= with multi-objective 'all' mode. "
+                    "Specify a single target_columns name instead."
+                )
             n = len(resolved)
             fig, axes = plt.subplots(1, n, figsize=(figsize[0] * n, figsize[1]), dpi=dpi)
             if n == 1:
                 axes = [axes]
             for i, obj in enumerate(resolved):
-                _cal_for_obj(obj, ax=axes[i])
+                _cal_for_obj(obj, cal_ax=axes[i])
             fig.tight_layout()
             logger.info(f"Generated multi-objective calibration plot ({n} objectives)")
             return fig
 
-        fig, ax = _cal_for_obj(resolved)
+        fig, plot_ax = _cal_for_obj(resolved, cal_ax=ax)
         logger.info("Generated calibration plot for uncertainty estimates")
         return fig
 

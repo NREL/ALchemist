@@ -165,32 +165,46 @@ def create_contour_plot(
     else:
         fig = ax.figure
         should_tight_layout = False
-    
+
+    # Helper: create colorbar without permanently stealing space from the parent
+    # axes.  When the caller owns the axes (ax was passed in), we use
+    # make_axes_locatable so the colorbar axes is a child divider — removing it
+    # later restores the parent to its original size.
+    def _add_colorbar(mappable):
+        if should_tight_layout:
+            # New figure — normal colorbar is fine
+            return fig.colorbar(mappable, ax=ax)
+        else:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.08)
+            return fig.colorbar(mappable, cax=cax)
+
     # Contour plot with optional log scaling
     if use_log_scale:
         from matplotlib.colors import LogNorm, SymLogNorm
 
         min_val = float(np.nanmin(predictions_grid))
         max_val = float(np.nanmax(predictions_grid))
-        
+
         # For predominantly negative values (like LogEI), use negative to make positive
         if max_val <= 0:
             # All negative: flip sign to make positive for LogNorm, but keep track for colorbar
             plot_grid = -predictions_grid
             vmin_pos = -max_val  # Most negative original value (worst)
             vmax_pos = -min_val  # Closest to zero original value (best)
-            
+
             # Create log-spaced levels in the positive space
             levels = np.logspace(np.log10(vmin_pos), np.log10(vmax_pos), 50)
             contour = ax.contourf(x_grid, y_grid, plot_grid, levels=levels, cmap=cmap, norm=LogNorm(vmin=vmin_pos, vmax=vmax_pos))
-            
+
             # Create colorbar with negative value labels
-            cbar = fig.colorbar(contour, ax=ax)
-            
+            cbar = _add_colorbar(contour)
+
             # Create a custom formatter that shows negative values
             def fmt(x, pos):
                 return f'{-x:.0e}'
-            
+
             import matplotlib.ticker as ticker
             cbar.ax.yaxis.set_major_formatter(ticker.FuncFormatter(fmt))
         elif min_val >= 0:
@@ -198,13 +212,13 @@ def create_contour_plot(
             plot_grid = predictions_grid
             levels = np.logspace(np.log10(min_val + 1e-10), np.log10(max_val), 50)
             contour = ax.contourf(x_grid, y_grid, plot_grid, levels=levels, cmap=cmap, norm=LogNorm())
-            cbar = fig.colorbar(contour, ax=ax)
+            cbar = _add_colorbar(contour)
         else:
             # Mixed signs: use SymLogNorm
             linthresh = max(abs(min_val), abs(max_val)) * 0.01
-            contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=50, cmap=cmap, 
+            contour = ax.contourf(x_grid, y_grid, predictions_grid, levels=50, cmap=cmap,
                                 norm=SymLogNorm(linthresh=linthresh, vmin=min_val, vmax=max_val))
-            cbar = fig.colorbar(contour, ax=ax)
+            cbar = _add_colorbar(contour)
     else:
         # Mask NaN values so contourf leaves those regions blank
         masked_grid = np.ma.masked_invalid(predictions_grid)
@@ -242,7 +256,7 @@ def create_contour_plot(
 
         contour = ax.contourf(x_grid, y_grid, masked_grid, levels=levels, cmap=cmap,
                             vmin=min_val, vmax=max_val)
-        cbar = fig.colorbar(contour, ax=ax)
+        cbar = _add_colorbar(contour)
     
     # Only set label if we haven't already created colorbar
     if not use_log_scale or (use_log_scale and not (max_val <= 0 and min_val < 0)):

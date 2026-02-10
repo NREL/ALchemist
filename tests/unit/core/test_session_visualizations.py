@@ -338,6 +338,53 @@ def test_plot_slice_categorical_variable():
         session.plot_slice('catalyst')
 
 
+def test_plot_parity_with_external_axes():
+    """Test that plot_parity draws on caller-provided axes and returns the same figure."""
+    session = create_trained_session()
+    fig, ax = plt.subplots(figsize=(5, 4))
+    result = session.plot_parity(ax=ax)
+    assert result is fig  # Same figure, not a new one
+    assert len(fig.axes) == 1
+    plt.close(fig)
+
+
+def test_plot_contour_with_external_axes():
+    """Test that plot_contour draws on caller-provided axes and returns the same figure."""
+    session = create_trained_session()
+    fig, ax = plt.subplots(figsize=(5, 4))
+    result = session.plot_contour('x1', 'x2', ax=ax)
+    assert result is fig
+    assert len(fig.axes) >= 2  # main axes + colorbar
+    plt.close(fig)
+
+
+def test_plot_metrics_with_external_axes():
+    """Test that plot_metrics draws on caller-provided axes and returns the same figure."""
+    session = create_trained_session()
+    fig, ax = plt.subplots(figsize=(5, 4))
+    result = session.plot_metrics(ax=ax)
+    assert result is fig
+    plt.close(fig)
+
+
+def test_plot_qq_with_external_axes():
+    """Test that plot_qq draws on caller-provided axes and returns the same figure."""
+    session = create_trained_session()
+    fig, ax = plt.subplots(figsize=(5, 4))
+    result = session.plot_qq(ax=ax)
+    assert result is fig
+    plt.close(fig)
+
+
+def test_plot_calibration_with_external_axes():
+    """Test that plot_calibration draws on caller-provided axes and returns the same figure."""
+    session = create_trained_session()
+    fig, ax = plt.subplots(figsize=(5, 4))
+    result = session.plot_calibration(ax=ax)
+    assert result is fig
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     # Run a simple test
     print("Testing session visualization methods...")

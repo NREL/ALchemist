@@ -281,23 +281,36 @@ class GaussianProcessPanel(ctk.CTkFrame):
         """Switch kernel options based on selected backend and update acquisition options."""
         self.sklearn_frame.pack_forget()
         self.botorch_frame.pack_forget()
-        # self.ax_frame.pack_forget()
         
         backend = self.backend_var.get()
         if backend == "scikit-learn":
             self.sklearn_frame.pack(fill="x", expand=True)
-            # Apply current advanced options state
             self.toggle_advanced_options()
         elif backend == "botorch":
             self.botorch_frame.pack(fill="x", expand=True)
-            # Apply current advanced options state
             self.toggle_advanced_options()
-        # elif backend == "ax":
-        #     self.ax_frame.pack(fill="x", expand=True)
         
         # Update acquisition panel if it exists
         if hasattr(self.main_app, 'acquisition_panel'):
             self.main_app.acquisition_panel.update_for_backend(backend)
+
+    def set_multi_objective_mode(self, is_mobo, objective_names=None):
+        """Configure the panel for multi-objective optimization.
+        
+        When MOBO is active, forces BoTorch backend and disables sklearn.
+        """
+        self._is_mobo = is_mobo
+        self._objective_names = objective_names or []
+        
+        if is_mobo:
+            # Force BoTorch backend
+            self.backend_var.set("botorch")
+            self.load_backend_options()
+            # Disable the backend selector so user can't switch to sklearn
+            self.backend_segmented.configure(state="disabled")
+            print(f"Multi-objective mode: BoTorch backend required ({len(self._objective_names)} objectives)")
+        else:
+            self.backend_segmented.configure(state="normal")
 
     def load_acquisition_options(self):
         """Show acquisition function options based on the selected backend."""
@@ -474,20 +487,48 @@ class GaussianProcessPanel(ctk.CTkFrame):
             # Store in main_app for compatibility
             self.main_app.gpr_model = model
             
-            # Get detailed per-fold CV metrics for visualization
-            # The session API only returns aggregated metrics, but we need per-fold for plots
-            cv_metrics = model.evaluate(
-                self.main_app.session.experiment_manager,
-                cv_splits=5,
-                debug=debug,
-                progress_callback=progress_callback
-            )
+            is_mobo = getattr(self, '_is_mobo', False)
             
-            # Store per-fold metrics in the main app for visualization
-            self.main_app.rmse_values = cv_metrics.get("RMSE", [])
-            self.main_app.mae_values = cv_metrics.get("MAE", [])
-            self.main_app.mape_values = cv_metrics.get("MAPE", [])
-            self.main_app.r2_values = cv_metrics.get("R²", [])
+            if is_mobo:
+                # For MOBO, the model already cached per-objective CV during training
+                # in model.cv_cached_results_multi. Skip the single-objective evaluate().
+                cv_metrics = None
+                self.main_app.rmse_values = []
+                self.main_app.mae_values = []
+                self.main_app.mape_values = []
+                self.main_app.r2_values = []
+                
+                # Compute and print per-objective metrics from cached CV
+                mobo_cv = getattr(model, 'cv_cached_results_multi', {})
+                if mobo_cv:
+                    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+                    print("Per-objective CV metrics:")
+                    for obj_name, cv_data in mobo_cv.items():
+                        y_true = cv_data['y_true']
+                        y_pred = cv_data['y_pred']
+                        rmse = float(mean_squared_error(y_true, y_pred) ** 0.5)
+                        mae = float(mean_absolute_error(y_true, y_pred))
+                        r2 = float(r2_score(y_true, y_pred))
+                        print(f"  {obj_name}: RMSE={rmse:.3f}, MAE={mae:.3f}, R²={r2:.3f}")
+            else:
+                # Get detailed per-fold CV metrics for visualization
+                # The session API only returns aggregated metrics, but we need per-fold for plots
+                cv_metrics = model.evaluate(
+                    self.main_app.session.experiment_manager,
+                    cv_splits=5,
+                    debug=debug,
+                    progress_callback=progress_callback
+                )
+                
+                # Store per-fold metrics in the main app for visualization
+                self.main_app.rmse_values = cv_metrics.get("RMSE", [])
+                self.main_app.mae_values = cv_metrics.get("MAE", [])
+                self.main_app.mape_values = cv_metrics.get("MAPE", [])
+                self.main_app.r2_values = cv_metrics.get("R²", [])
+
+            # Cache on the model so session.plot_metrics() finds them without recalculating
+            if cv_metrics is not None:
+                setattr(model, '_cached_cv_metrics_5', cv_metrics)
             
             # Store hyperparameters
             self.main_app.learned_hyperparameters = results.get('hyperparameters', {})
@@ -501,31 +542,49 @@ class GaussianProcessPanel(ctk.CTkFrame):
             session_metrics = results.get('metrics', {})
             
             print(f"Model trained successfully with {backend} backend")
-            print(f"  R² = {session_metrics.get('r2', 'N/A'):.3f}")
-            print(f"  RMSE = {session_metrics.get('rmse', 'N/A'):.3f}")
+            if is_mobo:
+                print(f"  {len(self._objective_names)} objectives — see per-objective CV metrics above")
+            else:
+                r2_val = session_metrics.get('r2')
+                rmse_val = session_metrics.get('rmse')
+                print(f"  R² = {r2_val:.3f}" if isinstance(r2_val, (int, float)) else f"  R² = {r2_val}")
+                print(f"  RMSE = {rmse_val:.3f}" if isinstance(rmse_val, (int, float)) else f"  RMSE = {rmse_val}")
             print("Learned hyperparameters:", self.main_app.learned_hyperparameters)
             
             # Initialize visualization with model results
             # Get target column name from experiment manager
             target_col = self.main_app.experiment_manager.target_columns[0]
             
-            self.visualizations = Visualizations(
-                parent=self,
-                search_space=self.main_app.search_space,
-                gpr_model=self.main_app.gpr_model,
-                exp_df=self.main_app.exp_df,
-                encoded_X=self.main_app.exp_df.drop(columns=target_col),
-                encoded_y=self.main_app.exp_df[target_col]
-            )
-            self.visualizations.rmse_values = self.main_app.rmse_values
-            self.visualizations.mae_values = self.main_app.mae_values
-            self.visualizations.mape_values = self.main_app.mape_values
-            self.visualizations.r2_values = self.main_app.r2_values
-            self.visualize_button.configure(state="normal")
-            
+            # For multi-objective, skip single-target visualization for now
+            is_mobo = getattr(self, '_is_mobo', False)
+            if is_mobo:
+                print(f"Multi-objective model trained ({len(self.main_app.experiment_manager.target_columns)} objectives). "
+                      f"Visualization support for MOBO is limited.")
+                self.visualizations = None
+            else:
+                self.visualizations = Visualizations(
+                    parent=self,
+                    search_space=self.main_app.search_space,
+                    gpr_model=self.main_app.gpr_model,
+                    exp_df=self.main_app.exp_df,
+                    encoded_X=self.main_app.exp_df.drop(columns=target_col),
+                    encoded_y=self.main_app.exp_df[target_col],
+                    session=self.main_app.session
+                )
+                self.visualizations.rmse_values = self.main_app.rmse_values
+                self.visualizations.mae_values = self.main_app.mae_values
+                self.visualizations.mape_values = self.main_app.mape_values
+                self.visualizations.r2_values = self.main_app.r2_values
+                self.visualize_button.configure(state="normal")
+
             # Enable acquisition panel
             if hasattr(self.main_app, 'acquisition_panel'):
-                self.main_app.acquisition_panel.enable()
+                is_mobo = getattr(self, '_is_mobo', False)
+                objective_names = getattr(self, '_objective_names', [])
+                self.main_app.acquisition_panel.enable(
+                    is_mobo=is_mobo,
+                    objective_names=objective_names
+                )
         
         except Exception as e:
             print(f"Error training model: {e}")
@@ -544,7 +603,8 @@ class GaussianProcessPanel(ctk.CTkFrame):
             gpr_model=self.main_app.gpr_model,
             exp_df=self.main_app.exp_df,
             encoded_X=self.main_app.exp_df.drop(columns=target_col),
-            encoded_y=self.main_app.exp_df[target_col]
+            encoded_y=self.main_app.exp_df[target_col],
+            session=self.main_app.session
         )
         self.visualizations.rmse_values = self.main_app.rmse_values
         self.visualizations.mae_values = self.main_app.mae_values
